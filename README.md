@@ -132,3 +132,11 @@ MIT License © 2023 SiegAxel.
 ¿Cómo garantizan la seguridad?
 
 🔒 Todo el código es auditable, y usamos estándares NIST.
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## 📚 Documentación
+
+- [Guía Técnica](docs/technical.md) - Detalles de implementación
+- [Cómo Contribuir](CONTRIBUTING.md) - Guía para desarrolladores
+- [Seguridad](SECURITY.md) - Políticas de reporte de vulnerabilidades
