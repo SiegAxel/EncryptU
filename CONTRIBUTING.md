@@ -17,6 +17,6 @@ Antes de contribuir, lee nuestro [Código de Conducta](CODE_OF_CONDUCT.md).
     python -m venv venv
     source venv/bin/activate  # Linux/macOS
     venv\Scripts\activate     # Windows
-    pip install -r requirements.txt  # Incluye herramientas de testing
+    pip install -r requirements-dev.txt  # Incluye herramientas de testing
 
 

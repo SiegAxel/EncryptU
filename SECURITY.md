@@ -7,7 +7,7 @@
 # 🔒 Política de Seguridad
 
 ## 🚨 Reportar Vulnerabilidades
-Si encuentras una vulnerabilidad, **NO abras un issue público**. Envía un correo a `security@tu-dominio.com` con:
+Si encuentras una vulnerabilidad, **NO abras un issue público**. Envía un correo a `security@dominio.com` con:
 - Descripción detallada del problema.
 - Pasos para reproducir.
 - Impacto potencial.
