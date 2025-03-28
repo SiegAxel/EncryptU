@@ -37,6 +37,8 @@ Sistema de Encriptación Automática de Contraseñas para Usuarios no Técnicos
 
 
 🔍 Problema
+
+
 La seguridad de contraseñas es crítica, especialmente para usuarios mayores o con dificultades técnicas. Muchos:
 
 Reutilizan contraseñas simples (ej: "pepito123").
@@ -48,20 +50,32 @@ No gestionan claves únicas por sitio web.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 💡 Solución
+
+
 EncryptU es una herramienta local que:
+
 ✅ Encripta automáticamente contraseñas comunes en claves únicas por sitio web.
+
 ✅ Guarda credenciales en una base de datos encriptada.
+
 ✅ Simplifica el registro/login con un solo clic.
+
 ✅ Funciona offline para máxima privacidad.
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 ✨ Características Principales
+
 Funcionalidad	Descripción
+
 🔄 Encriptación Simétrica	Usa AES-256 con claves derivadas de una contraseña maestra.
+
 🌐 Claves Únicas por Sitio	Mismo password + dominio web = encriptación única.
+
 💾 Almacenamiento Seguro	Base de datos cifrada con SQLCipher.
+
 🖥️ Interfaz Sencilla	Diseñada para usuarios no técnicos (GUI/CLI).
+
 🔄 Autocompletado	Integración con navegadores para login automático.
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -99,17 +113,22 @@ Base de Datos: Encriptada con SQLCipher (AES-256-CBC).
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 📜 Licencia
+
 MIT License © 2023 SiegAxel.
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 ❓ Preguntas Frecuentes
+
 ¿Cómo recupero mis contraseñas si olvido la clave maestra?
+
 ❌ No es posible (por diseño). La clave maestra nunca se almacena.
 
 ¿Es compatible con móviles?
+
 ⚠️ Actualmente solo para desktop. Versión móvil en roadmap.
 
 ¿Cómo garantizan la seguridad?
+
 🔒 Todo el código es auditable, y usamos estándares NIST.
