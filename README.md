@@ -122,7 +122,7 @@ pytest tests/ -v
 ---  
 
 ## 📌 **Roadmap**  
-- [x] **v1.0**: CLI Básico (Q4 2023)  
+- [x] **v1.0**: CLI Básico (Q4 2025)  
 - [ ] **v1.5**: Interfaz Gráfica (Tkinter)  
 - [ ] **v2.0**: Extensión para Navegadores  
 - [ ] **v3.0**: Soporte Multiplataforma (macOS)  
