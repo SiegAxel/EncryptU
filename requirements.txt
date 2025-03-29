@@ -8,3 +8,6 @@ platformdirs==4.3.7
 pycodestyle==2.12.1
 pylint==3.3.6
 tomlkit==0.13.2
+pycryptodome==3.22.0
+argon2-cffi==21.3.0
+pyinstaller==6.12.0
