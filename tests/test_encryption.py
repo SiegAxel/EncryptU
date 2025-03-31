@@ -1,31 +1,64 @@
-#Futuro Testing 
-
-
-""" 
 import pytest
-from cryptography.fernet import Fernet
-# Ajusta la importación según tu estructura real
-from src.crypto.manager import encrypt_password, decrypt_password
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+from crypto.encryption import encriptar_contraseña
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+import base64
 
-def test_encryption_decryption():
-    master_password = "Sup3rS3cretP@ssw0rd!2023"
-    website = "facebook.com"
-    plain_password = "pepito123"
+def decrypt(encrypted_data: bytes, domain: str) -> str:
+    master_password = b"clave_secreta_super_larga_123!"
+    data = base64.urlsafe_b64decode(encrypted_data)
+    nonce = data[:12]
+    tag = data[-16:]
+    ciphertext = data[12:-16]
     
-    # Encriptar
-    encrypted = encrypt_password(master_password, website, plain_password)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=domain.encode(),
+        iterations=100000,
+        backend=default_backend()
+    )
+    clave = kdf.derive(master_password)
     
-    # Desencriptar
-    decrypted = decrypt_password(master_password, website, encrypted)
-    
-    assert decrypted == plain_password, "El descifrado no coincide con el original"
+    cipher = Cipher(algorithms.AES(clave), modes.GCM(nonce, tag), backend=default_backend())
+    decryptor = cipher.decryptor()
+    return (decryptor.update(ciphertext) + decryptor.finalize()).decode()
 
-def test_unique_encryption_per_website():
-    master_password = "claveMaestra123"
-    plain_password = "contraseñaComún"
-    
-    # Encriptar para dos sitios diferentes
-    encrypted_facebook = encrypt_password(master_password, "facebook.com", plain_password)
-    encrypted_google = encrypt_password(master_password, "google.com", plain_password)
-    
-    assert encrypted_facebook != encrypted_google, "Las contraseñas encriptadas deben ser únicas por sitio" """
+def test_encryption_decryption_roundtrip():
+    password = "supersecret123"
+    domain = "example.com"
+    encrypted = encriptar_contraseña(password, domain)
+    decrypted = decrypt(encrypted, domain)
+    assert decrypted == password
+
+def test_same_input_produces_same_output():
+    encrypted1 = encriptar_contraseña("password", "google.com")
+    encrypted2 = encriptar_contraseña("password", "google.com")
+    assert encrypted1 == encrypted2
+
+def test_different_domains_produce_different_outputs():
+    encrypted1 = encriptar_contraseña("password", "site1.com")
+    encrypted2 = encriptar_contraseña("password", "site2.com")
+    assert encrypted1 != encrypted2
+
+def test_different_passwords_produce_different_outputs():
+    encrypted1 = encriptar_contraseña("password1", "site.com")
+    encrypted2 = encriptar_contraseña("password2", "site.com")
+    assert encrypted1 != encrypted2
+
+def test_empty_password():
+    encrypted = encriptar_contraseña("", "empty.org")
+    decrypted = decrypt(encrypted, "empty.org")
+    assert decrypted == ""
+
+def test_special_character_domain():
+    domain = "üníçødeñ.com"
+    password = "p@sswörd!"
+    encrypted = encriptar_contraseña(password, domain)
+    decrypted = decrypt(encrypted, domain)
+    assert decrypted == password
