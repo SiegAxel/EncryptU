@@ -44,6 +44,5 @@ def insertar_clave(sitio_web: str, clave: str, master_password: bytes):
     finally:
         conn.close()
 
-# Ejemplo para crear la base:
 if __name__ == "__main__":
     crear_base_datos()
