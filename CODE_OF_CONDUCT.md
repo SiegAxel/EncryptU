@@ -40,7 +40,7 @@ Este Código de Conducta se aplica a todos los espacios del proyecto, tanto en e
 
 Cualquier caso de comportamiento abusivo, acosador o inaceptable puede ser reportado a los administradores del proyecto a través de:
 
-> [INSERTA AQUÍ TU MÉTODO DE CONTACTO, por ejemplo, correo electrónico]
+TBD@soporte
 
 Todos los reportes serán evaluados e investigados de manera puntual y justa, manteniendo la confidencialidad y seguridad de la persona que reporte el incidente.
 
