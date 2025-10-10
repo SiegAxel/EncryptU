@@ -47,6 +47,7 @@ main_frame.place(x=menu_width_expanded + padding_between_menu, y=0, relheight=1)
 # ------------------------------
 script_dir = os.path.dirname(os.path.abspath(__file__))  # carpeta del script
 bg_path = os.path.join(script_dir, "bg.jpg")
+bg_photo = None
 try:
     bg_image = Image.open(bg_path)
     bg_image = bg_image.resize((700, 450), Image.Resampling.LANCZOS)
@@ -131,10 +132,27 @@ exit_button.grid(row=5, column=0, padx=20, pady=10)
 # ------------------------------
 # Widgets del área principal (card)
 # ------------------------------
-card_frame = CTkFrame(main_frame, fg_color=CARD_BG, corner_radius=15)
+card_frame = CTkFrame(main_frame, fg_color=None, corner_radius=15)  # fondo transparente
 card_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
 
-main_label = CTkLabel(card_frame, text="Bienvenido a EncryptU", font=("Arial", 24), text_color=BUTTON_BG, fg_color=CARD_BG)
+bg_label = CTkLabel(card_frame, image=bg_photo, text="")
+bg_label.place(relx=0.5, rely=0.5, anchor="center")
+
+# # sombra
+# shadow_label = CTkLabel(card_frame, text="Bienvenido a EncryptU",
+#                         font=("Montserrat", 28, "bold"),
+#                         text_color="black", fg_color=None)
+# shadow_label.place(relx=0.5+0.01, rely=0.2+0.01, anchor="center")  # ligero offset
+
+# overlay = CTkFrame(card_frame, fg_color="#00000080", corner_radius=10, width=400, height=60)
+# overlay.place(relx=0.5, rely=0.2, anchor="center")
+# overlay.configure(fg_color="#0000003E")  # último "80" = transparencia 50%
+
+main_label = CTkLabel(card_frame, text="Bienvenido a EncryptU",
+                       font=("Montserrat", 28, "bold"),
+                       text_color="#FF2D55",  # rojo más brillante
+                       fg_color=None)
+main_label.place(relx=0.5, rely=0.2, anchor="center")
 main_label.pack(pady=(40, 10), padx=20, fill="x")
 
 main_text = CTkLabel(card_frame, text="Selecciona una opción del menú para comenzar.", font=("Arial", 16), text_color=TEXT_COLOR, fg_color=CARD_BG)
