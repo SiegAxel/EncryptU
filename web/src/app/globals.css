@@ -1,0 +1,36 @@
+/* Tailwind v4 */
+@import "tailwindcss";
+
+/* Define tokens para que existan bg-brand, text-brand, shadow-soft, etc */
+@theme {
+  --color-brand: #e85a70;
+  --shadow-soft: 0 8px 30px rgba(0,0,0,0.08);
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+}
+
+/* (Opcional) si tenías más estilos de marca, ponlos aquí o elimínalos de brand.css */
+:root{
+  --brand-primary: #e85a70; /* si aún lo usas en CSS plano */
+}
+
+/* Si usabas ../styles/brand.css para clases .bg-brand/.text-brand, quítalo:
+   ya NO lo necesitamos porque ahora bg-brand/text-brand son utilidades reales de Tailwind */
+/* @import url("../styles/brand.css"); */
+
+/* Globales */
+html, body { height: 100%; }
+body { @apply bg-white text-slate-800; }
+
+/* Componentes propios (usa utilidades de Tailwind, no clases personalizadas en @apply) */
+@layer components {
+  .container-default { @apply max-w-6xl mx-auto px-4; }
+
+  .btn { @apply inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium transition; }
+  .btn-primary { @apply bg-brand text-white hover:opacity-90 shadow-soft; }
+  .btn-outline { @apply border border-brand text-brand hover:bg-brand hover:text-white; }
+
+  .input { @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none focus:ring-2 focus:ring-brand/40; }
+  .card { @apply rounded-2xl border border-slate-200 bg-white shadow-soft; }
+  .section { @apply py-12 md:py-16; }
+}
