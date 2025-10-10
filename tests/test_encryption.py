@@ -32,33 +32,33 @@ def decrypt(encrypted_data: bytes, domain: str) -> str:
 def test_encryption_decryption_roundtrip():
     password = "supersecret123"
     domain = "example.com"
-    encrypted = encriptar_contraseña(password, domain)
+    encrypted = encriptar_contraseña(password, domain, b"clave_secreta_super_larga_123!")
     decrypted = decrypt(encrypted, domain)
     assert decrypted == password
 
 def test_same_input_produces_same_output():
-    encrypted1 = encriptar_contraseña("password", "google.com")
-    encrypted2 = encriptar_contraseña("password", "google.com")
+    encrypted1 = encriptar_contraseña("password", "google.com", b"clave_secreta_super_larga_123!")
+    encrypted2 = encriptar_contraseña("password", "google.com", b"clave_secreta_super_larga_123!")
     assert encrypted1 == encrypted2
 
 def test_different_domains_produce_different_outputs():
-    encrypted1 = encriptar_contraseña("password", "site1.com")
-    encrypted2 = encriptar_contraseña("password", "site2.com")
+    encrypted1 = encriptar_contraseña("password", "site1.com", b"clave_secreta_super_larga_123!")
+    encrypted2 = encriptar_contraseña("password", "site2.com", b"clave_secreta_super_larga_123!")
     assert encrypted1 != encrypted2
 
 def test_different_passwords_produce_different_outputs():
-    encrypted1 = encriptar_contraseña("password1", "site.com")
-    encrypted2 = encriptar_contraseña("password2", "site.com")
+    encrypted1 = encriptar_contraseña("password1", "site.com", b"clave_secreta_super_larga_123!")
+    encrypted2 = encriptar_contraseña("password2", "site.com", b"clave_secreta_super_larga_123!")
     assert encrypted1 != encrypted2
 
 def test_empty_password():
-    encrypted = encriptar_contraseña("", "empty.org")
+    encrypted = encriptar_contraseña("", "empty.org", b"clave_secreta_super_larga_123!")
     decrypted = decrypt(encrypted, "empty.org")
     assert decrypted == ""
 
 def test_special_character_domain():
     domain = "üníçødeñ.com"
     password = "p@sswörd!"
-    encrypted = encriptar_contraseña(password, domain)
+    encrypted = encriptar_contraseña(password, domain, b"clave_secreta_super_larga_123!")
     decrypted = decrypt(encrypted, domain)
     assert decrypted == password

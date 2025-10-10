@@ -11,3 +11,13 @@ tomlkit==0.13.2
 pycryptodome==3.22.0
 argon2-cffi==21.3.0
 pyinstaller==6.12.0
+fastapi==0.95.2
+uvicorn[standard]==0.22.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+requests==2.31.0
+python-multipart==0.0.6
+cryptography==41.0.3
+ttkbootstrap==1.7.3
+pystray==0.21.5
+Pillow==10.0.1
