@@ -1,27 +1,32 @@
-import Container from "@/components/layout/ui/Container";
-import Card from "@/components/layout/ui/Card";
-import Input from "@/components/layout/ui/Input";
+"use client";
+import { useState } from "react";
 import Button from "@/components/layout/ui/Button";
-import Link from "next/link";                // ← importa Link
+import ButtonLink from "@/components/layout/ui/ButtonLink";
 
-export default function ResetPasswordPage() {
+export default function RegistroPage(){
+  const [name,setName] = useState("");
+  const [email,setEmail] = useState("");
+  const [password,setPassword] = useState("");
+
   return (
-    <div className="section">
-      <Container>
-        <div className="mx-auto max-w-2xl">
-          <Card>
-            <h1 className="mb-4 text-xl font-semibold">Restablecer contraseña</h1>
-            <div className="space-y-3">
-              <Input label="Email" type="email" placeholder="tu@email.com" />
-              <div className="flex gap-3">
-                {/* usa Link para rutas internas */}
-                <Link href="/" className="btn-outline">Cancelar</Link>
-                <Button>Reset Password</Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </Container>
-    </div>
+    <section className="max-w-md mx-auto px-4 py-16">
+      <h1 className="text-3xl font-bold text-center">Crear cuenta</h1>
+
+      <form onSubmit={(e)=>{ e.preventDefault(); /* submit */ }} className="mt-8 space-y-4">
+        <input className="w-full border p-2 rounded" placeholder="Nombre" value={name} onChange={e=>setName(e.target.value)} />
+        <input className="w-full border p-2 rounded" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+        <input className="w-full border p-2 rounded" type="password" placeholder="Contraseña" value={password} onChange={e=>setPassword(e.target.value)} />
+
+        {/* Botón principal: Crear cuenta */}
+        <Button type="submit" className="w-full" size="lg">Crear cuenta</Button>
+      </form>
+
+      {/* Botón secundario: Ir a Iniciar sesión */}
+      <div className="mt-4">
+        <ButtonLink href="/auth/login" variant="outline" className="w-full text-center" size="lg">
+          Ya tengo cuenta
+        </ButtonLink>
+      </div>
+    </section>
   );
 }

@@ -8,17 +8,17 @@ export default function PricingPage() {
     <Section>
       <Container>
         <div className="grid gap-6 md:grid-cols-3">
-          <PricingCard title="Mensual" price="$19" features={[
+          <PricingCard title="Mensual" price="$30" features={[
             "Ideal para probar",
             "Acceso completo a funciones básicas",
             "Soporte estándar",
           ]} />
-          <PricingCard title="Trimestral" price="$50" highlight features={[
+          <PricingCard title="Trimestral" price="$60" highlight features={[
             "Todo lo del plan mensual",
             "Descuento exclusivo (-12%)",
             "Soporte prioritario",
           ]} />
-          <PricingCard title="Anual" price="$99" features={[
+          <PricingCard title="Anual" price="$200" features={[
             "Múltiples dispositivos",
             "Actualizaciones incluidas",
             "Descuento total (-30%)",

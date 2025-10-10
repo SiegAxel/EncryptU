@@ -1,26 +1,33 @@
-import Container from "@/components/layout/ui/Container";
-import Card from "@/components/layout/ui/Card";
-import Input from "@/components/layout/ui/Input";
+"use client";
+import { useState } from "react";
 import Button from "@/components/layout/ui/Button";
-import Link from "next/link";
+import ButtonLink from "@/components/layout/ui/ButtonLink";
 
+export default function LoginPage(){
+  const [email,setEmail] = useState("");
+  const [password,setPassword] = useState("");
 
-export default function LoginPage() {
-    return (
-        <div className="section bg-slate-50">
-            <Container>
-                <div className="mx-auto max-w-md">
-                    <Card>
-                        <h1 className="mb-4 text-xl font-semibold">Iniciar sesión</h1>
-                        <div className="space-y-3">
-                            <Input label="Email" type="email" placeholder="tu@email.com" />
-                            <Input label="Password" type="password" placeholder="••••••••" />
-                            <Button className="w-full">Sign in</Button>
-                            <Link href="/" className="btn-outline">Cancelar</Link>
-                        </div>
-                    </Card>
-                </div>
-            </Container>
-        </div>
-    );
+  return (
+    <section className="max-w-md mx-auto px-4 py-16">
+      <h1 className="text-3xl font-bold text-center">Iniciar sesión</h1>
+
+      <form
+        onSubmit={(e)=>{ e.preventDefault(); /* submit */ }}
+        className="mt-8 space-y-4"
+      >
+        <input className="w-full border p-2 rounded" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} />
+        <input className="w-full border p-2 rounded" type="password" placeholder="Contraseña" value={password} onChange={e=>setPassword(e.target.value)} />
+
+        {/* Botón principal: Ingresar */}
+        <Button type="submit" className="w-full" size="lg">Ingresar</Button>
+      </form>
+
+      {/* Botón secundario: Crear cuenta */}
+      <div className="mt-4">
+        <ButtonLink href="/auth/registro" variant="outline" className="w-full text-center" size="lg">
+          Crear cuenta
+        </ButtonLink>
+      </div>
+    </section>
+  );
 }

@@ -1,6 +1,28 @@
 /* Tailwind v4 */
 @import "tailwindcss";
 
+/* Base para botones */
+.btn {
+  @apply inline-flex items-center justify-center rounded-md font-medium transition-colors
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+    disabled:opacity-50 disabled:pointer-events-none
+    h-10 px-4 text-sm;
+}
+
+/* Variantes */
+.btn-primary {
+  @apply btn bg-brand text-white hover:opacity-90 focus-visible:ring-brand;
+}
+.btn-outline {
+  @apply btn border border-brand text-brand hover:bg-brand hover:text-white focus-visible:ring-brand;
+}
+.btn-ghost {
+  @apply btn text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-400;
+}
+.btn-inverted { /* para fondos oscuros */
+  @apply btn bg-white text-slate-900 hover:bg-slate-100 focus-visible:ring-white;
+}
+
 /* Define tokens para que existan bg-brand, text-brand, shadow-soft, etc */
 @theme {
   --color-brand: #e85a70;

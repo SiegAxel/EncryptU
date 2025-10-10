@@ -1,10 +1,15 @@
-import * as React from "react";
+import Link, { LinkProps } from "next/link";
 import { cn } from "@/lib/cn";
 
+// IMPORTA estos desde tu Button.tsx para no duplicar estilos
+// (si Button.tsx y ButtonLink.tsx están en la misma carpeta, puedes hacer import { base, variants, sizes } from "./Button"
+// pero como los definiste dentro del archivo, replicamos acá)
 type Variant = "primary" | "outline" | "ghost" | "inverted";
 type Size = "sm" | "md" | "lg";
 
-type Props = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type Props = LinkProps & {
+  children: React.ReactNode;
+  className?: string;
   variant?: Variant;
   size?: Size;
 };
@@ -18,7 +23,6 @@ const variants: Record<Variant, string> = {
   primary:  "bg-brand text-white hover:opacity-90 focus-visible:ring-brand",
   outline:  "border border-brand text-brand hover:bg-brand hover:text-white focus-visible:ring-brand",
   ghost:    "text-slate-700 hover:bg-slate-100 focus-visible:ring-slate-400",
-  // Para usar sobre fondos oscuros (por ej. el card destacado)
   inverted: "bg-white text-slate-900 hover:bg-slate-100 focus-visible:ring-white",
 };
 
@@ -28,18 +32,21 @@ const sizes: Record<Size, string> = {
   lg: "h-11 px-5 text-base",
 };
 
-export default function Button({
+export default function ButtonLink({
+  children,
   className,
+  href,
   variant = "primary",
   size = "md",
-  type = "button",
   ...props
 }: Props) {
   return (
-    <button
-      type={type}
+    <Link
+      href={href}
       className={cn(base, variants[variant], sizes[size], className)}
       {...props}
-    />
+    >
+      {children}
+    </Link>
   );
 }

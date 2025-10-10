@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Container from "@/components/layout/ui/Container";
 import SocialBar from "./SocialBar";
 import { cn } from "@/lib/cn";
+import ButtonLink from "@/components/layout/ui/ButtonLink";
 
 const nav = [
   { href: "/", label: "Inicio" },
@@ -25,6 +26,7 @@ export default function Navbar() {
               Encrypt<span className="text-brand">U</span>
             </span>
           </Link>
+
           <nav className="hidden items-center gap-6 md:flex">
             {nav.map((item) => (
               <Link
@@ -39,18 +41,23 @@ export default function Navbar() {
               </Link>
             ))}
           </nav>
+
           <div className="hidden md:block">
             <SocialBar />
           </div>
+
+
           <div className="flex items-center gap-2">
-            <Link href="/auth/login" className="btn-outline text-sm">
+            <ButtonLink href="/auth/login" variant="outline" size="md">
               Ingresar
-            </Link>
-            <Link href="/auth/register" className="btn-primary text-sm">
+            </ButtonLink>
+            <ButtonLink href="/auth/registro" variant="primary" size="md">
               Crear cuenta
-            </Link>
+            </ButtonLink>
           </div>
+
         </div>
+
       </Container>
     </header>
   );
