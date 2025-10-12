@@ -24,6 +24,7 @@ SECRET_KEY = secrets.token_hex(32)  # Genera una nueva llave secreta al iniciar
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
+print(">>> DATABASE_URL recibido:", repr(DATABASE_URL))
 # --- CONTEXTO DE HASHING ---
 # Se mantiene Argon2 para la compatibilidad con las contraseñas existentes
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -36,6 +37,7 @@ DATABASE_URL = DATABASE_URL.strip().strip('"').strip("'")  # elimina comillas ex
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+print(">>> DATABASE_URL final:", DATABASE_URL)
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
