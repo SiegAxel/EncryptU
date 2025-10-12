@@ -13,7 +13,7 @@ class AppController:
     def __init__(self, root):
         self.root = root
         self.current_view = None
-        self.api_client = APIClient(base_url="http://127.0.0.1:8000")
+        self.api_client = APIClient(base_url="https://encryptu.onrender.com/")
         self.session_manager = SessionManager()
         self.master_key: str | None = None
 
