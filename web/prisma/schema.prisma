@@ -18,10 +18,17 @@ model ContactTicket {
   createdAt   DateTime @default(now())
 }
 
+enum Role {
+  admin
+  soporte
+  usuario
+}
+
 model User {
   id           Int      @id @default(autoincrement())
   name         String
   email        String   @unique
   passwordHash String
+  role         Role     @default(usuario)  // 👈 nuevo campo con default
   createdAt    DateTime @default(now())
 }
