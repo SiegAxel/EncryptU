@@ -8,7 +8,6 @@ class APIClient:
     Encapsula toda la comunicación con la API REST de EncryptU.
     """
     def __init__(self, base_url: str):
-        # Normalizamos la URL base para quitar cualquier barra al final
         self.base_url = base_url.rstrip('/')
         self.session = requests.Session()
         self.token: Optional[str] = None
@@ -21,24 +20,41 @@ class APIClient:
     def set_token(self, token: str):
         self.token = token
         
-    def register(self, email: str) -> Optional[Dict[str, Any]]:
+    def register(self, name: str, email: str, password: str) -> Optional[Dict[str, Any]]:
+        """
+        Registra un nuevo usuario enviando un payload JSON.
+        """
         try:
-            response = requests.post(f"{self.base_url}/register", data={"username": email})
+            payload = {"name": name, "email": email, "password": password}
+            print(">>> [CLIENT] Enviando payload a /register:", payload)
+            
+            # La clave está aquí: usar json=payload para enviar como JSON.
+            response = self.session.post(f"{self.base_url}/register", json=payload, timeout=20)
+            
+            print(">>> [CLIENT] Código de Respuesta:", response.status_code)
+            print(">>> [CLIENT] Contenido de Respuesta:", response.text)
+
             return response.json()
         except requests.exceptions.RequestException as e:
             print(f"Error de conexión al registrar: {e}")
             return None
 
-    def login(self, username: str, password: str) -> Optional[str]:
+    def login(self, email: str, password: str) -> Optional[str]:
+        """
+        Inicia sesión. El campo 'username' del formulario es el email del usuario.
+        """
         try:
-            response = self.session.post(f"{self.base_url}/login", data={"username": username, "password": password})
+            form_data = {"username": email, "password": password}
+            response = self.session.post(f"{self.base_url}/login", data=form_data, timeout=20)
             if response.status_code == 200:
                 data = response.json()
                 self.token = data.get("access_token")
                 return self.token
             else:
+                print(f"Error en login: {response.status_code} - {response.text}")
                 return None
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
+            print(f"Error de conexión en login: {e}")
             return None
 
     def logout(self):
@@ -100,9 +116,7 @@ class APIClient:
 
     def check_status(self) -> bool:
         try:
-            # --- TIMEOUT AUMENTADO A 30 SEGUNDOS ---
             response = self.session.get(f"{self.base_url}/status", timeout=30)
             return response.ok
         except requests.exceptions.RequestException:
             return False
-
