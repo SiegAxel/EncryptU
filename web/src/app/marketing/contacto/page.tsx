@@ -39,7 +39,7 @@ export default function ContactPage() {
     setSending(true);
     setMsg(null);
 
-    const res = await fetch("/api/contact", {
+    const res = await fetch("/api/contactoapi", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
