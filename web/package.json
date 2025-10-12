@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.17.0",
+    "bcryptjs": "^3.0.2",
     "next": "15.5.4",
     "nodemailer": "^7.0.9",
     "prisma": "^6.17.0",
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4.1.14",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/nodemailer": "^7.0.2",
     "@types/react": "^19",

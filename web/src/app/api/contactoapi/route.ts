@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 import { prisma } from "@/lib/prisma";
 
-export const runtime = "nodejs"; // nodemailer requiere Node.js
+export const runtime = "nodejs"; // Nodemailer requiere Node.js (no Edge)
 
 type Body = {
   firstName?: string;
@@ -12,14 +12,16 @@ type Body = {
   phone?: string;
   description?: string;
 };
-export async function GET() {
-  return NextResponse.json({ ok: true, ping: "contactoapi" });
-}
-export async function POST(req: Request) {
+
+type ApiResponse =
+  | { ok: true; id: number }
+  | { ok: false; error: string };
+
+export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
   try {
     const { firstName, lastName, email, reason, phone, description } = (await req.json()) as Body;
 
-    // Validación mínima
+    // Validación mínima (existencia de campos)
     if (!firstName || !lastName || !email || !reason || !phone || !description) {
       return NextResponse.json({ ok: false, error: "Faltan campos" }, { status: 400 });
     }
@@ -29,15 +31,15 @@ export async function POST(req: Request) {
       data: { firstName, lastName, email, reason, phone, description },
     });
 
-    // 2) Configurar transporter (Gmail 465 SSL)
+    // 2) Enviar correo (Gmail SSL 465)
     const port = Number(process.env.SMTP_PORT || 465);
-    const transporter = nodemailer.createTransport({
+    const transporter: Transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST!,
       port,
       secure: port === 465, // 465=SSL, 587=STARTTLS
       auth: {
         user: process.env.SMTP_USER!,
-        pass: process.env.SMTP_PASS!, // <- App Password SIN espacios
+        pass: process.env.SMTP_PASS!, // App Password SIN espacios
       },
     });
 
@@ -75,14 +77,21 @@ Creado: ${ticket.createdAt.toISOString()}
     await transporter.sendMail({ from, to, subject, text, html });
 
     return NextResponse.json({ ok: true, id: ticket.id });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    // sin `any`: estrechamos el tipo
+    const message = err instanceof Error ? err.message : String(err);
     console.error(err);
-    return NextResponse.json({ ok: false, error: err?.message ?? "Error" }, { status: 500 });
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
+}
+
+// (opcional) GET de prueba para verificar que la ruta existe
+export async function GET() {
+  return NextResponse.json({ ok: true, ping: "contactoapi" });
 }
 
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string)
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c as "&" | "<" | ">" | '"' | "'"])
   );
 }
