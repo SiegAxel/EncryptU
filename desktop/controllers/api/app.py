@@ -11,6 +11,7 @@ import os
 from typing import Optional, List, Dict, cast
 import io
 from pydantic import BaseModel
+import secrets
 
 # 🔹 Usar Argon2 en lugar de bcrypt
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -31,11 +32,13 @@ def get_db_conn():
 def init_db():
     conn = get_db_conn()
     cur = conn.cursor()
+    # MODIFICADO: Añadida la columna 'role' a la tabla de usuarios
     cur.execute('''
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user'
     )
     ''')
     cur.execute('''
@@ -85,16 +88,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 def get_user_by_username(username: str):
     conn = get_db_conn()
     cur = conn.cursor()
+    # Actualizado para seleccionar todos los campos, incluido el rol
     cur.execute("SELECT * FROM users WHERE username = ?", (username,))
-    row = cur.fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-
-def get_user_by_id(uid: int):
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE id = ?", (uid,))
     row = cur.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -107,39 +102,6 @@ def authenticate_user(username: str, password: str):
     if not verify_password(password, user['password_hash']):
         return None
     return user
-
-
-@app.post('/register', status_code=status.HTTP_201_CREATED)
-def register(username: str = Form(...), password: str = Form(...)):
-    conn = get_db_conn()
-    cur = conn.cursor()
-    try:
-        cur.execute(
-            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-            (username, get_password_hash(password))
-        )
-        conn.commit()
-    except sqlite3.IntegrityError:
-        conn.close()
-        raise HTTPException(status_code=400, detail="User already exists")
-    conn.close()
-    return {"msg": "user created"}
-
-
-@app.post('/login')
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user['username']},
-        expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -159,6 +121,104 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     if user is None:
         raise credentials_exception
     return user
+
+# --- NUEVA DEPENDENCIA PARA VERIFICAR SI EL USUARIO ES ADMIN ---
+def get_current_admin_user(current_user: dict = Depends(get_current_user)):
+    """
+    Verifica si el usuario actual tiene el rol de 'admin'.
+    Si no lo es, lanza una excepción de Prohibido (403).
+    """
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado: Se requieren permisos de administrador.")
+    return current_user
+# --- FIN DE LA NUEVA DEPENDENCIA ---
+
+
+@app.post('/register', status_code=status.HTTP_201_CREATED)
+def register(username: str = Form(...)):
+    master_key = secrets.token_hex(16)
+    conn = get_db_conn()
+    cur = conn.cursor()
+    
+    # MODIFICADO: Lógica para asignar rol de admin al primer usuario
+    cur.execute("SELECT COUNT(id) as count FROM users")
+    user_count = cur.fetchone()['count']
+    role = "admin" if user_count == 0 else "user"
+    
+    try:
+        cur.execute(
+            "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
+            (username, get_password_hash(master_key), role)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado.")
+    finally:
+        conn.close()
+    
+    return {"msg": f"Usuario creado exitosamente con rol '{role}'", "master_key": master_key}
+
+
+@app.post('/login')
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Correo o Clave Maestra incorrectos"
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user['username']},
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer", "user_role": user['role']}
+
+# --- NUEVOS ENDPOINTS DE ADMINISTRACIÓN ---
+@app.get('/admin/users', response_model=List[Dict])
+def list_all_users(current_admin: dict = Depends(get_current_admin_user)):
+    """
+    Endpoint protegido para que un administrador liste todos los usuarios.
+    """
+    conn = get_db_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, username, role FROM users")
+    users = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return users
+
+@app.delete('/admin/users/{user_id}', status_code=status.HTTP_200_OK)
+def delete_user_by_admin(user_id: int, current_admin: dict = Depends(get_current_admin_user)):
+    """
+    Endpoint protegido para que un administrador elimine una cuenta de usuario por ID.
+    """
+    if user_id == current_admin['id']:
+        raise HTTPException(status_code=400, detail="Un administrador no puede eliminar su propia cuenta.")
+
+    conn = get_db_conn()
+    cur = conn.cursor()
+    
+    # Verificar si el usuario a eliminar existe
+    cur.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+    user_to_delete = cur.fetchone()
+    if not user_to_delete:
+        conn.close()
+        raise HTTPException(status_code=404, detail=f"Usuario con ID {user_id} no encontrado.")
+
+    try:
+        cur.execute('DELETE FROM tickets WHERE owner_id = ?', (user_id,))
+        cur.execute('DELETE FROM files WHERE owner_id = ?', (user_id,))
+        cur.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Error en la base de datos: {e}")
+    finally:
+        conn.close()
+        
+    return {'msg': f'Usuario con ID {user_id} y sus datos han sido eliminados.'}
+# --- FIN DE LOS NUEVOS ENDPOINTS ---
 
 
 @app.post('/upload')
@@ -180,31 +240,21 @@ def upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_c
 def download_file(file_id: int, current_user: dict = Depends(get_current_user)):
     conn = get_db_conn()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT * FROM files WHERE id = ? AND owner_id = ?",
-        (file_id, current_user['id'])
-    )
+    cur.execute("SELECT * FROM files WHERE id = ? AND owner_id = ?", (file_id, current_user['id']))
     row = cur.fetchone()
     conn.close()
     if not row:
         raise HTTPException(status_code=404, detail="File not found")
     data = row['content']
     filename = row['filename']
-    return StreamingResponse(
-        io.BytesIO(data),
-        media_type='application/octet-stream',
-        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
-    )
+    return StreamingResponse(io.BytesIO(data), media_type='application/octet-stream', headers={'Content-Disposition': f'attachment; filename="{filename}"'})
 
 
 @app.get('/files')
 def list_files(current_user: dict = Depends(get_current_user)) -> List[Dict]:
     conn = get_db_conn()
     cur = conn.cursor()
-    cur.execute(
-        "SELECT id, filename, created_at FROM files WHERE owner_id = ? ORDER BY created_at DESC",
-        (current_user['id'],)
-    )
+    cur.execute("SELECT id, filename, created_at FROM files WHERE owner_id = ? ORDER BY created_at DESC", (current_user['id'],))
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -236,8 +286,7 @@ def create_ticket(ticket: Ticket, current_user: dict = Depends(get_current_user)
     conn = get_db_conn()
     cur = conn.cursor()
     owner_id = current_user['id'] if current_user else None
-    cur.execute('INSERT INTO tickets (owner_id, email, subject, body, created_at) VALUES (?, ?, ?, ?, ?)',
-                (owner_id, ticket.email, ticket.subject, ticket.body, datetime.utcnow().isoformat()))
+    cur.execute('INSERT INTO tickets (owner_id, email, subject, body, created_at) VALUES (?, ?, ?, ?, ?)', (owner_id, ticket.email, ticket.subject, ticket.body, datetime.utcnow().isoformat()))
     conn.commit()
     ticket_id = cur.lastrowid
     conn.close()
@@ -247,3 +296,4 @@ def create_ticket(ticket: Ticket, current_user: dict = Depends(get_current_user)
 @app.get('/status')
 def get_status():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
+

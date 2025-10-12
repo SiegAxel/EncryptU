@@ -138,16 +138,6 @@ card_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
 bg_label = CTkLabel(card_frame, image=bg_photo, text="")
 bg_label.place(relx=0.5, rely=0.5, anchor="center")
 
-# # sombra
-# shadow_label = CTkLabel(card_frame, text="Bienvenido a EncryptU",
-#                         font=("Montserrat", 28, "bold"),
-#                         text_color="black", fg_color=None)
-# shadow_label.place(relx=0.5+0.01, rely=0.2+0.01, anchor="center")  # ligero offset
-
-# overlay = CTkFrame(card_frame, fg_color="#00000080", corner_radius=10, width=400, height=60)
-# overlay.place(relx=0.5, rely=0.2, anchor="center")
-# overlay.configure(fg_color="#0000003E")  # último "80" = transparencia 50%
-
 main_label = CTkLabel(card_frame, text="Bienvenido a EncryptU",
                        font=("Montserrat", 28, "bold"),
                        text_color="#FF2D55",  # rojo más brillante
