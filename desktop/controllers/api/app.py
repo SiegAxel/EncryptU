@@ -44,7 +44,7 @@ Base = declarative_base()
 
 # --- MODELOS DE LA BASE DE DATOS (ORM) ---
 class User(Base):
-    __tablename__ = "user"
+    __tablename__ = "User"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
@@ -55,7 +55,7 @@ class User(Base):
 class FileStorage(Base):
     __tablename__ = "files"
     id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("User.id"), nullable=False)
     filename = Column(String, nullable=False)
     content = Column(LargeBinary, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -216,12 +216,12 @@ def delete_file(file_id: int, current_user: User = Depends(get_current_user), db
 
 # --- ENDPOINTS DE ADMINISTRACIÓN ---
 
-@app.get('/admin/user', response_model=List[Dict[str, Any]])
+@app.get('/admin/User', response_model=List[Dict[str, Any]])
 def list_all_users(current_admin: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
     users = db.query(User.id, User.name, User.email, User.role).all()
     return [{"id": u.id, "name": u.name, "email": u.email, "role": u.role} for u in users]
 
-@app.delete('/admin/user/{user_id}', status_code=status.HTTP_200_OK)
+@app.delete('/admin/User/{user_id}', status_code=status.HTTP_200_OK)
 def delete_user_by_admin(user_id: int, current_admin: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
     if user_id == current_admin.id:
         raise HTTPException(status_code=400, detail="Un administrador no puede eliminar su propia cuenta.")
