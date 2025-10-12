@@ -1,93 +1,118 @@
 import customtkinter as ctk
 from typing import cast
 import pyperclip
+from PIL import Image
+import os
 
-# --- Definición de Colores Corporativos ---
-COLOR_ROJO_PRINCIPAL = "#c50000"
-COLOR_ROJO_HOVER = "#a50000"
-COLOR_TEXTO_PRINCIPAL = "#FFFFFF"
-COLOR_FONDO_FRAME = "#242424"
-COLOR_FONDO_TAB = "#2D2D2D"
-COLOR_ENTRADA = "#343638"
+# --- Definición de Colores Corporativos y Estilos ---
+COLOR_ROJO_PRINCIPAL = "#e53e3e"
+COLOR_ROJO_HOVER = "#c53030"
+COLOR_BLANCO = "#FFFFFF"
+COLOR_GRIS_TEXTO = "#A0AEC0"
+COLOR_FONDO_TARJETA = ("#F7FAFC", "#1A202C") 
+COLOR_FONDO_APP = ("#FFFFFF", "#171923")
 
 class MainView(ctk.CTkFrame):
     """
-    Frame que contiene la interfaz principal de la aplicación después del login.
-    Organizada con pestañas para las funcionalidades de encriptar y ver contraseñas.
+    Frame principal de la aplicación con un diseño mejorado basado en tarjetas,
+    colores corporativos y fondo de imagen.
     """
     def __init__(self, master, controller, username):
         super().__init__(master)
         self.controller = controller
         self.username = username
-        self.configure(fg_color="transparent")
+        self.configure(fg_color=COLOR_FONDO_APP)
 
-        # --- ESTRUCTURA GENERAL ---
-        self.grid_columnconfigure(0, weight=1)
+        self._setup_background_image()
+
+        self.grid_columnconfigure((0, 1), weight=1)
         self.grid_rowconfigure(1, weight=1)
 
-        # --- CABECERA ---
-        header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.grid(row=0, column=0, padx=20, pady=(10, 0), sticky="ew")
-        
-        self.welcome_label = ctk.CTkLabel(header_frame, text=f"Bienvenido, {self.username}!", font=ctk.CTkFont(size=20, weight="bold"), text_color=COLOR_TEXTO_PRINCIPAL)
-        self.welcome_label.pack(side="left")
-
-        self.logout_button = ctk.CTkButton(header_frame, text="Cerrar Sesión", width=120, command=self.logout_action, fg_color=COLOR_ROJO_PRINCIPAL, hover_color=COLOR_ROJO_HOVER)
-        self.logout_button.pack(side="right")
-
-        # --- PESTAÑAS DE FUNCIONALIDADES ---
-        self.tab_view = ctk.CTkTabview(self, fg_color=COLOR_FONDO_FRAME)
-        self.tab_view.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
-
-        self.tab_view.add("Guardar Contraseña")
-        self.tab_view.add("Mis Contraseñas")
-
-        self._create_save_password_tab(self.tab_view.tab("Guardar Contraseña"))
-        self._create_view_passwords_tab(self.tab_view.tab("Mis Contraseñas"))
+        self._create_header()
+        self._create_save_password_card()
+        self._create_view_passwords_card()
         
         self.refresh_password_list()
 
-    def _create_save_password_tab(self, tab):
-        tab.grid_columnconfigure(0, weight=1)
+    def _setup_background_image(self):
+        self.original_bg_image = None
+        try:
+            current_dir = os.path.dirname(__file__)
+            desktop_dir = os.path.abspath(os.path.join(current_dir, '..', '..'))
+            image_path = os.path.join(desktop_dir, "controllers", "img", "bg_main.png")
+            
+            self.original_bg_image = Image.open(image_path)
+            self.bg_label = ctk.CTkLabel(self, text="", fg_color="transparent")
+            self.bg_label.place(relx=0.5, rely=0.5, anchor="center")
+            self.bind("<Configure>", self._resize_image)
+        except Exception as e:
+            print(f"Error al cargar imagen de fondo para MainView: {e}")
+
+    def _resize_image(self, event):
+        if not self.original_bg_image: return
+        new_width, new_height = event.width, event.height
+        img_ratio = self.original_bg_image.width / self.original_bg_image.height
+        frame_ratio = new_width / new_height
+        if frame_ratio > img_ratio:
+            resize_width = new_width
+            resize_height = int(resize_width / img_ratio)
+        else:
+            resize_height = new_height
+            resize_width = int(resize_height * img_ratio)
+        resized_img = self.original_bg_image.resize((resize_width, resize_height), Image.Resampling.LANCZOS)
+        new_bg_image = ctk.CTkImage(light_image=resized_img, dark_image=resized_img, size=(resize_width, resize_height))
+        self.bg_label.configure(image=new_bg_image)
+
+    def _create_header(self):
+        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame.grid(row=0, column=0, columnspan=2, padx=20, pady=(20, 10), sticky="ew")
         
-        container = ctk.CTkFrame(tab, fg_color="transparent")
-        container.pack(padx=20, pady=20, fill="x")
+        welcome_label = ctk.CTkLabel(header_frame, text=f"Bienvenido, {self.username}!", font=ctk.CTkFont(size=24, weight="bold"))
+        welcome_label.pack(side="left")
 
-        title = ctk.CTkLabel(container, text="Guardar Nueva Contraseña", font=ctk.CTkFont(size=18, weight="bold"))
-        title.pack(anchor="w")
+        logout_button = ctk.CTkButton(header_frame, text="Cerrar Sesión", width=120, command=self.logout_action, fg_color=COLOR_ROJO_PRINCIPAL, hover_color=COLOR_ROJO_HOVER)
+        logout_button.pack(side="right")
 
-        self.site_entry = ctk.CTkEntry(container, placeholder_text="Sitio Web (ej: google.com)", height=40, fg_color=COLOR_ENTRADA, border_width=0)
-        self.site_entry.pack(fill="x", pady=(10, 5))
+    def _create_save_password_card(self):
+        card = ctk.CTkFrame(self, corner_radius=15, fg_color=COLOR_FONDO_TARJETA)
+        card.grid(row=1, column=0, padx=(20, 10), pady=10, sticky="nsew")
+        card.grid_propagate(False)
 
-        # --- NUEVO CAMPO PARA EL NOMBRE DE USUARIO ---
-        self.username_entry_save = ctk.CTkEntry(container, placeholder_text="Nombre de Usuario (del sitio)", height=40, fg_color=COLOR_ENTRADA, border_width=0)
-        self.username_entry_save.pack(fill="x", pady=5)
-        # --- FIN DEL NUEVO CAMPO ---
+        title = ctk.CTkLabel(card, text="Guardar Nueva Contraseña", font=ctk.CTkFont(size=18, weight="bold"))
+        title.pack(anchor="w", padx=20, pady=(20, 10))
 
-        self.password_entry = ctk.CTkEntry(container, placeholder_text="Contraseña a guardar", show="*", height=40, fg_color=COLOR_ENTRADA, border_width=0)
-        self.password_entry.pack(fill="x", pady=5)
+        self.site_entry = ctk.CTkEntry(card, placeholder_text="Sitio Web (ej: google.com)", height=40, border_width=0)
+        self.site_entry.pack(fill="x", padx=20, pady=5)
 
-        self.save_button = ctk.CTkButton(container, text="Guardar de forma segura", command=self.save_action, height=40, fg_color=COLOR_ROJO_PRINCIPAL, hover_color=COLOR_ROJO_HOVER)
-        self.save_button.pack(anchor="w", pady=(20, 10))
+        self.username_entry_save = ctk.CTkEntry(card, placeholder_text="Nombre de Usuario (del sitio)", height=40, border_width=0)
+        self.username_entry_save.pack(fill="x", padx=20, pady=5)
 
-        self.status_label_save = ctk.CTkLabel(container, text="", font=ctk.CTkFont(size=12))
-        self.status_label_save.pack(anchor="w")
+        self.password_entry = ctk.CTkEntry(card, placeholder_text="Contraseña a guardar", show="*", height=40, border_width=0)
+        self.password_entry.pack(fill="x", padx=20, pady=5)
 
-    def _create_view_passwords_tab(self, tab):
-        tab.grid_columnconfigure(0, weight=1)
-        tab.grid_rowconfigure(1, weight=1)
+        self.save_button = ctk.CTkButton(card, text="Guardar de Forma Segura", command=self.save_action, height=40, fg_color=COLOR_ROJO_PRINCIPAL, hover_color=COLOR_ROJO_HOVER)
+        self.save_button.pack(anchor="w", padx=20, pady=(20, 10))
 
-        header = ctk.CTkFrame(tab, fg_color="transparent")
+        self.status_label_save = ctk.CTkLabel(card, text="", font=ctk.CTkFont(size=12))
+        self.status_label_save.pack(anchor="w", padx=20, pady=(0, 20))
+
+    def _create_view_passwords_card(self):
+        card = ctk.CTkFrame(self, corner_radius=15, fg_color=COLOR_FONDO_TARJETA)
+        card.grid(row=1, column=1, padx=(10, 20), pady=10, sticky="nsew")
+        card.grid_rowconfigure(1, weight=1)
+        card.grid_columnconfigure(0, weight=1)
+
+        header = ctk.CTkFrame(card, fg_color="transparent")
         header.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
 
         title = ctk.CTkLabel(header, text="Mis Contraseñas Guardadas", font=ctk.CTkFont(size=18, weight="bold"))
         title.pack(side="left")
         
-        refresh_button = ctk.CTkButton(header, text="Refrescar", width=100, command=self.refresh_password_list)
+        refresh_button = ctk.CTkButton(header, text="⟳", width=30, command=self.refresh_password_list, font=ctk.CTkFont(size=20))
         refresh_button.pack(side="right")
 
-        self.scrollable_frame = ctk.CTkScrollableFrame(tab, fg_color=COLOR_FONDO_TAB)
-        self.scrollable_frame.grid(row=1, column=0, padx=20, pady=5, sticky="nsew")
+        self.scrollable_frame = ctk.CTkScrollableFrame(card, fg_color="transparent")
+        self.scrollable_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
 
     def save_action(self):
         site = self.site_entry.get()
@@ -99,12 +124,14 @@ class MainView(ctk.CTkFrame):
             return
 
         self.save_button.configure(state="disabled", text="Guardando...")
-        self.show_status("Guardando...", "save", "white")
+        # --- LÍNEA CORREGIDA ---
+        self.show_status("Guardando...", "save", COLOR_GRIS_TEXTO)
+        # --- FIN DE LA CORRECCIÓN ---
         
         success = self.controller.handle_encrypt_and_save(site, username, password)
         
         if success:
-            self.show_status(f"Contraseña para '{site}' guardada con éxito.", "save", "green")
+            self.show_status(f"Contraseña para '{site}' guardada.", "save", "green")
             self.site_entry.delete(0, "end")
             self.username_entry_save.delete(0, "end")
             self.password_entry.delete(0, "end")
@@ -112,7 +139,7 @@ class MainView(ctk.CTkFrame):
         else:
             self.show_status("Error al guardar. Inténtalo de nuevo.", "save", "red")
         
-        self.save_button.configure(state="normal", text="Guardar de forma segura")
+        self.save_button.configure(state="normal", text="Guardar de Forma Segura")
 
     def refresh_password_list(self):
         for widget in self.scrollable_frame.winfo_children():
@@ -124,50 +151,42 @@ class MainView(ctk.CTkFrame):
             ctk.CTkLabel(self.scrollable_frame, text="No se pudieron cargar las contraseñas.", text_color="red").pack(pady=20)
             return
         if not passwords:
-            ctk.CTkLabel(self.scrollable_frame, text="Aún no has guardado ninguna contraseña.").pack(pady=20)
+            ctk.CTkLabel(self.scrollable_frame, text="Aún no has guardado ninguna contraseña.", text_color=COLOR_GRIS_TEXTO).pack(pady=20, padx=10)
             return
-
-        # Cabecera de la lista
-        header_list = ctk.CTkFrame(self.scrollable_frame, fg_color="transparent")
-        header_list.pack(fill="x", padx=5, pady=(0,5))
-        header_list.grid_columnconfigure(0, weight=1)
-        header_list.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(header_list, text="Sitio Web", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(header_list, text="Usuario", font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, sticky="w")
-
 
         for p in passwords:
             file_id = p["id"]
             full_filename = p["filename"]
             
-            # --- LÓGICA PARA SEPARAR SITIO Y USUARIO ---
             parts = full_filename.split(" | ", 1)
             site = parts[0]
-            username = parts[1] if len(parts) > 1 else ""
-            # --- FIN DE LA LÓGICA ---
+            username_site = parts[1] if len(parts) > 1 else ""
 
-            item_frame = ctk.CTkFrame(self.scrollable_frame, fg_color=("gray85", COLOR_ENTRADA))
-            item_frame.pack(fill="x", padx=5, pady=5)
-            item_frame.grid_columnconfigure(0, weight=1)
-            item_frame.grid_columnconfigure(1, weight=1)
+            item_card = ctk.CTkFrame(self.scrollable_frame, corner_radius=10, fg_color=COLOR_FONDO_APP)
+            item_card.pack(fill="x", padx=5, pady=5)
             
-            ctk.CTkLabel(item_frame, text=site).grid(row=0, column=0, sticky="w", padx=10, pady=10)
-            ctk.CTkLabel(item_frame, text=username, text_color="gray").grid(row=0, column=1, sticky="w", padx=10, pady=10)
+            info_frame = ctk.CTkFrame(item_card, fg_color="transparent")
+            info_frame.pack(side="left", padx=15, pady=10, fill="x", expand=True)
             
-            button_frame = ctk.CTkFrame(item_frame, fg_color="transparent")
-            button_frame.grid(row=0, column=2, sticky="e")
+            site_label = ctk.CTkLabel(info_frame, text=site, font=ctk.CTkFont(weight="bold"))
+            site_label.pack(anchor="w")
+            
+            user_label = ctk.CTkLabel(info_frame, text=username_site, text_color=COLOR_GRIS_TEXTO)
+            user_label.pack(anchor="w")
+            
+            button_frame = ctk.CTkFrame(item_card, fg_color="transparent")
+            button_frame.pack(side="right", padx=10)
 
             delete_button = ctk.CTkButton(button_frame, text="Eliminar", width=80, fg_color=COLOR_ROJO_PRINCIPAL, hover_color=COLOR_ROJO_HOVER,
                                           command=lambda fid=file_id: self.delete_action(fid))
-            delete_button.pack(side="right", padx=(5,10), pady=5)
+            delete_button.pack(side="right", padx=(5,0))
 
             view_button = ctk.CTkButton(button_frame, text="Ver/Copiar", width=100,
                                         command=lambda fid=file_id, s=site: self.view_copy_action(fid, s))
-            view_button.pack(side="right", pady=5)
+            view_button.pack(side="right")
 
     def delete_action(self, file_id: int):
-        success = self.controller.handle_delete_password(file_id)
-        if success:
+        if self.controller.handle_delete_password(file_id):
             self.refresh_password_list()
         else:
             self.show_temp_popup("Error al eliminar la contraseña.", "red")
@@ -187,20 +206,23 @@ class MainView(ctk.CTkFrame):
     def logout_action(self):
         self.controller.handle_logout()
 
-    def show_status(self, message: str, tab: str, color: str):
-        if tab == "save":
+    def show_status(self, message: str, tab_id: str, color: str):
+        if tab_id == "save":
             self.status_label_save.configure(text=message, text_color=color)
-            self.status_label_save.after(3000, lambda: self.status_label_save.configure(text=""))
+            self.status_label_save.after(4000, lambda: self.status_label_save.configure(text=""))
 
     def show_temp_popup(self, message: str, color: str = "green"):
-        popup = ctk.CTkToplevel(self)
-        popup.geometry("300x100")
-        popup.title("Notificación")
-        popup.transient(cast(ctk.CTk, self.winfo_toplevel()))
-        popup.grab_set()
-        
-        label = ctk.CTkLabel(popup, text=message, font=ctk.CTkFont(size=14), text_color=color)
-        label.pack(expand=True, padx=20, pady=20)
-        
-        popup.after(2000, popup.destroy)
+        # Usamos winfo_toplevel() para asegurar que el popup sea hijo de la ventana principal
+        toplevel_window = self.winfo_toplevel()
+        if isinstance(toplevel_window, ctk.CTk):
+            popup = ctk.CTkToplevel(toplevel_window)
+            popup.geometry("300x100")
+            popup.title("Notificación")
+            popup.transient(toplevel_window) # Hacerlo modal a la ventana principal
+            popup.grab_set()
+            
+            label = ctk.CTkLabel(popup, text=message, font=ctk.CTkFont(size=14), text_color=color)
+            label.pack(expand=True, padx=20, pady=20)
+            
+            popup.after(2000, popup.destroy)
 

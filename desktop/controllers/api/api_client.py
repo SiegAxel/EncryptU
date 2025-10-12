@@ -8,7 +8,8 @@ class APIClient:
     Encapsula toda la comunicación con la API REST de EncryptU.
     """
     def __init__(self, base_url: str):
-        self.base_url = base_url
+        # Normalizamos la URL base para quitar cualquier barra al final
+        self.base_url = base_url.rstrip('/')
         self.session = requests.Session()
         self.token: Optional[str] = None
 
@@ -21,10 +22,6 @@ class APIClient:
         self.token = token
         
     def register(self, email: str) -> Optional[Dict[str, Any]]:
-        """
-        Intenta registrar un nuevo usuario.
-        Retorna un diccionario con la respuesta JSON (éxito o error), o None si hay error de conexión.
-        """
         try:
             response = requests.post(f"{self.base_url}/register", data={"username": email})
             return response.json()
@@ -33,9 +30,6 @@ class APIClient:
             return None
 
     def login(self, username: str, password: str) -> Optional[str]:
-        """
-        Autentica al usuario y retorna el token de acceso si tiene éxito, de lo contrario None.
-        """
         try:
             response = self.session.post(f"{self.base_url}/login", data={"username": username, "password": password})
             if response.status_code == 200:
@@ -43,19 +37,27 @@ class APIClient:
                 self.token = data.get("access_token")
                 return self.token
             else:
-                print(f"Fallo de autenticación: {response.status_code} {response.text}")
                 return None
-        except requests.exceptions.RequestException as e:
-            print(f"Error de conexión en el login: {e}")
+        except requests.exceptions.RequestException:
             return None
 
     def logout(self):
         self.token = None
 
+    def check_token_validity(self) -> bool:
+        if not self.token: return False
+        try:
+            headers = self._get_auth_headers()
+            response = self.session.get(f"{self.base_url}/files", headers=headers, timeout=10)
+            return response.status_code != 401
+        except (requests.exceptions.RequestException, PermissionError):
+            return False
+
     def list_files(self) -> Optional[List[Dict[str, Any]]]:
         try:
             headers = self._get_auth_headers()
             response = self.session.get(f"{self.base_url}/files", headers=headers)
+            if response.status_code == 401: return None
             response.raise_for_status()
             return response.json()
         except (requests.exceptions.RequestException, PermissionError) as e:
@@ -63,11 +65,11 @@ class APIClient:
             return None
 
     def upload_password_data(self, filename: str, content: bytes) -> Optional[Dict[str, Any]]:
-        """Sube datos en bytes (contraseña encriptada) directamente a la API."""
         try:
             headers = self._get_auth_headers()
             files = {'file': (filename, io.BytesIO(content), 'application/octet-stream')}
             response = self.session.post(f"{self.base_url}/upload", headers=headers, files=files)
+            if response.status_code == 401: return None
             response.raise_for_status()
             return response.json()
         except (requests.exceptions.RequestException, PermissionError) as e:
@@ -75,10 +77,10 @@ class APIClient:
             return None
 
     def download_password_data(self, file_id: int) -> Optional[bytes]:
-        """Descarga el contenido de un archivo (contraseña encriptada) y lo devuelve en bytes."""
         try:
             headers = self._get_auth_headers()
             with self.session.get(f"{self.base_url}/download/{file_id}", headers=headers, stream=True) as response:
+                if response.status_code == 401: return None
                 response.raise_for_status()
                 return response.content
         except (requests.exceptions.RequestException, PermissionError) as e:
@@ -89,6 +91,7 @@ class APIClient:
         try:
             headers = self._get_auth_headers()
             response = self.session.delete(f"{self.base_url}/files/{file_id}", headers=headers)
+            if response.status_code == 401: return False
             response.raise_for_status()
             return response.status_code == 200
         except (requests.exceptions.RequestException, PermissionError) as e:
@@ -97,7 +100,8 @@ class APIClient:
 
     def check_status(self) -> bool:
         try:
-            response = self.session.get(f"{self.base_url}/status", timeout=5)
+            # --- TIMEOUT AUMENTADO A 30 SEGUNDOS ---
+            response = self.session.get(f"{self.base_url}/status", timeout=30)
             return response.ok
         except requests.exceptions.RequestException:
             return False

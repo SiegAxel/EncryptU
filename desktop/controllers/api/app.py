@@ -1,299 +1,287 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
-from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-from fastapi import Form
+import os
+import io
+import secrets
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any
+from sqlalchemy import text
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form, status
 from fastapi.responses import StreamingResponse
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from datetime import datetime, timedelta
-from config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE, ACCESS_TOKEN_EXPIRE_MINUTES
-import sqlite3
-import os
-from typing import Optional, List, Dict, cast
-import io
-from pydantic import BaseModel
-import secrets
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, LargeBinary
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.declarative import declarative_base
+from dotenv import load_dotenv
 
-# 🔹 Usar Argon2 en lugar de bcrypt
+# --- CONFIGURACIÓN INICIAL ---
+load_dotenv()
+
+# Cargar variables de entorno
+DATABASE_URL = os.getenv("DATABASE_URL")
+SECRET_KEY = secrets.token_hex(32)  # Genera una nueva llave secreta al iniciar
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+# --- CONTEXTO DE HASHING ---
+# Se mantiene Argon2 para la compatibilidad con las contraseñas existentes
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
-app = FastAPI(title="EncryptU API")
+# --- CONFIGURACIÓN DE LA BASE DE DATOS (POSTGRESQL CONSQLALCHEMY) ---
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL no está configurada en el archivo .env")
 
-DB_DIR = os.path.join(os.path.dirname(__file__), '..', 'src', 'database')
-os.makedirs(DB_DIR, exist_ok=True)
-DB_PATH = os.path.join(DB_DIR, 'encryptu_api.db')
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
+# --- MODELOS DE LA BASE DE DATOS (ORM) ---
+class User(Base):
+    __tablename__ = "user"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    passwordHash = Column(String, nullable=False)
+    role = Column(String, nullable=False, default="usuario")
+    createdAt = Column(DateTime, default=datetime.utcnow)
 
-def get_db_conn():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+class FileStorage(Base):
+    __tablename__ = "files"
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    filename = Column(String, nullable=False)
+    content = Column(LargeBinary, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
+class ContactTicket(Base):
+    __tablename__ = "contact_tickets"
+    id = Column(Integer, primary_key=True, index=True)
+    firstName = Column(String, nullable=False)
+    lastName = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    reason = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    createdAt = Column(DateTime, default=datetime.utcnow)
 
-def init_db():
-    conn = get_db_conn()
-    cur = conn.cursor()
-    # MODIFICADO: Añadida la columna 'role' a la tabla de usuarios
-    cur.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'user'
-    )
-    ''')
-    cur.execute('''
-    CREATE TABLE IF NOT EXISTS files (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        owner_id INTEGER NOT NULL,
-        filename TEXT NOT NULL,
-        content BLOB NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY(owner_id) REFERENCES users(id)
-    )
-    ''')
-    cur.execute('''
-    CREATE TABLE IF NOT EXISTS tickets (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        owner_id INTEGER,
-        email TEXT,
-        subject TEXT NOT NULL,
-        body TEXT NOT NULL,
-        created_at TEXT NOT NULL
-    )
-    ''')
-    conn.commit()
-    conn.close()
+# --- INICIALIZACIÓN DE LA APP Y LA BD ---
+app = FastAPI(title="EncryptU API Unificada")
 
+@app.on_event("startup")
+def on_startup():
+    # Crea las tablas en la base de datos si no existen
+    Base.metadata.create_all(bind=engine)
+
+# Dependencia para obtener la sesión de la BD
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=origins,
+#     allow_credentials=True,
+#     allow_methods=["*"], # Permite todos los métodos (GET, POST, etc.)
+#     allow_headers=["*"], # Permite todos los headers
+# )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
-init_db()
-
-# 🔹 Funciones de hashing y verificación
+# --- FUNCIONES DE AUTENTICACIÓN Y USUARIO (ADAPTADAS A POSTGRESQL) ---
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or ACCESS_TOKEN_EXPIRE)
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+def get_user_by_email(db: Session, email: str):
+    return db.query(User).filter(User.email == email).first()
 
-def get_user_by_username(username: str):
-    conn = get_db_conn()
-    cur = conn.cursor()
-    # Actualizado para seleccionar todos los campos, incluido el rol
-    cur.execute("SELECT * FROM users WHERE username = ?", (username,))
-    row = cur.fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-
-def authenticate_user(username: str, password: str):
-    user = get_user_by_username(username)
-    if not user:
-        return None
-    if not verify_password(password, user['password_hash']):
+def authenticate_user(db: Session, email: str, password: str):
+    user = get_user_by_email(db, email)
+    if not user or not verify_password(password, user.passwordHash):  # type: ignore
         return None
     return user
 
-
-def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="No se pudieron validar las credenciales",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: Optional[str] = payload.get("sub")
-        if username is None:
+        email: Optional[str] = payload.get("sub")
+        if email is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    user = get_user_by_username(cast(str, username))
+    user = get_user_by_email(db, email)
     if user is None:
         raise credentials_exception
     return user
 
-# --- NUEVA DEPENDENCIA PARA VERIFICAR SI EL USUARIO ES ADMIN ---
-def get_current_admin_user(current_user: dict = Depends(get_current_user)):
-    """
-    Verifica si el usuario actual tiene el rol de 'admin'.
-    Si no lo es, lanza una excepción de Prohibido (403).
-    """
-    if current_user.get("role") != "admin":
+def get_current_admin_user(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":  # type: ignore
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado: Se requieren permisos de administrador.")
     return current_user
-# --- FIN DE LA NUEVA DEPENDENCIA ---
 
+# --- ENDPOINTS DE LA API (ACTUALIZADOS) ---
 
 @app.post('/register', status_code=status.HTTP_201_CREATED)
-def register(username: str = Form(...)):
-    master_key = secrets.token_hex(16)
-    conn = get_db_conn()
-    cur = conn.cursor()
-    
-    # MODIFICADO: Lógica para asignar rol de admin al primer usuario
-    cur.execute("SELECT COUNT(id) as count FROM users")
-    user_count = cur.fetchone()['count']
-    role = "admin" if user_count == 0 else "user"
-    
-    try:
-        cur.execute(
-            "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
-            (username, get_password_hash(master_key), role)
-        )
-        conn.commit()
-    except sqlite3.IntegrityError:
-        conn.close()
+def register(name: str = Form(...), email: EmailStr = Form(...), db: Session = Depends(get_db)):
+    db_user = get_user_by_email(db, email)
+    if db_user:
         raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado.")
-    finally:
-        conn.close()
-    
-    return {"msg": f"Usuario creado exitosamente con rol '{role}'", "master_key": master_key}
 
+    master_key = secrets.token_hex(16)
+    
+    # El primer usuario registrado será administrador
+    user_count = db.query(User).count()
+    role = "admin" if user_count == 0 else "usuario"
+    
+    new_user = User(
+        name=name,
+        email=email,
+        passwordHash=get_password_hash(master_key),
+        role=role
+    )
+    db.add(new_user)
+    db.commit()
+    
+    return {"msg": f"Usuario '{name}' creado exitosamente con rol '{role}'.", "master_key": master_key}
 
 @app.post('/login')
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(form_data.username, form_data.password)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = authenticate_user(db, form_data.username, form_data.password) # form_data.username es el email
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Correo o Clave Maestra incorrectos"
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user['username']},
-        expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer", "user_role": user['role']}
+    access_token = create_access_token(data={"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer", "user_role": user.role}
 
-# --- NUEVOS ENDPOINTS DE ADMINISTRACIÓN ---
-@app.get('/admin/users', response_model=List[Dict])
-def list_all_users(current_admin: dict = Depends(get_current_admin_user)):
-    """
-    Endpoint protegido para que un administrador liste todos los usuarios.
-    """
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id, username, role FROM users")
-    users = [dict(row) for row in cur.fetchall()]
-    conn.close()
-    return users
-
-@app.delete('/admin/users/{user_id}', status_code=status.HTTP_200_OK)
-def delete_user_by_admin(user_id: int, current_admin: dict = Depends(get_current_admin_user)):
-    """
-    Endpoint protegido para que un administrador elimine una cuenta de usuario por ID.
-    """
-    if user_id == current_admin['id']:
-        raise HTTPException(status_code=400, detail="Un administrador no puede eliminar su propia cuenta.")
-
-    conn = get_db_conn()
-    cur = conn.cursor()
-    
-    # Verificar si el usuario a eliminar existe
-    cur.execute("SELECT id FROM users WHERE id = ?", (user_id,))
-    user_to_delete = cur.fetchone()
-    if not user_to_delete:
-        conn.close()
-        raise HTTPException(status_code=404, detail=f"Usuario con ID {user_id} no encontrado.")
-
-    try:
-        cur.execute('DELETE FROM tickets WHERE owner_id = ?', (user_id,))
-        cur.execute('DELETE FROM files WHERE owner_id = ?', (user_id,))
-        cur.execute('DELETE FROM users WHERE id = ?', (user_id,))
-        conn.commit()
-    except sqlite3.Error as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Error en la base de datos: {e}")
-    finally:
-        conn.close()
-        
-    return {'msg': f'Usuario con ID {user_id} y sus datos han sido eliminados.'}
-# --- FIN DE LOS NUEVOS ENDPOINTS ---
-
+# --- ENDPOINTS PARA LA APP DE ESCRITORIO (SIN CAMBIOS EN LÓGICA) ---
 
 @app.post('/upload')
-def upload_file(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+def upload_file(file: UploadFile = File(...), current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     content = file.file.read()
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO files (owner_id, filename, content, created_at) VALUES (?, ?, ?, ?)",
-        (current_user['id'], file.filename, content, datetime.utcnow().isoformat())
+    db_file = FileStorage(
+        owner_id=current_user.id,
+        filename=file.filename,
+        content=content
     )
-    conn.commit()
-    file_id = cur.lastrowid
-    conn.close()
-    return {"msg": "uploaded", "filename": file.filename, "id": file_id}
-
+    db.add(db_file)
+    db.commit()
+    db.refresh(db_file)
+    return {"msg": "Archivo subido", "filename": file.filename, "id": db_file.id}
 
 @app.get('/download/{file_id}')
-def download_file(file_id: int, current_user: dict = Depends(get_current_user)):
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM files WHERE id = ? AND owner_id = ?", (file_id, current_user['id']))
-    row = cur.fetchone()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="File not found")
-    data = row['content']
-    filename = row['filename']
-    return StreamingResponse(io.BytesIO(data), media_type='application/octet-stream', headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+def download_file(file_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_file = db.query(FileStorage).filter(FileStorage.id == file_id, FileStorage.owner_id == current_user.id).first()
+    if not db_file:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado o no tienes permiso para accederlo.")
+    return StreamingResponse(io.BytesIO(db_file.content), media_type='application/octet-stream', headers={'Content-Disposition': f'attachment; filename="{db_file.filename}"'})  # type: ignore
+
+@app.get('/files', response_model=List[Dict[str, Any]])
+def list_files(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    files = db.query(FileStorage.id, FileStorage.filename, FileStorage.created_at).filter(FileStorage.owner_id == current_user.id).order_by(FileStorage.created_at.desc()).all()
+    return [{"id": f.id, "filename": f.filename, "created_at": f.created_at.isoformat()} for f in files]
+
+@app.delete('/files/{file_id}', status_code=status.HTTP_200_OK)
+def delete_file(file_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_file = db.query(FileStorage).filter(FileStorage.id == file_id, FileStorage.owner_id == current_user.id).first()
+    if not db_file:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado.")
+    db.delete(db_file)
+    db.commit()
+    return {'msg': f'Archivo con ID {file_id} eliminado.'}
+
+# --- ENDPOINTS DE ADMINISTRACIÓN ---
+
+@app.get('/admin/user', response_model=List[Dict[str, Any]])
+def list_all_users(current_admin: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    users = db.query(User.id, User.name, User.email, User.role).all()
+    return [{"id": u.id, "name": u.name, "email": u.email, "role": u.role} for u in users]
+
+@app.delete('/admin/user/{user_id}', status_code=status.HTTP_200_OK)
+def delete_user_by_admin(user_id: int, current_admin: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    if user_id == current_admin.id:
+        raise HTTPException(status_code=400, detail="Un administrador no puede eliminar su propia cuenta.")
+    
+    user_to_delete = db.query(User).filter(User.id == user_id).first()
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail=f"Usuario con ID {user_id} no encontrado.")
+
+    # Eliminar datos asociados (cascada)
+    db.query(FileStorage).filter(FileStorage.owner_id == user_id).delete()
+    db.delete(user_to_delete)
+    db.commit()
+        
+    return {'msg': f'Usuario con ID {user_id} y todos sus datos han sido eliminados.'}
+
+# --- ENDPOINTS PARA EL WEBSITE (NUEVO) ---
+
+class TicketWebsite(BaseModel):
+    firstName: str
+    lastName: str
+    email: EmailStr
+    reason: str
+    phone: str
+    description: str
+
+@app.post('/contact-ticket', status_code=status.HTTP_201_CREATED)
+def create_contact_ticket(ticket: TicketWebsite, db: Session = Depends(get_db)):
+    new_ticket = ContactTicket(**ticket.dict())
+    db.add(new_ticket)
+    db.commit()
+    db.refresh(new_ticket)
+    return {'msg': 'Ticket de contacto recibido. Gracias.', 'ticket_id': new_ticket.id}
+
+@app.get('/admin/contact-tickets', response_model=List[Dict[str, Any]])
+def list_all_contact_tickets(current_admin: User = Depends(get_current_admin_user), db: Session = Depends(get_db)):
+    tickets = db.query(ContactTicket).order_by(ContactTicket.createdAt.desc()).all()
+    return [t.__dict__ for t in tickets]
+
+@app.get('/test-db')
+def test_db_connection(db: Session = Depends(get_db)):
+    """
+    Endpoint de diagnóstico para verificar la conexión con la base de datos de Neon.
+    """
+    try:
+        # Ejecuta una consulta SQL muy simple que pide la hora actual al servidor de la BD.
+        # Si esto funciona, la conexión es exitosa.
+        result = db.execute(text('SELECT NOW()'))
+        db_time = result.scalar_one()
+        
+        # Si la consulta fue exitosa, devuelve un mensaje de OK y la hora del servidor de BD.
+        return {
+            "status": "ok", 
+            "message": "La conexión con la base de datos de Neon es exitosa.",
+            "database_server_time": db_time
+        }
+    except Exception as e:
+        # Si ocurre cualquier error durante la conexión o la consulta,
+        # levanta una excepción HTTP 500 con un mensaje de error detallado.
+        print(f"ERROR DE CONEXIÓN A LA BD: {e}") # Esto aparecerá en tus logs de Render
+        raise HTTPException(
+            status_code=500, 
+            detail=f"No se pudo conectar a la base de datos: {e}"
+        )
 
 
-@app.get('/files')
-def list_files(current_user: dict = Depends(get_current_user)) -> List[Dict]:
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id, filename, created_at FROM files WHERE owner_id = ? ORDER BY created_at DESC", (current_user['id'],))
-    rows = cur.fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
-
-
-@app.delete('/files/{file_id}')
-def delete_file(file_id: int, current_user: dict = Depends(get_current_user)):
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM files WHERE id = ? AND owner_id = ?', (file_id, current_user['id']))
-    row = cur.fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail='File not found')
-    cur.execute('DELETE FROM files WHERE id = ?', (file_id,))
-    conn.commit()
-    conn.close()
-    return {'msg': 'deleted'}
-
-
-class Ticket(BaseModel):
-    email: Optional[str] = None
-    subject: str
-    body: str
-
-
-@app.post('/tickets', status_code=status.HTTP_201_CREATED)
-def create_ticket(ticket: Ticket, current_user: dict = Depends(get_current_user)):
-    conn = get_db_conn()
-    cur = conn.cursor()
-    owner_id = current_user['id'] if current_user else None
-    cur.execute('INSERT INTO tickets (owner_id, email, subject, body, created_at) VALUES (?, ?, ?, ?, ?)', (owner_id, ticket.email, ticket.subject, ticket.body, datetime.utcnow().isoformat()))
-    conn.commit()
-    ticket_id = cur.lastrowid
-    conn.close()
-    return {'msg': 'ticket created', 'id': ticket_id}
-
-
+# --- ENDPOINT DE ESTADO ---
 @app.get('/status')
 def get_status():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
-
