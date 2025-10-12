@@ -12,8 +12,16 @@ model ContactTicket {
   firstName   String
   lastName    String
   email       String
-  reason      String
+  reason      String     // <- String, NO enum
   phone       String
   description String
   createdAt   DateTime @default(now())
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
 }
