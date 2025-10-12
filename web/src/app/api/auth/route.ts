@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
+import { Prisma } from "@prisma/client"; // 👈 importa tipos de Prisma
 
 export const runtime = "nodejs";
 
@@ -28,7 +29,7 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
     }
 
     // Evita duplicados (email único)
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existing) {
       return NextResponse.json(
         { ok: false, error: "El correo ya está registrado." },
@@ -45,12 +46,17 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
 
     return NextResponse.json({ ok: true, id: user.id }, { status: 201 });
   } catch (err: unknown) {
-    // Prisma P2002 = unique constraint failed
-    const message =
-      err && typeof err === "object" && "code" in (err as any) && (err as any).code === "P2002"
-        ? "El correo ya está registrado."
-        : (err instanceof Error ? err.message : String(err));
-
+    // 🎯 Sin 'any': usa el tipo de error de Prisma o cae a mensaje genérico
+    let message: string;
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === "P2002") {
+        message = "El correo ya está registrado.";
+      } else {
+        message = `${err.code}: ${err.message}`;
+      }
+    } else {
+      message = err instanceof Error ? err.message : String(err);
+    }
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
