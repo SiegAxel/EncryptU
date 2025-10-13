@@ -32,14 +32,15 @@ export default function LoginPage() {
             body: JSON.stringify({ email, password }),
           });
 
-          const data: ApiOk | ApiErr = await res.json();
+          const data = await res.json();
           setLoading(false);
 
-          if (res.ok && (data as ApiOk).ok) {
-            // ⬇️ AQUÍ va el push (y refresh) ⬇️
-            router.push(next || (data as ApiOk).redirect); // <-- este es el lugar
-            router.refresh(); // fuerza a que Navbar vuelva a consultar /api/.../me
-            return;
+          if (res.ok) {
+            // si next es exactamente "/dashboard", reemplázalo por el redirect sugerido
+            const dest = next && next !== "/dashboard" ? next : (data?.redirect ?? "/");
+            router.replace(dest);
+          } else {
+            setMsg(data?.error ?? "No se pudo iniciar sesión");
           }
 
           setMsg((data as ApiErr)?.error ?? "No se pudo iniciar sesión");

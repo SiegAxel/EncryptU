@@ -85,7 +85,7 @@ export default function Navbar() {
                 {me.user.role === "soporte" && (
                   <Link href="/dashboard/soporte" className="btn-outline text-sm">Soporte</Link>
                 )}
-                <button onClick={logout} className="btn-ghost text-sm">Salir</button>
+                <button onClick={logout} className="btn-primary text-sm">Salir</button>
               </>
             ) : (
               <>
