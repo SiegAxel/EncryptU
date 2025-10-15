@@ -1,130 +1,309 @@
 "use client";
-import { useEffect, useState } from "react";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Ticket = {
   id: number;
   firstName: string;
   lastName: string;
   email: string;
-  reason: string;
-  status: string;
-  createdAt: string;
-  assignedTo?: { id: number; name: string } | null;
-  _count: { messages: number };
+  reason: string;      // "soporte" | "consulta"
+  status: string;      // "open" | "closed" | etc
+  createdAt: string;   // ISO
+  _count?: { messages?: number };
 };
 
-type Message = { id: number; author: "user" | "agent"; name?: string | null; body: string; createdAt: string };
+type Message = {
+  id: number;
+  author: "user" | "agent";
+  name?: string | null;
+  body: string;
+  createdAt: string; // ISO
+};
+
+const fmtTime = (iso: string) =>
+  new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(
+    new Date(iso)
+  );
+
+// ───────── badges con chips ─────────
+const ReasonBadge = ({ reason }: { reason: string }) => (
+  <span className={"chip " + (reason === "soporte" ? "chip--brand" : "chip--accent")}>
+    {reason}
+  </span>
+);
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, string> = {
+    open: "chip chip--success",
+    closed: "chip",
+    pending: "chip chip--accent",
+  };
+  return <span className={map[status] ?? "chip"}>{status}</span>;
+};
 
 export default function SoportePage() {
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [text, setText] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [tickets, setTickets] = useState<Ticket[] | null>(null);
+  const [filter, setFilter] = useState("");
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const [messages, setMessages] = useState<Message[] | null>(null);
+  const [sending, setSending] = useState(false);
+  const [draft, setDraft] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
 
   // cargar tickets
-  async function loadTickets() {
+  const loadTickets = useCallback(async () => {
     const res = await fetch("/api/support/tickets", { cache: "no-store" });
     const data = await res.json();
-    if (data.ok) setTickets(data.tickets as Ticket[]);
-  }
+    if (data.ok) {
+      setTickets(data.tickets as Ticket[]);
+      if (!activeId && data.tickets.length) setActiveId(data.tickets[0].id);
+    } else {
+      setTickets([]);
+    }
+  }, [activeId]);
 
-  // cargar mensajes del ticket seleccionado
-  async function loadMessages(id: number) {
-    const res = await fetch(`/api/support/tickets/${id}/messages`, { cache: "no-store" });
+  // cargar mensajes del ticket activo
+  const loadMessages = useCallback(async () => {
+    if (!activeId) return;
+    const res = await fetch(`/api/support/tickets/${activeId}/messages`, { cache: "no-store" });
     const data = await res.json();
     if (data.ok) setMessages(data.messages as Message[]);
-  }
+    else setMessages([]);
+  }, [activeId]);
 
+  // inicial + refresco periódico
   useEffect(() => {
     loadTickets();
-    const i = setInterval(loadTickets, 10_000); // refresco liviano
+    const i = setInterval(loadTickets, 15_000);
     return () => clearInterval(i);
-  }, []);
+  }, [loadTickets]);
 
   useEffect(() => {
-    if (!selected) return;
-    loadMessages(selected);
-    const i = setInterval(() => loadMessages(selected), 5_000); // refresco chat
+    loadMessages();
+    const i = setInterval(loadMessages, 5_000);
     return () => clearInterval(i);
-  }, [selected]);
+  }, [loadMessages]);
 
-  async function send() {
-    if (!selected || !text.trim()) return;
-    setLoading(true);
-    const res = await fetch(`/api/support/tickets/${selected}/messages`, {
+  // autoscroll
+  useEffect(() => {
+    if (!listRef.current) return;
+    listRef.current.scrollTop = listRef.current.scrollHeight;
+  }, [messages]);
+
+  const activeTicket = useMemo(
+    () => tickets?.find((t) => t.id === activeId) ?? null,
+    [tickets, activeId]
+  );
+
+  const filtered = useMemo(() => {
+    if (!tickets) return null;
+    const q = filter.trim().toLowerCase();
+    if (!q) return tickets;
+    return tickets.filter(
+      (t) =>
+        `${t.firstName} ${t.lastName} ${t.email} ${t.reason}`.toLowerCase().includes(q) ||
+        String(t.id).includes(q)
+    );
+  }, [tickets, filter]);
+
+  // enviar mensaje
+  const send = async () => {
+    if (!activeId || !draft.trim()) return;
+    setSending(true);
+    const res = await fetch(`/api/support/tickets/${activeId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: text }),
+      body: JSON.stringify({ body: draft }),
     });
-    setLoading(false);
+    setSending(false);
     if (res.ok) {
-      setText("");
-      loadMessages(selected);
+      setDraft("");
+      loadMessages();
     }
-  }
+  };
+
+  const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      void send();
+    }
+  };
 
   return (
-    <section className="max-w-6xl mx-auto px-4 py-8 grid md:grid-cols-[280px_1fr] gap-6">
-      <aside className="rounded-xl border p-3 h-[70vh] overflow-auto bg-white">
-        <h2 className="font-semibold mb-3">Tickets</h2>
-        <ul className="space-y-2">
-          {tickets.map(t => (
-            <li key={t.id}>
+    <section className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-8 md:grid-cols-[320px_1fr]">
+      {/* Sidebar */}
+      <aside className="rounded-2xl border p-3 bg-white/80 bg-tickets-surface">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Tickets</h2>
+          <span className="text-xs text-slate-500">{tickets?.length ?? 0} total</span>
+        </div>
+
+        <div className="mb-3">
+          <input
+            className="input w-full"
+            placeholder="Buscar por nombre, mail, #id…"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-2 overflow-auto pr-1" style={{ maxHeight: "68vh" }}>
+          {!filtered ? (
+            <TicketSkeleton />
+          ) : filtered.length === 0 ? (
+            <EmptyState text="Sin resultados" />
+          ) : (
+            filtered.map((t) => (
               <button
-                onClick={() => setSelected(t.id)}
-                className={`w-full text-left p-2 rounded border hover:bg-slate-50 ${selected===t.id ? "bg-slate-100" : ""}`}
+                key={t.id}
+                onClick={() => setActiveId(t.id)}
+                className={[
+                  "w-full rounded-xl border px-3 py-2 text-left transition",
+                  activeId === t.id ? "ticket-item--active" : "hover:bg-slate-50"
+                ].join(" ")}
+
               >
-                <div className="font-medium">#{t.id} {t.firstName} {t.lastName}</div>
-                <div className="text-xs text-slate-500">
-                  {t.reason} · {new Date(t.createdAt).toLocaleString()} · {t._count.messages} msgs
+                <div className="flex items-center justify-between gap-2">
+                  <div className="truncate text-[13px] font-medium">
+                    #{t.id} {t.firstName} {t.lastName}
+                  </div>
+                  <ReasonBadge reason={t.reason} />
+                </div>
+                <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+                  <span className="truncate">{t.email}</span>
+                  <span>{t._count?.messages ?? 0} msgs</span>
                 </div>
               </button>
-            </li>
-          ))}
-        </ul>
+            ))
+          )}
+        </div>
       </aside>
 
-      <div className="rounded-xl border p-4 bg-white">
-        <div className="h-[60vh] rounded border bg-slate-50 p-4 overflow-auto">
-          {!selected ? (
-            <div className="text-slate-500">Selecciona un ticket para ver el chat.</div>
+      {/* Chat */}
+      <div className="rounded-2xl border overflow-hidden">
+        {/* Header chat */}
+        <div className="flex items-center justify-between gap-3 border-b bg-white/70 px-4 py-3">
+          {activeTicket ? (
+            <>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="truncate text-sm font-semibold">
+                    Ticket #{activeTicket.id} — {activeTicket.firstName} {activeTicket.lastName}
+                  </h3>
+                  <ReasonBadge reason={activeTicket.reason} />
+                  <StatusBadge status={activeTicket.status} />
+                </div>
+                <div className="truncate text-xs text-slate-500">{activeTicket.email}</div>
+              </div>
+              <span className="text-xs text-slate-500">
+                {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+                  new Date(activeTicket.createdAt)
+                )}
+              </span>
+            </>
           ) : (
-            <ul className="space-y-3">
-              {messages.map(m => (
-                <li key={m.id} className={m.author === "agent" ? "text-right" : ""}>
-                  <div className="inline-block max-w-[80%] rounded-xl px-3 py-2
-                                  bg-white shadow-sm border
-                                  {m.author === 'agent' ? 'bg-brand text-white border-transparent' : ''}">
-                    <div className="text-xs opacity-70">
-                      {m.author === "agent" ? (m.name ?? "Agente") : (m.name ?? "Usuario")}
-                      {" · "}{new Date(m.createdAt).toLocaleString()}
-                    </div>
-                    <div className="whitespace-pre-wrap">{m.body}</div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className="text-sm text-slate-500">Selecciona un ticket…</div>
           )}
         </div>
 
-        <div className="mt-3 flex gap-2">
+        {/* Mensajes */}
+        <div
+          ref={listRef}
+          className="h-[60vh] overflow-auto bg-slate-50 bg-chat-surface px-3 py-4"
+        >
+          {!activeTicket ? (
+            <div className="flex h-full items-center justify-center text-sm text-slate-600">
+              Selecciona un ticket para ver el chat.
+            </div>
+          ) : !messages ? (
+            <MessagesSkeleton />
+          ) : messages.length === 0 ? (
+            <EmptyState text="Aún no hay mensajes en este ticket." />
+          ) : (
+            <div className="space-y-2">
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={"flex " + (m.author === "agent" ? "justify-end" : "justify-start")}
+                >
+                  <div
+                    className={[
+                      "max-w-[80%] rounded-2xl px-3 py-2 shadow-sm",
+                      m.author === "agent"
+                        ? "bubble bubble--agent"
+                        : "bubble bubble--user border"
+                    ].join(" ")}
+                  >
+                    <div className="text-[11px] opacity-80">
+                      {m.author === "agent" ? m.name || "soporte" : "usuario"} · {fmtTime(m.createdAt)}
+                    </div>
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Composer */}
+        <form
+          className="flex items-center gap-2 border-t bg-white/80 p-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void send();
+          }}
+        >
           <input
-            className="flex-1 border p-2 rounded"
-            placeholder="Escribe un mensaje..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            disabled={!selected || loading}
+            className="input flex-1"
+            placeholder="Escribe un mensaje…  (Ctrl/⌘ + Enter para enviar)"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={onKeyDown}
+            disabled={!activeTicket || sending}
           />
           <button
-            onClick={send}
-            disabled={!selected || loading || !text.trim()}
-            className="px-4 rounded bg-brand text-white disabled:opacity-60"
+            type="submit"
+            disabled={!activeTicket || !draft.trim() || sending}
+            className="btn-brand rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
-            {loading ? "Enviando..." : "Enviar"}
+            {sending ? "Enviando…" : "Enviar"}
           </button>
-        </div>
+
+        </form>
       </div>
     </section>
+  );
+}
+
+/* ── estados ─────────────────────────── */
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="rounded-xl border border-dashed bg-white/70 p-6 text-center text-sm text-slate-600">
+      {text}
+    </div>
+  );
+}
+
+function TicketSkeleton() {
+  return (
+    <div className="space-y-2">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className="h-12 animate-pulse rounded-xl border bg-white/70" />
+      ))}
+    </div>
+  );
+}
+
+function MessagesSkeleton() {
+  return (
+    <div className="space-y-2">
+      {[...Array(5)].map((_, i) => (
+        <div key={i} className={"flex " + (i % 2 ? "justify-end" : "justify-start")}>
+          <div className="h-12 w-1/2 animate-pulse rounded-2xl bg-slate-200/70" />
+        </div>
+      ))}
+    </div>
   );
 }
