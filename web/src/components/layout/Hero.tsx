@@ -1,5 +1,6 @@
 import Container from "@/components/layout/ui/Container";
 import Button from "@/components/layout/ui/Button";
+import ButtonLink from "./ui/ButtonLink";
 
 
 export default function Hero() {
@@ -11,7 +12,7 @@ export default function Hero() {
                     <p className="mt-4 max-w-2xl text-slate-300">EncryptU es un gestor portable para proteger tus accesos con cifrado AES-256 y buenas prácticas por defecto. Descarga y usa sin instalación.</p>
                     <div className="mt-8 flex flex-wrap gap-3">
                         <Button>Descargar</Button>
-                        <Button variant="outline">Ver más</Button>
+                        <ButtonLink variant="outline" href="/marketing/instalacion">Ver más</ButtonLink>
                     </div>
                 </div>
             </Container>

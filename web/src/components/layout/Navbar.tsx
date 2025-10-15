@@ -1,11 +1,12 @@
+// web/src/components/layout/Navbar.tsx
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Container from "@/components/layout/ui/Container";
 import SocialBar from "./SocialBar";
 import { cn } from "@/lib/cn";
-import ButtonLink from "@/components/layout/ui/ButtonLink";
 
 const nav = [
   { href: "/", label: "Inicio" },
@@ -14,8 +15,36 @@ const nav = [
   { href: "/marketing/contacto", label: "Contacto" },
 ];
 
+type Me =
+  | { ok: true; user: { name: string; role: "usuario" | "soporte" | "admin" } }
+  | { ok: false };
+
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [me, setMe] = useState<Me>({ ok: false });
+
+  async function loadMe() {
+    try {
+      const res = await fetch("/api/me", { cache: "no-store", credentials: "include" });
+      const data = (await res.json()) as Me;
+      setMe(data);
+    } catch {
+      setMe({ ok: false });
+    }
+  }
+
+  useEffect(() => {
+    loadMe();
+  }, [pathname]); // ← se re-ejecuta al cambiar de ruta
+
+  const logout = async () => {
+    await fetch("/api/logout", { method: "POST", credentials: "include" });
+    setMe({ ok: false });
+    router.push("/");
+    router.refresh();
+  };
+
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-white/80 backdrop-blur">
       <Container>
@@ -46,18 +75,26 @@ export default function Navbar() {
             <SocialBar />
           </div>
 
-
           <div className="flex items-center gap-2">
-            <ButtonLink href="/auth/login" variant="outline" size="md">
-              Ingresar
-            </ButtonLink>
-            <ButtonLink href="/auth/registro" variant="primary" size="md">
-              Crear cuenta
-            </ButtonLink>
+            {me.ok ? (
+              <>
+                <span className="text-sm">¡Bienvenido {me.user.name}!</span>
+                {me.user.role === "admin" && (
+                  <Link href="/dashboard/admin" className="btn-outline text-sm">Admin</Link>
+                )}
+                {me.user.role === "soporte" && (
+                  <Link href="/dashboard/soporte" className="btn-outline text-sm">Soporte</Link>
+                )}
+                <button onClick={logout} className="btn-primary text-sm">Salir</button>
+              </>
+            ) : (
+              <>
+                <Link href="/auth/login" className="btn-outline text-sm">Ingresar</Link>
+                <Link href="/auth/registro" className="btn-primary text-sm">Crear cuenta</Link>
+              </>
+            )}
           </div>
-
         </div>
-
       </Container>
     </header>
   );
