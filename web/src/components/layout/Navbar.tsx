@@ -50,10 +50,7 @@ export default function Navbar() {
       <Container>
         <div className="flex h-16 items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo.svg" alt="EncryptU" width={32} height={32} />
-            <span className="text-xl font-semibold">
-              Encrypt<span className="text-brand">U</span>
-            </span>
+            <Image src="/negrito.png" alt="EncryptU" width={200} height={200} />
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
