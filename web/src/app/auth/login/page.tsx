@@ -32,18 +32,17 @@ export default function LoginPage() {
             body: JSON.stringify({ email, password }),
           });
 
-          const data = await res.json();
+          const data: ApiOk | ApiErr = await res.json();
           setLoading(false);
 
           if (res.ok) {
             // si next es exactamente "/dashboard", reemplázalo por el redirect sugerido
-            const dest = next && next !== "/dashboard" ? next : (data?.redirect ?? "/");
+            const { redirect } = data as ApiOk;
+            const dest = next && next !== "/dashboard" ? next : redirect ?? "/";
             router.replace(dest);
           } else {
-            setMsg(data?.error ?? "No se pudo iniciar sesión");
+            setMsg((data as ApiErr)?.error ?? "No se pudo iniciar sesión");
           }
-
-          setMsg((data as ApiErr)?.error ?? "No se pudo iniciar sesión");
         }}
         className="mt-8 space-y-4"
       >

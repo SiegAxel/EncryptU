@@ -1,5 +1,3 @@
-
-import Link from "next/link";
 import PricingCard from "@/components/layout/PricingCard";
 
 export default function HomePage() {

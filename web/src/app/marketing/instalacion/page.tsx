@@ -3,7 +3,6 @@ import Link from "next/link";
 import Section from "@/components/layout/ui/Section";
 import Container from "@/components/layout/ui/Container";
 import Card from "@/components/layout/ui/Card";
-import Button from "@/components/layout/ui/Button";
 import ButtonLink from "@/components/layout/ui/ButtonLink";
 import { FaFacebook, FaLinkedin, FaInstagram, FaGithub } from "react-icons/fa";
 

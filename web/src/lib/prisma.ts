@@ -2,7 +2,6 @@ import { PrismaClient } from "@prisma/client";
 
 // Reutiliza la instancia en desarrollo para evitar múltiples conexiones.
 declare global {
-  // eslint-disable-next-line no-var
   var prismaGlobal: PrismaClient | undefined;
 }
 

@@ -1,13 +1,21 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
-const rawSecret =
-  process.env.AUTH_SECRET ?? process.env.JWT_SECRET ?? process.env.NEXTAUTH_SECRET;
+let secretKey: Uint8Array | undefined;
 
-if (!rawSecret && process.env.NODE_ENV === "production") {
-  throw new Error("Se requiere la variable de entorno AUTH_SECRET en producción.");
+function getSecretKey(): Uint8Array {
+  if (!secretKey) {
+    const rawSecret =
+      process.env.AUTH_SECRET ?? process.env.JWT_SECRET ?? process.env.NEXTAUTH_SECRET;
+
+    if (!rawSecret && process.env.NODE_ENV === "production") {
+      throw new Error("Se requiere la variable de entorno AUTH_SECRET en producción.");
+    }
+
+    secretKey = new TextEncoder().encode(rawSecret ?? "development-secret");
+  }
+
+  return secretKey;
 }
-
-const secretKey = new TextEncoder().encode(rawSecret ?? "development-secret");
 
 export type Role = "usuario" | "soporte" | "admin";
 
@@ -33,10 +41,10 @@ export async function signToken<T extends JWTPayload>(
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setIssuedAt()
     .setExpirationTime(expiresIn)
-    .sign(secretKey);
+    .sign(getSecretKey());
 }
 
 export async function verifyToken<T extends JWTPayload>(token: string): Promise<T> {
-  const { payload } = await jwtVerify(token, secretKey);
+  const { payload } = await jwtVerify(token, getSecretKey());
   return payload as T;
 }
