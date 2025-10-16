@@ -116,7 +116,7 @@ class APIClient:
 
     def check_status(self) -> bool:
         try:
-            response = self.session.get(f"{self.base_url}/status", timeout=30)
+            response = self.session.get(f"{self.base_url}/status", timeout=60)
             return response.ok
         except requests.exceptions.RequestException:
             return False
