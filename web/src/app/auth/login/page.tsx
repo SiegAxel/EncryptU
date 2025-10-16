@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/layout/ui/Button";
 import ButtonLink from "@/components/layout/ui/ButtonLink";
@@ -7,7 +7,7 @@ import ButtonLink from "@/components/layout/ui/ButtonLink";
 type ApiOk = { ok: true; role: "usuario" | "soporte" | "admin"; redirect: string };
 type ApiErr = { ok: false; error: string };
 
-export default function LoginPage() {
+function LoginPageInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -32,18 +32,17 @@ export default function LoginPage() {
             body: JSON.stringify({ email, password }),
           });
 
-          const data = await res.json();
+          const data: ApiOk | ApiErr = await res.json();
           setLoading(false);
 
           if (res.ok) {
             // si next es exactamente "/dashboard", reemplázalo por el redirect sugerido
-            const dest = next && next !== "/dashboard" ? next : (data?.redirect ?? "/");
+            const { redirect } = data as ApiOk;
+            const dest = next && next !== "/dashboard" ? next : redirect ?? "/";
             router.replace(dest);
           } else {
-            setMsg(data?.error ?? "No se pudo iniciar sesión");
+            setMsg((data as ApiErr)?.error ?? "No se pudo iniciar sesión");
           }
-
-          setMsg((data as ApiErr)?.error ?? "No se pudo iniciar sesión");
         }}
         className="mt-8 space-y-4"
       >
@@ -77,5 +76,19 @@ export default function LoginPage() {
         </ButtonLink>
       </div>
     </section>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="max-w-md mx-auto px-4 py-16">
+          <h1 className="text-3xl font-bold text-center">Iniciar sesión</h1>
+        </section>
+      }
+    >
+      <LoginPageInner />
+    </Suspense>
   );
 }
