@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/layout/ui/Button";
 import ButtonLink from "@/components/layout/ui/ButtonLink";
@@ -7,7 +7,7 @@ import ButtonLink from "@/components/layout/ui/ButtonLink";
 type ApiOk = { ok: true; role: "usuario" | "soporte" | "admin"; redirect: string };
 type ApiErr = { ok: false; error: string };
 
-export default function LoginPage() {
+function LoginPageInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -76,5 +76,19 @@ export default function LoginPage() {
         </ButtonLink>
       </div>
     </section>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <section className="max-w-md mx-auto px-4 py-16">
+          <h1 className="text-3xl font-bold text-center">Iniciar sesión</h1>
+        </section>
+      }
+    >
+      <LoginPageInner />
+    </Suspense>
   );
 }
