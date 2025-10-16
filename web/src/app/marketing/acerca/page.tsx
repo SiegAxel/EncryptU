@@ -2,13 +2,12 @@ import Container from "@/components/layout/ui/Container";
 import Section from "@/components/layout/ui/Section";
 import Card from "@/components/layout/ui/Card";
 
-
 const team = [
-    { name: "Felipe Torres", role: "CEO" },
-    { name: "Manuel Miqueles", role: "Analista de datos" },
-    { name: "Liam Ley", role: "QA Tester" },
-    { name: "Nicolás Fernández", role: "Programador" },
-    { name: "Jose Rojas", role: "Desarrollador" },
+    { name: "Felipe Torres", role: "CEO", img:"/team/default.webp" },
+    { name: "Manuel Miqueles", role: "Analista de datos", img:"/team/default.webp" },
+    { name: "Liam Ley", role: "QA Tester", img: "/team/venezolano.png" },
+    { name: "Nicolás Fernández", role: "Programador", img:"/team/default.webp" },
+    { name: "José Rojas", role: "Desarrollador", img:"/team/default.webp" },
 ];
 
 
@@ -28,7 +27,9 @@ export default function AboutPage() {
                         {team.map(t => (
                             <Card key={t.name}>
                                 <div className="flex flex-col items-center gap-3">
-                                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-brand to-pink-300" />
+                                    <div className="h-20 w-20 rounded-full bg-gradient-to-br from-brand to-pink-300">
+                                        <img src={t.img} alt="equipo" className="rounded-full"/>
+                                    </div>
                                     <div className="text-center">
                                         <div className="font-medium">{t.name}</div>
                                         <div className="text-sm text-slate-500">{t.role}</div>
