@@ -44,7 +44,7 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
     });
 
     const from = process.env.SMTP_FROM || process.env.SMTP_USER!;
-    const to = process.env.CONTACT_RECIPIENT || "liam251215@gmail.com";
+    const to = process.env.CONTACT_RECIPIENT || "soporte.encryptu@gmail.com";
     const subject = `Ticket generado por ${firstName} ${lastName}`;
 
     const text = `
