@@ -1,6 +1,6 @@
 import requests
 import os
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, cast
 import io
 
 class APIClient:
@@ -120,3 +120,74 @@ class APIClient:
             return response.ok
         except requests.exceptions.RequestException:
             return False
+
+    # --- ENDPOINTS DE SOPORTE ---
+    def list_support_tickets(self) -> Optional[List[Dict[str, Any]]]:
+        try:
+            headers = self._get_auth_headers()
+            response = self.session.get(f"{self.base_url}/support/tickets", headers=headers, timeout=20)
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, dict):
+                if data.get("ok") is True and isinstance(data.get("tickets"), list):
+                    return cast(List[Dict[str, Any]], data.get("tickets"))
+                if data.get("ok") is False:
+                    print(f"API soporte respondió con error: {data.get('error')}")
+                    return []
+            if isinstance(data, list):
+                return cast(List[Dict[str, Any]], data)
+            return []
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al obtener tickets de soporte: {e}")
+            return []
+
+    def get_support_ticket_messages(self, ticket_id: int) -> Optional[List[Dict[str, Any]]]:
+        try:
+            headers = self._get_auth_headers()
+            response = self.session.get(
+                f"{self.base_url}/support/tickets/{ticket_id}/messages",
+                headers=headers,
+                timeout=20,
+            )
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, dict):
+                if data.get("ok") is True and isinstance(data.get("messages"), list):
+                    return cast(List[Dict[str, Any]], data.get("messages"))
+                if data.get("ok") is False:
+                    print(f"API soporte respondió con error: {data.get('error')}")
+                    return []
+            if isinstance(data, list):
+                return cast(List[Dict[str, Any]], data)
+            return []
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al obtener mensajes de soporte: {e}")
+            return []
+
+    def send_support_message(self, ticket_id: int, body: str) -> Optional[Dict[str, Any]]:
+        try:
+            headers = self._get_auth_headers()
+            payload = {"body": body}
+            response = self.session.post(
+                f"{self.base_url}/support/tickets/{ticket_id}/messages",
+                headers=headers,
+                json=payload,
+                timeout=20,
+            )
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            try:
+                data = response.json()
+                if isinstance(data, dict):
+                    return data
+            except ValueError:
+                pass
+            return {"ok": True}
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al enviar mensaje de soporte: {e}")
+            return {"ok": False, "error": str(e)}
