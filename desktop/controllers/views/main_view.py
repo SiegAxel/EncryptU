@@ -24,7 +24,7 @@ BADGE_STATUS_COLORS = {
     "closed": {"bg": ("#E2E8F0", "#2D3748"), "text": ("#4A5568", "#E2E8F0")},
 }
 SUPPORT_AGENT_NAME = "Equipo EncryptU"
-
+SUPPORT_REASON_OPTIONS = ["Soporte", "Consulta"]
 
 class MainView(ctk.CTkFrame):
     """
@@ -57,7 +57,12 @@ class MainView(ctk.CTkFrame):
         self.support_chat_title_var = ctk.StringVar(value="Selecciona un ticket para ver los detalles.")
         self.support_chat_meta_var = ctk.StringVar(value="")
         self.support_status_var = ctk.StringVar(value="")
-
+        self.ticket_first_name_var = ctk.StringVar(value="")
+        self.ticket_last_name_var = ctk.StringVar(value="")
+        self.ticket_email_var = ctk.StringVar(value=username or "")
+        self.ticket_phone_var = ctk.StringVar(value="")
+        self.ticket_reason_var = ctk.StringVar(value=SUPPORT_REASON_OPTIONS[0])
+        self.ticket_form_status_var = ctk.StringVar(value="")        
         self.nav_segmented: Optional[ctk.CTkSegmentedButton] = None
         self.nav_map = {"Perfil": "profile", "Encriptacion": "encryption", "Soporte": "support"}
         self.sections: Dict[str, ctk.CTkFrame] = {}
@@ -70,6 +75,9 @@ class MainView(ctk.CTkFrame):
         self.support_message_input: Optional[ctk.CTkTextbox] = None
         self.support_send_button: Optional[ctk.CTkButton] = None
         self.support_status_label: Optional[ctk.CTkLabel] = None
+        self.ticket_form_status_label: Optional[ctk.CTkLabel] = None
+        self.support_create_button: Optional[ctk.CTkButton] = None
+        self.support_ticket_description_input: Optional[ctk.CTkTextbox] = None
 
         self.site_entry: Optional[ctk.CTkEntry] = None
         self.username_entry_save: Optional[ctk.CTkEntry] = None
@@ -522,6 +530,7 @@ class MainView(ctk.CTkFrame):
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=2)
         frame.grid_rowconfigure(0, weight=1)
+        frame.grid_rowconfigure(1, weight=1)
 
         tickets_panel = ctk.CTkFrame(
             frame,
@@ -531,43 +540,141 @@ class MainView(ctk.CTkFrame):
             border_color=COLOR_DIVIDER_LIGHT,
         )
         tickets_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 12), pady=8)
-        tickets_panel.grid_rowconfigure(4, weight=1)
+        tickets_panel.grid_rowconfigure(5, weight=1)
         tickets_panel.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             tickets_panel,
-            text="Tickets de soporte",
+            text="Mis tickets de soporte",
             font=ctk.CTkFont(size=20, weight="bold"),
-            text_color=TEXT_COLOR_PRIMARY,
+            text_color=(COLOR_ROJO_PRINCIPAL, COLOR_ROJO_ACENTO),
         ).grid(row=0, column=0, sticky="w", padx=24, pady=(24, 6))
 
         ctk.CTkLabel(
             tickets_panel,
-            text="Sincronizado con la mesa de ayuda de EncryptU.",
-            font=ctk.CTkFont(size=14),
+            text="Cuentanos que ocurre y enviaremos tu caso a soporte.",
+            font=ctk.CTkFont(size=13),
             text_color=TEXT_COLOR_SECONDARY,
+            wraplength=420,
+            justify="left",
         ).grid(row=1, column=0, sticky="w", padx=24)
+
+        form_card = ctk.CTkFrame(
+            tickets_panel,
+            fg_color=(COLOR_BLANCO, "#1F2937"),
+            corner_radius=20,
+            border_width=1,
+            border_color=COLOR_ROJO_PRINCIPAL,
+        )
+        form_card.grid(row=2, column=0, sticky="nsew", padx=24, pady=(18, 12))
+        form_card.grid_columnconfigure(0, weight=1)
+        form_card.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(
+            form_card,
+            text="Crear nuevo ticket",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=(COLOR_ROJO_PRINCIPAL, COLOR_ROJO_ACENTO),
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(20, 4))
+
+        ctk.CTkLabel(
+            form_card,
+            text="Los mismos campos que el formulario web: nombre, apellido, correo, motivo, telefono y descripcion.",
+            font=ctk.CTkFont(size=12),
+            text_color=TEXT_COLOR_MUTED,
+            wraplength=440,
+            justify="left",
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 12))
+
+        ctk.CTkEntry(
+            form_card,
+            placeholder_text="Nombre",
+            textvariable=self.ticket_first_name_var,
+            height=38,
+            corner_radius=12,
+        ).grid(row=2, column=0, sticky="ew", padx=(20, 10), pady=(0, 10))
+
+        ctk.CTkEntry(
+            form_card,
+            placeholder_text="Apellido",
+            textvariable=self.ticket_last_name_var,
+            height=38,
+            corner_radius=12,
+        ).grid(row=2, column=1, sticky="ew", padx=(10, 20), pady=(0, 10))
+
+        ctk.CTkEntry(
+            form_card,
+            placeholder_text="Correo electronico",
+            textvariable=self.ticket_email_var,
+            height=38,
+            corner_radius=12,
+        ).grid(row=3, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+
+        ctk.CTkOptionMenu(
+            form_card,
+            values=SUPPORT_REASON_OPTIONS,
+            variable=self.ticket_reason_var,
+            fg_color=COLOR_ROJO_PRINCIPAL,
+            button_color=COLOR_ROJO_HOVER,
+            button_hover_color=COLOR_ROJO_ACENTO,
+            height=36,
+            corner_radius=12,
+        ).grid(row=4, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+
+        ctk.CTkEntry(
+            form_card,
+            placeholder_text="Telefono de contacto (9 digitos)",
+            textvariable=self.ticket_phone_var,
+            height=38,
+            corner_radius=12,
+        ).grid(row=5, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+
+        self.support_ticket_description_input = ctk.CTkTextbox(
+            form_card,
+            height=120,
+            corner_radius=12,
+        )
+        self.support_ticket_description_input.grid(row=6, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 12))
+
+        self.ticket_form_status_label = ctk.CTkLabel(
+            form_card,
+            textvariable=self.ticket_form_status_var,
+            font=ctk.CTkFont(size=11),
+            text_color=TEXT_COLOR_MUTED,
+        )
+        self.ticket_form_status_label.grid(row=7, column=0, sticky="w", padx=20, pady=(0, 20))
+
+        self.support_create_button = ctk.CTkButton(
+            form_card,
+            text="Enviar ticket",
+            command=self._handle_create_support_ticket,
+            fg_color=COLOR_ROJO_PRINCIPAL,
+            hover_color=COLOR_ROJO_HOVER,
+            height=42,
+            corner_radius=14,
+        )
+        self.support_create_button.grid(row=7, column=1, sticky="e", padx=20, pady=(0, 20))
 
         search_entry = ctk.CTkEntry(
             tickets_panel,
-            placeholder_text="Buscar por id, nombre o correo...",
+            placeholder_text="Buscar por id, motivo o estado...",
             textvariable=self.ticket_search_var,
             height=40,
             corner_radius=14,
         )
-        search_entry.grid(row=2, column=0, sticky="ew", padx=24, pady=(18, 12))
+        search_entry.grid(row=3, column=0, sticky="ew", padx=24, pady=(12, 10))
 
         ctk.CTkLabel(
             tickets_panel,
             textvariable=self.support_list_count_var,
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=TEXT_COLOR_MUTED,
-        ).grid(row=3, column=0, sticky="w", padx=24, pady=(0, 8))
+        ).grid(row=4, column=0, sticky="w", padx=24, pady=(0, 8))
 
         self.support_ticket_list_container = ctk.CTkScrollableFrame(
             tickets_panel, fg_color="transparent"
         )
-        self.support_ticket_list_container.grid(row=4, column=0, sticky="nsew", padx=16, pady=(0, 20))
+        self.support_ticket_list_container.grid(row=5, column=0, sticky="nsew", padx=16, pady=(0, 20))
 
         chat_panel = ctk.CTkFrame(
             frame,
@@ -625,7 +732,7 @@ class MainView(ctk.CTkFrame):
 
         self.support_send_button = ctk.CTkButton(
             composer,
-            text="Enviar respuesta",
+            text="Enviar mensaje a soporte",
             command=self._send_support_message,
             fg_color=COLOR_ROJO_PRINCIPAL,
             hover_color=COLOR_ROJO_HOVER,
@@ -634,7 +741,16 @@ class MainView(ctk.CTkFrame):
         )
         self.support_send_button.grid(row=1, column=1, sticky="e", padx=(12, 0), pady=(6, 0))
 
+        self._set_composer_enabled(False)
+
+        frame.bind(
+            "<Configure>",
+            lambda event: self._update_support_layout(frame, tickets_panel, chat_panel),
+        )
+        self.after(50, lambda: self._update_support_layout(frame, tickets_panel, chat_panel))
+
         return frame
+
 
     def _initialize_support_data(self):
         self._load_support_tickets(force_refresh=True)
@@ -672,6 +788,7 @@ class MainView(ctk.CTkFrame):
             self._render_support_ticket_list()
             self._render_support_header(None)
             self._render_support_messages(None)
+            self._set_composer_enabled(False)
             return
 
         previous_active = self.support_active_ticket_id
@@ -690,6 +807,31 @@ class MainView(ctk.CTkFrame):
             or not self.support_ticket_messages.get(self.support_active_ticket_id)
         ):
             self._load_ticket_messages(self.support_active_ticket_id, notify=False)
+
+    def _update_support_layout(
+        self,
+        container: ctk.CTkFrame,
+        tickets_panel: ctk.CTkFrame,
+        chat_panel: ctk.CTkFrame,
+    ):
+        width = container.winfo_width()
+        if width <= 0:
+            return
+
+        if width < 940:
+            container.grid_columnconfigure(0, weight=1)
+            container.grid_columnconfigure(1, weight=0)
+            container.grid_rowconfigure(0, weight=1)
+            container.grid_rowconfigure(1, weight=1)
+            tickets_panel.grid_configure(row=0, column=0, sticky="nsew", padx=0, pady=(0, 12))
+            chat_panel.grid_configure(row=1, column=0, sticky="nsew", padx=0, pady=(0, 8))
+        else:
+            container.grid_columnconfigure(0, weight=1)
+            container.grid_columnconfigure(1, weight=2)
+            container.grid_rowconfigure(0, weight=1)
+            container.grid_rowconfigure(1, weight=0)
+            tickets_panel.grid_configure(row=0, column=0, sticky="nsew", padx=(0, 12), pady=8)
+            chat_panel.grid_configure(row=0, column=1, sticky="nsew", padx=(12, 0), pady=8)    
 
     def _normalize_ticket(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         ticket_id = raw.get("id")
@@ -871,6 +1013,14 @@ class MainView(ctk.CTkFrame):
 
     def _bind_card_click(self, widget, ticket_id: int):
         widget.bind("<Button-1>", lambda _event, tid=ticket_id: self._handle_select_ticket(tid))
+    
+    def _set_composer_enabled(self, enabled: bool):
+        state = "normal" if enabled else "disabled"
+        if self.support_message_input is not None:
+            self.support_message_input.configure(state=state)
+        if self.support_send_button is not None:
+            self.support_send_button.configure(state="normal" if enabled else "disabled")
+
 
     def _handle_select_ticket(self, ticket_id: int):
         self.support_active_ticket_id = ticket_id
@@ -956,20 +1106,21 @@ class MainView(ctk.CTkFrame):
             widget.destroy()
 
         if not ticket:
+            self._set_composer_enabled(False)
             ctk.CTkLabel(
                 self.support_messages_container,
-                text="Selecciona un ticket para iniciar la conversacion.",
+                text="Selecciona un ticket o crea uno nuevo para hablar con soporte.",
                 text_color=TEXT_COLOR_MUTED,
                 wraplength=420,
                 justify="center",
             ).pack(fill="both", expand=True, padx=20, pady=60)
             return
-
+        self._set_composer_enabled(True)
         messages = ticket.get("messages") or []
         if not messages:
             ctk.CTkLabel(
                 self.support_messages_container,
-                text="Aun no hay mensajes registrados en este ticket.",
+                text="Aun no hay mensajes registrados. El equipo de EncryptU te respondera pronto.",
                 text_color=TEXT_COLOR_MUTED,
                 wraplength=420,
                 justify="center",
@@ -1040,10 +1191,10 @@ class MainView(ctk.CTkFrame):
         message = message_input.get("0.0", "end").strip()
 
         if not self.support_active_ticket_id:
-            self._set_support_status("Selecciona un ticket antes de responder.", error=True)
+            self._set_support_status("Selecciona un ticket o crea uno nuevo para enviar mensajes.", error=True)
             return "break" if event else None
         if not message:
-            self._set_support_status("Escribe un mensaje para el cliente.", error=True)
+            self._set_support_status("Escribe un mensaje para el equipo de soporte.", error=True)
             return "break" if event else None
 
         ticket_id = self.support_active_ticket_id
@@ -1053,7 +1204,7 @@ class MainView(ctk.CTkFrame):
             return "break" if event else None
 
         send_button.configure(state="disabled")
-        self._set_support_status("Enviando respuesta...", success=False)
+        self._set_support_status("Enviando tu mensaje...", success=False)
 
         success = self.controller.handle_send_support_message(ticket_id, message)
 
@@ -1061,10 +1212,10 @@ class MainView(ctk.CTkFrame):
             message_input.delete("0.0", "end")
             self._load_ticket_messages(ticket_id, force_refresh=True, notify=False)
             self._load_support_tickets(force_refresh=True)
-            self._set_support_status("Mensaje enviado y sincronizado.", success=True)
+            self._set_support_status("Mensaje enviado al equipo de soporte.", success=True)
         else:
             self._set_support_status(
-                "No se pudo enviar el mensaje. Intenta nuevamente.", error=True
+                "No pudimos enviar tu mensaje. Intenta nuevamente.", error=True
             )
 
         send_button.configure(state="normal")
@@ -1081,6 +1232,92 @@ class MainView(ctk.CTkFrame):
         self.support_status_var.set(message)
         if self.support_status_label is not None:
             self.support_status_label.configure(text_color=color)
+
+    def _handle_create_support_ticket(self):
+        description_widget = self.support_ticket_description_input
+        submit_button = self.support_create_button
+        if description_widget is None or submit_button is None:
+            return
+
+        first_name = self.ticket_first_name_var.get().strip()
+        last_name = self.ticket_last_name_var.get().strip()
+        email = self.ticket_email_var.get().strip()
+        reason_label = self.ticket_reason_var.get().strip().lower()
+        phone = self.ticket_phone_var.get().strip()
+        description = description_widget.get("1.0", "end").strip()
+
+        if reason_label.startswith("soporte"):
+            reason_slug = "soporte"
+        elif reason_label.startswith("consulta"):
+            reason_slug = "consulta"
+        else:
+            reason_slug = ""
+
+        if not first_name or not last_name or not email or not reason_slug or not phone or not description:
+            self._set_ticket_form_status(
+                "Completa nombre, apellido, correo, motivo, telefono y describe el problema.",
+                error=True,
+            )
+            return
+
+        digits = "".join(ch for ch in phone if ch.isdigit())
+        if len(digits) != 9:
+            self._set_ticket_form_status("El telefono debe tener 9 digitos.", error=True)
+            return
+
+        payload = {
+            "firstName": first_name,
+            "lastName": last_name,
+            "email": email,
+            "reason": reason_slug,
+            "phone": digits,
+            "description": description,
+        }
+
+        submit_button.configure(state="disabled", text="Enviando...")
+        self._set_ticket_form_status("Creando tu ticket, un momento...", pending=True)
+
+        success, ticket_id, feedback = self.controller.handle_create_support_ticket(payload)
+
+        if success:
+            self._clear_ticket_form()
+            self._set_ticket_form_status(feedback or "Ticket creado correctamente.", success=True)
+            if ticket_id:
+                self.support_active_ticket_id = ticket_id
+            self._load_support_tickets(force_refresh=True)
+        else:
+            self._set_ticket_form_status(
+                feedback or "No pudimos crear el ticket. Intenta nuevamente.",
+                error=True,
+            )
+
+        submit_button.configure(state="normal", text="Enviar ticket")  
+
+    def _set_ticket_form_status(
+        self,
+        message: str,
+        error: bool = False,
+        success: bool = False,
+        pending: bool = False,
+    ):
+        if success:
+            color = ("#047857", "#34D399")
+        elif error:
+            color = (COLOR_ROJO_PRINCIPAL, COLOR_ROJO_ACENTO)
+        else:
+            color = TEXT_COLOR_MUTED
+
+        self.ticket_form_status_var.set(message)
+        if self.ticket_form_status_label is not None:
+            self.ticket_form_status_label.configure(text_color=color)
+
+    def _clear_ticket_form(self):
+        self.ticket_first_name_var.set("")
+        self.ticket_last_name_var.set("")
+        self.ticket_phone_var.set("")
+        self.ticket_reason_var.set(SUPPORT_REASON_OPTIONS[0])
+        if self.support_ticket_description_input is not None:
+            self.support_ticket_description_input.delete("1.0", "end")        
 
     # ------------------------------------------------------------------
     # Vault actions and status helpers

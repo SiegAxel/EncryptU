@@ -45,7 +45,7 @@ class APIClient:
         """
         try:
             form_data = {"username": email, "password": password}
-            response = self.session.post(f"{self.base_url}/login", data=form_data, timeout=20)
+            response = self.session.post(f"{self.base_url}/login", data=form_data, timeout=60)
             if response.status_code == 200:
                 data = response.json()
                 self.token = data.get("access_token")
@@ -131,11 +131,12 @@ class APIClient:
             response.raise_for_status()
             data = response.json()
             if isinstance(data, dict):
-                if data.get("ok") is True and isinstance(data.get("tickets"), list):
-                    return cast(List[Dict[str, Any]], data.get("tickets"))
                 if data.get("ok") is False:
-                    print(f"API soporte respondió con error: {data.get('error')}")
+                    print(f"API soporte respondio con error: {data.get('error')}")
                     return []
+                tickets = data.get("tickets")
+                if isinstance(tickets, list):
+                    return cast(List[Dict[str, Any]], tickets)
             if isinstance(data, list):
                 return cast(List[Dict[str, Any]], data)
             return []
@@ -156,11 +157,12 @@ class APIClient:
             response.raise_for_status()
             data = response.json()
             if isinstance(data, dict):
-                if data.get("ok") is True and isinstance(data.get("messages"), list):
-                    return cast(List[Dict[str, Any]], data.get("messages"))
                 if data.get("ok") is False:
-                    print(f"API soporte respondió con error: {data.get('error')}")
+                    print(f"API soporte respondio con error: {data.get('error')}")
                     return []
+                messages = data.get("messages")
+                if isinstance(messages, list):
+                    return cast(List[Dict[str, Any]], messages)
             if isinstance(data, list):
                 return cast(List[Dict[str, Any]], data)
             return []
@@ -190,4 +192,27 @@ class APIClient:
             return {"ok": True}
         except (requests.exceptions.RequestException, PermissionError) as e:
             print(f"Error al enviar mensaje de soporte: {e}")
+            return {"ok": False, "error": str(e)}
+    
+    def create_support_ticket(self, ticket_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        try:
+            headers = self._get_auth_headers()
+            response = self.session.post(
+                f"{self.base_url}/support/tickets",
+                headers=headers,
+                json=ticket_data,
+                timeout=20,
+            )
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            try:
+                data = response.json()
+                if isinstance(data, dict):
+                    return data
+            except ValueError:
+                pass
+            return {"ok": True}
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al crear el ticket de soporte: {e}")
             return {"ok": False, "error": str(e)}

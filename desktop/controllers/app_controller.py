@@ -211,6 +211,38 @@ class AppController:
         self.support_tickets_cache.clear()
         return True
 
+    def handle_create_support_ticket(self, ticket_data: Dict[str, Any]) -> tuple[bool, Optional[int], str]:
+        cleaned_payload = {
+            key: value.strip() if isinstance(value, str) else value
+            for key, value in ticket_data.items()
+        }
+
+        response = self.api_client.create_support_ticket(cleaned_payload)
+        if response is None:
+            self.handle_logout()
+            return False, None, "Tu sesion ha expirado. Inicia sesion nuevamente."
+
+        if isinstance(response, dict):
+            if response.get("ok") is False:
+                error_msg = str(response.get("error") or "No se pudo crear el ticket.")
+                return False, None, error_msg
+
+            ticket_id = None
+            ticket_payload = response.get("ticket")
+            message = response.get("message") or response.get("msg") or "Ticket creado correctamente."
+
+            if isinstance(ticket_payload, dict):
+                ticket_id = ticket_payload.get("id")
+
+            self.support_tickets_cache.clear()
+            self.support_messages_cache.clear()
+            return True, ticket_id, message
+
+        self.support_tickets_cache.clear()
+        self.support_messages_cache.clear()
+        return True, None, "Ticket creado correctamente."
+
+
     def on_closing(self):
         self.root.destroy()
         sys.exit(0)
