@@ -1,21 +1,31 @@
 import customtkinter as ctk
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+import re
 
 import pyperclip
 from PIL import Image
 
-COLOR_ROJO_PRINCIPAL = "#E11D48"
-COLOR_ROJO_HOVER = "#BE123C"
-COLOR_ROJO_ACENTO = "#FB7185"
+# EncryptU Modern Color Palette
+COLOR_ROJO_PRINCIPAL = "#E53E3E"
+COLOR_ROJO_HOVER = "#C53030"
+COLOR_ROJO_ACENTO = "#FC8181"
+COLOR_ROJO_LIGHT = "#FED7D7"
 COLOR_BLANCO = "#FFFFFF"
-TEXT_COLOR_PRIMARY = ("#1A202C", "#F7FAFC")
-TEXT_COLOR_SECONDARY = ("#4A5568", "#CBD5F5")
-TEXT_COLOR_MUTED = ("#718096", "#94A3B8")
-COLOR_FONDO_APP = ("#FFFFFF", "#111827")
-COLOR_FONDO_CARD = ("#FFFFFF", "#1F2937")
-COLOR_FONDO_CARD_ALT = ("#F8FAFC", "#1A1F2B")
+COLOR_BLANCO_WARM = "#FEFEFE"
+TEXT_COLOR_PRIMARY = ("#C01010", "#C01010")
+TEXT_COLOR_SECONDARY = ("#812828", "#812828")
+TEXT_COLOR_MUTED = ("#967171", "#967171")
+COLOR_FONDO_APP = ("#FFFFFF", "#FFFFFF")
+COLOR_FONDO_CARD = ("#FFFFFF", "#FFFFFF")
+COLOR_FONDO_CARD_ALT = ("#F8FAFC", "#FF0707")
+COLOR_FONDO_HERO = ("#FEFEFE", "#FBFCFF")
 COLOR_DIVIDER_LIGHT = "#E2E8F0"
+COLOR_DIVIDER_DARK = "#2D3748"
+COLOR_SHADOW = ("#000000", "#000000")
+COLOR_SUCCESS = ("#38A169", "#68D391")
+COLOR_WARNING = ("#D69E2E", "#F6E05E")
+COLOR_ERROR = (COLOR_ROJO_PRINCIPAL, COLOR_ROJO_ACENTO)
 BADGE_REASON_COLOR = ("#FDE8EC", "#7F1D1D")
 BADGE_REASON_TEXT = (COLOR_ROJO_PRINCIPAL, COLOR_BLANCO)
 BADGE_STATUS_COLORS = {
@@ -25,6 +35,49 @@ BADGE_STATUS_COLORS = {
 }
 SUPPORT_AGENT_NAME = "Equipo EncryptU"
 SUPPORT_REASON_OPTIONS = ["Soporte", "Consulta"]
+
+#Agregar logo desde img
+
+# Professional Icons Setup
+def load_icon(icon_name: str, size: tuple = (20, 20)) -> Optional[ctk.CTkImage]:
+    """Load a professional icon from the icons directory"""
+    try:
+        icon_path = f"desktop/controllers/img/icons/{icon_name}.png"
+        icon_image = Image.open(icon_path)
+        return ctk.CTkImage(
+            light_image=icon_image,
+            dark_image=icon_image,
+            size=size
+        )
+    except Exception as e:
+        # Fallback to text-based icons if image files don't exist
+        return None
+
+# Load main application icons
+icon_lock = load_icon("lock", (24, 24))
+icon_user = load_icon("user", (24, 24))
+icon_logout = load_icon("logout", (20, 20))
+icon_nav = load_icon("nav", (20, 20))
+icon_key = load_icon("key", (24, 24))
+icon_support = load_icon("support", (24, 24))
+icon_ticket = load_icon("ticket", (20, 20))
+icon_sync = load_icon("sync", (20, 20))
+icon_success = load_icon("check", (24, 24))
+icon_error = load_icon("error", (24, 24))
+icon_warning = load_icon("warning", (24, 24))
+icon_delete = load_icon("delete", (20, 20))
+icon_copy = load_icon("copy", (20, 20))
+
+# Logo images with appropriate size
+img_logo_blanco = ctk.CTkImage(
+    light_image=Image.open("desktop/controllers/img/Whitelogo.png"),
+    size=(120, 120)  # Appropriate size for header
+)
+
+img_logo_negro = ctk.CTkImage(
+    dark_image=Image.open("desktop/controllers/img/Blacklogo.png"),
+    size=(120, 120)  # Appropriate size for header
+)
 
 class MainView(ctk.CTkFrame):
     """
@@ -38,9 +91,21 @@ class MainView(ctk.CTkFrame):
         self.username = username
         self.configure(fg_color="transparent")
 
+        self.fonts: Dict[str, ctk.CTkFont] = {}
+        self._font_specs: Dict[str, Dict[str, Optional[float]]] = {}
+        self._responsive_components: List[Dict[str, Any]] = []
+        self._responsive_wraplengths: List[Dict[str, Any]] = []
+        self._responsive_job: Optional[str] = None
+        self._current_scale: float = 1.0
+        self._validators: Dict[str, Any] = {}
+
+        self._init_fonts()
+        self._setup_validators()
+
         self.original_bg_image: Optional[Image.Image] = None
         self.bg_image_object: Optional[ctk.CTkImage] = None
         self.bg_label: Optional[ctk.CTkLabel] = None
+        self.logo_image: Optional[ctk.CTkImage] = None
 
         self.support_tickets: List[Dict[str, Any]] = []
         self.support_ticket_messages: Dict[int, List[Dict[str, Any]]] = {}
@@ -62,7 +127,9 @@ class MainView(ctk.CTkFrame):
         self.ticket_email_var = ctk.StringVar(value=username or "")
         self.ticket_phone_var = ctk.StringVar(value="")
         self.ticket_reason_var = ctk.StringVar(value=SUPPORT_REASON_OPTIONS[0])
-        self.ticket_form_status_var = ctk.StringVar(value="")        
+        self.ticket_form_status_var = ctk.StringVar(value="")
+        self.ticket_description_count_var = ctk.StringVar(value="0 / 500")
+        self.support_message_count_var = ctk.StringVar(value="0 / 500")
         self.nav_segmented: Optional[ctk.CTkSegmentedButton] = None
         self.nav_map = {"Perfil": "profile", "Encriptacion": "encryption", "Soporte": "support"}
         self.sections: Dict[str, ctk.CTkFrame] = {}
@@ -78,6 +145,7 @@ class MainView(ctk.CTkFrame):
         self.ticket_form_status_label: Optional[ctk.CTkLabel] = None
         self.support_create_button: Optional[ctk.CTkButton] = None
         self.support_ticket_description_input: Optional[ctk.CTkTextbox] = None
+        self.support_form_card: Optional[ctk.CTkFrame] = None
 
         self.site_entry: Optional[ctk.CTkEntry] = None
         self.username_entry_save: Optional[ctk.CTkEntry] = None
@@ -102,20 +170,365 @@ class MainView(ctk.CTkFrame):
             self.nav_segmented.set("Encriptacion")
         self._show_section("encryption")
         self.refresh_password_list()
+        self._setup_responsive_behavior()
 
     # ------------------------------------------------------------------
     # Fondo y ambientacion visual
     # ------------------------------------------------------------------
+    def _register_font(
+        self,
+        key: str,
+        size: int,
+        *,
+        weight: Optional[str] = None,
+        min_size: int = 8,
+        max_size: Optional[int] = None,
+    ) -> ctk.CTkFont:
+        if weight is not None:
+            font = ctk.CTkFont(size=size, weight=weight)  # type: ignore
+        else:
+            font = ctk.CTkFont(size=size)
+        self.fonts[key] = font
+        self._font_specs[key] = {"base": float(size), "min": float(min_size), "max": float(max_size) if max_size is not None else None}
+        return font
+
+    def _init_fonts(self):
+        self._register_font("badge", 14, weight="bold", min_size=10)
+        self._register_font("header_title", 26, weight="bold", min_size=16)
+        self._register_font("header_subtitle", 14, min_size=10)
+        self._register_font("nav_caption", 12, weight="bold", min_size=9)
+        self._register_font("nav_segmented", 14, weight="bold", min_size=11)
+        self._register_font("hero_headline", 22, weight="bold", min_size=16)
+        self._register_font("hero_tagline", 14, min_size=11)
+        self._register_font("card_label", 12, weight="bold", min_size=9)
+        self._register_font("card_stat_primary", 30, weight="bold", min_size=20)
+        self._register_font("card_stat_secondary", 18, weight="bold", min_size=14)
+        self._register_font("section_title", 20, weight="bold", min_size=15)
+        self._register_font("form_title", 16, weight="bold", min_size=12)
+        self._register_font("body", 14, min_size=11)
+        self._register_font("body_medium", 13, min_size=11)
+        self._register_font("body_small", 12, min_size=10)
+        self._register_font("tiny", 11, min_size=9)
+        self._register_font("button", 14, weight="bold", min_size=12)
+        self._register_font("support_chat_title", 18, weight="bold", min_size=14)
+        self._register_font("list_title", 14, weight="bold", min_size=11)
+        self._register_font("badge_small", 11, weight="bold", min_size=9)
+
+    def _setup_validators(self):
+        self._validators["site"] = self.register(self._validate_site)
+        self._validators["username"] = self.register(self._validate_username)
+        self._validators["password"] = self.register(self._validate_password)
+        self._validators["name"] = self.register(self._validate_name)
+        self._validators["email"] = self.register(self._validate_email)
+        self._validators["phone"] = self.register(self._validate_phone)
+
+    def _setup_responsive_behavior(self):
+        self.bind("<Configure>", self._handle_root_resize)
+        self.after(120, self._apply_responsive_styles)
+
+    def _handle_root_resize(self, event=None):
+        self._resize_image(event)
+        self._schedule_responsive_update()
+
+    def _schedule_responsive_update(self):
+        if self._responsive_job is not None:
+            self.after_cancel(self._responsive_job)
+        self._responsive_job = self.after(80, self._apply_responsive_styles)
+
+    def _apply_responsive_styles(self):
+        width = max(self.winfo_width(), 600)
+        height = max(self.winfo_height(), 480)
+        scale_width = width / 1280
+        scale_height = height / 800
+
+        # Enhanced responsive breakpoints for desktop optimization
+        if width < 768:
+            # Small desktop window
+            base_scale = 0.8
+        elif width < 900:
+            # Medium-small desktop
+            base_scale = 0.85
+        elif width < 1200:
+            # Medium desktop
+            base_scale = 0.9
+        elif width < 1440:
+            # Standard desktop
+            base_scale = 1.0
+        else:
+            # Large desktop
+            base_scale = 1.05
+
+        scale = max(0.65, min(base_scale * min(scale_width, scale_height), 1.4))
+
+        if abs(scale - self._current_scale) < 0.02:
+            return
+
+        self._current_scale = scale
+        self._apply_font_scale(scale)
+        self._apply_component_scale(scale)
+        self._apply_wraplength_scale(scale)
+
+        # Apply layout-specific adjustments
+        self._apply_responsive_layout(width)
+
+    def _apply_responsive_layout(self, width: int):
+        """Apply layout adjustments based on screen width"""
+        if width < 768:
+            # Small desktop adjustments
+            self._mobile_layout_adjustments()
+        elif width < 900:
+            # Medium-small desktop adjustments
+            self._medium_small_layout_adjustments()
+        elif width < 1200:
+            # Medium desktop adjustments
+            self._medium_layout_adjustments()
+        else:
+            # Large desktop adjustments
+            self._desktop_layout_adjustments()
+
+    def _medium_small_layout_adjustments(self):
+        """Medium-small desktop layout adjustments (768-900px)"""
+        if hasattr(self, 'content_container') and self.content_container:
+            self.content_container.grid_configure(padx=20, pady=(0, 18))
+
+        # Moderate form card adjustments
+        if hasattr(self, 'support_form_card') and self.support_form_card:
+            self.support_form_card.grid_configure(padx=20, pady=(12, 8))
+
+    def _medium_layout_adjustments(self):
+        """Medium desktop layout adjustments (900-1200px)"""
+        if hasattr(self, 'content_container') and self.content_container:
+            self.content_container.grid_configure(padx=24, pady=(0, 20))
+
+    def _mobile_layout_adjustments(self):
+        """Small desktop window layout adjustments"""
+        # Reduce padding and margins for smaller desktop windows
+        if hasattr(self, 'content_container') and self.content_container:
+            self.content_container.grid_configure(padx=16, pady=(0, 16))
+
+        # Ensure form card is properly sized for smaller windows
+        if hasattr(self, 'support_form_card') and self.support_form_card:
+            # Reduce form card padding and ensure it fits
+            self.support_form_card.grid_configure(padx=16, pady=(6, 4))
+            # Set a maximum height for the form card
+            self.support_form_card.configure(height=340)
+
+        # Ensure tickets panel can scroll properly
+        if hasattr(self, 'support_ticket_list_container') and self.support_ticket_list_container:
+            # Make sure the scrollable container takes full width
+            self.support_ticket_list_container.grid_configure(padx=8, pady=(0, 12))
+
+    def _tablet_layout_adjustments(self):
+        """Tablet-specific layout adjustments"""
+        # Medium padding for tablet
+        if hasattr(self, 'content_container') and self.content_container:
+            self.content_container.grid_configure(padx=24, pady=(0, 20))
+
+    def _desktop_layout_adjustments(self):
+        """Desktop-specific layout adjustments"""
+        # Full padding for desktop
+        if hasattr(self, 'content_container') and self.content_container:
+            self.content_container.grid_configure(padx=32, pady=(0, 24))
+
+    def _apply_font_scale(self, scale: float):
+        for key, spec in self._font_specs.items():
+            base = spec["base"]
+            min_size = spec["min"]
+            max_size = spec.get("max")
+            if base is not None and min_size is not None:
+                new_size = max(min_size, int(base * scale))
+                if max_size is not None:
+                    new_size = min(new_size, max_size)
+                # Ensure font size is always a positive integer
+                new_size = max(8, int(new_size))  # Minimum font size of 8
+                if new_size != self.fonts[key].cget("size"):
+                    self.fonts[key].configure(size=new_size)
+
+    def _register_responsive_widget(
+        self,
+        widget: Any,
+        *,
+        base_height: Optional[int] = None,
+        base_width: Optional[int] = None,
+        min_height: int = 28,
+        min_width: int = 80,
+    ):
+        self._responsive_components.append(
+            {
+                "widget": widget,
+                "base_height": base_height,
+                "base_width": base_width,
+                "min_height": min_height,
+                "min_width": min_width,
+            }
+        )
+
+    def _apply_component_scale(self, scale: float):
+        for item in self._responsive_components:
+            widget = item["widget"]
+            if not widget:
+                continue
+            base_height = item.get("base_height")
+            base_width = item.get("base_width")
+            min_height = item.get("min_height", 28)
+            min_width = item.get("min_width", 80)
+
+            if base_height:
+                new_height = max(min_height, int(base_height * scale))
+                # Ensure height is always positive and reasonable
+                new_height = max(20, min(new_height, 200))
+                try:
+                    current_height = widget.cget("height")
+                    if current_height != new_height:
+                        widget.configure(height=new_height)
+                except Exception:
+                    pass
+
+            if base_width:
+                new_width = max(min_width, int(base_width * scale))
+                # Ensure width is always positive and reasonable
+                new_width = max(50, min(new_width, 500))
+                try:
+                    current_width = widget.cget("width")
+                    if current_width != new_width:
+                        widget.configure(width=new_width)
+                except Exception:
+                    pass
+
+    def _register_wraplength(self, widget: ctk.CTkLabel, base_wrap: int):
+        self._responsive_wraplengths.append({"widget": widget, "base": base_wrap})
+
+    def _apply_wraplength_scale(self, scale: float):
+        for item in self._responsive_wraplengths:
+            widget = item.get("widget")
+            if not widget:
+                continue
+            base = item.get("base", 0)
+            if base:
+                new_wraplength = max(200, int(base * scale))  # Minimum wraplength of 200
+                try:
+                    widget.configure(wraplength=new_wraplength)
+                except Exception:
+                    pass
+
+    def _bind_text_limit(
+        self,
+        widget: ctk.CTkTextbox,
+        limit: int,
+        counter_var: Optional[ctk.StringVar] = None,
+    ):
+        def handler(_event=None, target=widget, maximum=limit, var=counter_var):
+            self._enforce_text_limit(target, maximum, var)
+
+        widget.bind("<KeyRelease>", handler)
+        widget.bind("<FocusOut>", handler)
+        self.after(10, handler)
+
+    def _enforce_text_limit(
+        self,
+        widget: ctk.CTkTextbox,
+        limit: int,
+        counter_var: Optional[ctk.StringVar] = None,
+    ):
+        content = widget.get("1.0", "end-1c")
+        if len(content) > limit:
+            trimmed = content[:limit]
+            widget.delete("1.0", "end")
+            widget.insert("1.0", trimmed)
+            content = trimmed
+        if counter_var is not None:
+            counter_var.set(f"{len(content)} / {limit}")
+
+    def _validate_site(self, value: str) -> bool:
+        if len(value) > 120:
+            return False
+        if not value:
+            return True
+        return bool(
+            re.fullmatch(r"[A-Za-z0-9ÁÉÍÓÚáéíóúÜüÑñ@._:/\- ]*", value)
+        )
+
+    def _validate_username(self, value: str) -> bool:
+        if len(value) > 80:
+            return False
+        if not value:
+            return True
+        return bool(re.fullmatch(r"[\wÁÉÍÓÚáéíóúÜüÑñ.@\- ]*", value))
+
+    def _validate_password(self, value: str) -> bool:
+        return len(value) <= 128
+
+    def _validate_name(self, value: str) -> bool:
+        if len(value) > 60:
+            return False
+        if not value:
+            return True
+        return bool(re.fullmatch(r"[A-Za-zÁÉÍÓÚáéíóúÜüÑñ' -]*", value))
+
+    def _validate_email(self, value: str) -> bool:
+        if len(value) > 120:
+            return False
+        if not value:
+            return True
+        return bool(re.fullmatch(r"[A-Za-z0-9._%+\-@]*", value))
+
+    def _validate_phone(self, value: str) -> bool:
+        if len(value) > 9:
+            return False
+        if not value:
+            return True
+        return value.isdigit()
     def _setup_background_image(self):
         try:
             self.original_bg_image = self._generate_gradient_image(1600, 900)
             self.bg_label = ctk.CTkLabel(self, text="", fg_color="transparent")
             self.bg_label.place(relx=0, rely=0, relwidth=1, relheight=1)
             self.bg_label.lower()
-            self.bind("<Configure>", self._resize_image)
+
+            # Add subtle animation to background
+            self._animate_background()
             self.after(20, self._resize_image)
         except Exception as exc:
             print(f"Error al crear el fondo degradado: {exc}")
+
+    def _animate_background(self):
+        """Add subtle animation to background gradient"""
+        if self.bg_label and self.original_bg_image:
+            # Subtle color transition animation
+            try:
+                # Create a slightly different gradient for animation
+                animated_image = self._generate_animated_gradient(1600, 900)
+                if animated_image:
+                    self.bg_image_object = ctk.CTkImage(
+                        light_image=animated_image,
+                        dark_image=animated_image,
+                        size=(self.winfo_width(), self.winfo_height())
+                    )
+                    self.bg_label.configure(image=self.bg_image_object)
+            except Exception:
+                pass  # Silently fail animation if there are issues
+
+        # Schedule next animation frame
+        self.after(5000, self._animate_background)  # Animate every 5 seconds
+
+    def _generate_animated_gradient(self, width: int, height: int) -> Optional[Image.Image]:
+        """Generate a slightly varied gradient for animation"""
+        try:
+            # Create a subtly different gradient
+            size = max(width, height) * 2
+            gradient = Image.linear_gradient("L").resize((size, size))
+            gradient = gradient.rotate(50, expand=True)  # Slightly different rotation
+            x_offset = (gradient.width - width) // 2
+            y_offset = (gradient.height - height) // 2
+            mask = gradient.crop((x_offset, y_offset, x_offset + width, y_offset + height))
+
+            # Use slightly different colors for animation
+            base_color = f"#{int(COLOR_ROJO_PRINCIPAL[1:3],16)+10:02x}{int(COLOR_ROJO_PRINCIPAL[3:5],16)+5:02x}{int(COLOR_ROJO_PRINCIPAL[5:7],16)+10:02x}"
+            base = Image.new("RGB", (width, height), base_color)
+            top = Image.new("RGB", (width, height), COLOR_BLANCO)
+            return Image.composite(top, base, mask)
+        except Exception:
+            return None
 
     def _generate_gradient_image(self, width: int, height: int) -> Image.Image:
         size = max(width, height) * 2
@@ -157,75 +570,177 @@ class MainView(ctk.CTkFrame):
     # Cabecera y navegacion
     # ------------------------------------------------------------------
     def _create_header(self):
-        header_frame = ctk.CTkFrame(self, fg_color="transparent")
-        header_frame.grid(row=0, column=0, padx=24, pady=(24, 16), sticky="ew")
+        # Modern header with subtle background and better spacing
+        header_frame = ctk.CTkFrame(
+            self,
+            fg_color=(COLOR_FONDO_HERO[0], "#FFFFFF"),
+            corner_radius=0,
+            border_width=0
+        )
+        header_frame.grid(row=0, column=0, padx=0, pady=(0, 20), sticky="ew")
         header_frame.grid_columnconfigure(1, weight=1)
 
-        brand_badge = ctk.CTkLabel(
+        # Subtle top border
+        top_border = ctk.CTkFrame(
             header_frame,
-            text="EncryptU Desktop",
-            font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color=(COLOR_ROJO_PRINCIPAL, COLOR_ROJO_HOVER),
-            text_color=(COLOR_BLANCO, COLOR_BLANCO),
-            corner_radius=12,
-            padx=14,
-            pady=6,
+            fg_color="transparent",
+            height=1,
+            border_width=0
         )
-        brand_badge.grid(row=0, column=0, rowspan=2, sticky="nw")
+        top_border.grid(row=0, column=0, columnspan=3, sticky="ew", padx=32, pady=(0, 20))
+
+        # Brand section with modern badge
+        brand_section = ctk.CTkFrame(header_frame, fg_color="transparent")
+        brand_section.grid(row=1, column=0, sticky="nw", padx=32)
+
+        brand_badge = ctk.CTkLabel(
+            brand_section,
+            image=img_logo_blanco,
+            text="",
+            font=self.fonts["badge"],
+            fg_color=(COLOR_ROJO_LIGHT[0], "#610000"), 
+            text_color=(COLOR_BLANCO, COLOR_BLANCO),
+            corner_radius=0,  # No corner radius needed for image-only badge
+            padx=0,
+            pady=0,
+        )
+        brand_badge.pack(anchor="w")
+
+        # Welcome section with better hierarchy
+        welcome_section = ctk.CTkFrame(header_frame, fg_color="transparent")
+        welcome_section.grid(row=1, column=1, sticky="w", padx=(24, 0))
 
         welcome_label = ctk.CTkLabel(
-            header_frame,
-            text=f"Hola, {self.username}",
-            font=ctk.CTkFont(size=26, weight="bold"),
+            welcome_section,
+            text=f"👤 Hola, {self.username}" if icon_user is None else f"Hola, {self.username}",
+            image=icon_user,
+            compound="left" if icon_user is not None else "top",
+            font=self.fonts["header_title"],
             text_color=TEXT_COLOR_PRIMARY,
+            anchor="w"
         )
-        welcome_label.grid(row=0, column=1, sticky="w", padx=(18, 0))
+        welcome_label.pack(anchor="w")
 
         subtitle = ctk.CTkLabel(
-            header_frame,
-            text="Gestiona tu perfil, tus contrasenas cifradas y los tickets de soporte aqui mismo.",
-            font=ctk.CTkFont(size=14),
+            welcome_section,
+            text="Tu gestor seguro de contraseñas y soporte técnico",
+            font=self.fonts["header_subtitle"],
             text_color=TEXT_COLOR_SECONDARY,
+            anchor="w"
         )
-        subtitle.grid(row=1, column=1, sticky="w", padx=(18, 0), pady=(6, 0))
+        subtitle.pack(anchor="w", pady=(4, 0))
+
+        # Modern logout button
+        logout_section = ctk.CTkFrame(header_frame, fg_color="transparent")
+        logout_section.grid(row=1, column=2, sticky="e", padx=(0, 32))
 
         logout_button = ctk.CTkButton(
-            header_frame,
-            text="Cerrar Sesion",
+            logout_section,
+            text="Cerrar Sesión",
+            image=icon_logout,
+            compound="left",
             command=self.logout_action,
-            fg_color=COLOR_ROJO_PRINCIPAL,
-            hover_color=COLOR_ROJO_HOVER,
-            height=42,
-            corner_radius=14,
+            fg_color="transparent",
+            hover_color=COLOR_ROJO_LIGHT,
+            border_width=1,
+            border_color=COLOR_ROJO_PRINCIPAL,
+            text_color=(COLOR_ROJO_PRINCIPAL, COLOR_ROJO_ACENTO),
+            height=44,
+            corner_radius=16,
+            width=160,
+            font=self.fonts["button"],
         )
-        logout_button.grid(row=0, column=2, rowspan=2, sticky="e")
+        logout_button.pack(anchor="e")
+
+        # Add subtle hover animation
+        def on_enter(e):
+            logout_button.configure(
+                fg_color=COLOR_ROJO_LIGHT,
+                text_color=(COLOR_ROJO_HOVER, COLOR_ROJO_PRINCIPAL)
+            )
+
+        def on_leave(e):
+            logout_button.configure(
+                fg_color="transparent",
+                text_color=(COLOR_ROJO_PRINCIPAL, COLOR_ROJO_ACENTO)
+            )
+
+        logout_button.bind("<Enter>", on_enter)
+        logout_button.bind("<Leave>", on_leave)
+
+        self._register_responsive_widget(
+            logout_button,
+            base_height=44,
+            base_width=160,
+            min_height=36,
+            min_width=140,
+        )
 
     def _create_navigation(self):
-        nav_frame = ctk.CTkFrame(self, fg_color="transparent")
-        nav_frame.grid(row=1, column=0, padx=24, pady=(0, 18), sticky="ew")
+
+        nav_frame = ctk.CTkFrame(
+            self,
+            fg_color=(COLOR_FONDO_CARD_ALT[0], "#FFFFFF"),
+            corner_radius=20,
+            border_width=1,
+            border_color=COLOR_DIVIDER_LIGHT
+        )
+        nav_frame.grid(row=1, column=0, padx=32, pady=(0, 24), sticky="ew")
         nav_frame.grid_columnconfigure(0, weight=1)
 
+        title_frame = ctk.CTkFrame(nav_frame, fg_color="transparent")
+        title_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 16))
+        title_frame.grid_columnconfigure(0, weight=1)
+
         nav_caption = ctk.CTkLabel(
-            nav_frame,
-            text="Panel principal",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=TEXT_COLOR_MUTED,
+            title_frame,
+            text="Navegación Principal",
+            compound="left",
+            font=self.fonts["nav_caption"],
+            text_color=TEXT_COLOR_PRIMARY,
+            anchor="w"
         )
         nav_caption.grid(row=0, column=0, sticky="w")
+
 
         self.nav_segmented = ctk.CTkSegmentedButton(
             nav_frame,
             values=list(self.nav_map.keys()),
             command=self._on_nav_change,
-            corner_radius=18,
-            selected_color=COLOR_ROJO_PRINCIPAL,
+            corner_radius=16,
+            selected_color=(COLOR_ROJO_PRINCIPAL, "#e6e6e6"),
             selected_hover_color=COLOR_ROJO_HOVER,
-            unselected_color=COLOR_FONDO_CARD,
-            unselected_hover_color=COLOR_FONDO_CARD_ALT,
-            text_color=(TEXT_COLOR_PRIMARY[0], TEXT_COLOR_PRIMARY[1]),
-            font=ctk.CTkFont(size=14, weight="bold"),
+            unselected_color=(COLOR_BLANCO_WARM, "#660000"),
+            unselected_hover_color=(COLOR_ROJO_LIGHT, "#E40303"),
+            text_color=(COLOR_BLANCO, COLOR_BLANCO),
+            font=self.fonts["nav_segmented"],
+            bg_color="#ffffff",
+            height=48,
+            border_width=0,
         )
-        self.nav_segmented.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+        self.nav_segmented.grid(row=1, column=0, sticky="ew", padx=20, pady=(0, 20))
+
+        def on_nav_enter(e):
+            nav_frame.configure(
+                fg_color=(COLOR_ROJO_LIGHT[0], "#FFFFFF"),
+                border_color=COLOR_ROJO_PRINCIPAL
+            )
+
+        def on_nav_leave(e):
+            nav_frame.configure(
+                fg_color=(COLOR_FONDO_CARD_ALT[0], "#FFFFFF"),
+                border_color=COLOR_DIVIDER_LIGHT
+            )
+
+        nav_frame.bind("<Enter>", on_nav_enter)
+        nav_frame.bind("<Leave>", on_nav_leave)
+
+        self._register_responsive_widget(
+            self.nav_segmented,
+            base_height=48,
+            min_height=40,
+            min_width=200,
+        )
 
     def _on_nav_change(self, value: str):
         section = self.nav_map.get(value)
@@ -254,135 +769,302 @@ class MainView(ctk.CTkFrame):
         frame.grid(row=0, column=0, sticky="nsew")
         frame.grid_columnconfigure(0, weight=1)
 
+        # Modern hero card with enhanced styling
         hero_card = ctk.CTkFrame(
             frame,
-            fg_color=COLOR_FONDO_CARD,
-            corner_radius=24,
-            border_width=1,
-            border_color=COLOR_DIVIDER_LIGHT,
+            fg_color=COLOR_FONDO_HERO,
+            corner_radius=28,
+            border_width=0,
         )
-        hero_card.pack(fill="x", padx=8, pady=(0, 24))
+        hero_card.pack(fill="x", padx=0, pady=(0, 32))
+
+        # Add subtle shadow effect
+        hero_card._corner_radius = 28
+        hero_card.configure(
+            fg_color=[
+                f"#{int(c[1:3],16)+20:02x}{int(c[3:5],16)+20:02x}{int(c[5:7],16)+20:02x}"
+                if isinstance(c, str) and c.startswith('#') else c
+                for c in [COLOR_FONDO_HERO[0], "#1C2331"]
+            ]
+        )
+
         hero_card.grid_columnconfigure(0, weight=1)
 
+        # Enhanced header section
+        header_section = ctk.CTkFrame(hero_card, fg_color="transparent")
+        header_section.grid(row=0, column=0, sticky="ew", padx=32, pady=(32, 16))
+        header_section.grid_columnconfigure(0, weight=1)
+
         headline = ctk.CTkLabel(
-            hero_card,
-            text="Tu panel personal seguro",
-            font=ctk.CTkFont(size=22, weight="bold"),
+            header_section,
+            text="🔒 Tu Panel Personal Seguro" if icon_lock is None else "Tu Panel Personal Seguro",
+            image=icon_lock,
+            compound="left" if icon_lock is not None else "top",
+            font=self.fonts["hero_headline"],
             text_color=TEXT_COLOR_PRIMARY,
+            anchor="w"
         )
-        headline.grid(row=0, column=0, sticky="w", padx=24, pady=(24, 4))
+        headline.grid(row=0, column=0, sticky="w")
 
         tagline = ctk.CTkLabel(
-            hero_card,
-            text="Controla tus credenciales cifradas y mantente al dia con las solicitudes de soporte.",
-            font=ctk.CTkFont(size=14),
+            header_section,
+            text="Gestiona tus credenciales cifradas y mantén el control total de tu seguridad digital",
+            font=self.fonts["hero_tagline"],
             text_color=TEXT_COLOR_SECONDARY,
+            wraplength=480,
+            justify="left",
+            anchor="w"
         )
-        tagline.grid(row=1, column=0, sticky="w", padx=24)
+        tagline.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        self._register_wraplength(tagline, 480)
 
-        button_row = ctk.CTkFrame(hero_card, fg_color="transparent")
-        button_row.grid(row=2, column=0, sticky="w", padx=24, pady=(18, 24))
+        # Modern button section with enhanced styling
+        button_section = ctk.CTkFrame(hero_card, fg_color="transparent")
+        button_section.grid(row=1, column=0, sticky="ew", padx=32, pady=(0, 32))
+        button_section.grid_columnconfigure((0, 1), weight=1)
 
+        # Primary action button
         goto_vault = ctk.CTkButton(
-            button_row,
-            text="Ir a contrasenas guardadas",
+            button_section,
+            text="Ir a Contraseñas Guardadas",
+            image=icon_key,
+            compound="left",
             command=lambda: self._navigate_to("encryption"),
             fg_color=COLOR_ROJO_PRINCIPAL,
             hover_color=COLOR_ROJO_HOVER,
-            height=40,
-            corner_radius=14,
+            height=48,
+            corner_radius=16,
+            font=self.fonts["button"],
         )
-        goto_vault.pack(side="left")
+        goto_vault.grid(row=0, column=0, sticky="ew", padx=(0, 8))
 
+        # Add subtle press animation
+        def animate_vault_press():
+            original_height = 48
+            goto_vault.configure(height=original_height - 2)
+            self.after(100, lambda: goto_vault.configure(height=original_height))
+
+        def vault_click():
+            animate_vault_press()
+            self._navigate_to("encryption")
+
+        goto_vault.configure(command=vault_click)
+        self._register_responsive_widget(goto_vault, base_height=48, min_height=40)
+
+        # Secondary action button
         goto_support = ctk.CTkButton(
-            button_row,
-            text="Ver soporte",
+            button_section,
+            text="Ver Soporte",
+            image=icon_support,
+            compound="left",
             command=lambda: self._navigate_to("support"),
             fg_color="transparent",
-            hover_color=COLOR_ROJO_ACENTO,
-            border_width=1,
+            hover_color=COLOR_ROJO_LIGHT,
+            border_width=2,
             border_color=COLOR_ROJO_PRINCIPAL,
             text_color=(COLOR_ROJO_PRINCIPAL, COLOR_ROJO_ACENTO),
-            height=40,
-            corner_radius=14,
-            width=160,
+            height=48,
+            corner_radius=16,
+            font=self.fonts["button"],
         )
-        goto_support.pack(side="left", padx=(12, 0))
+        goto_support.grid(row=0, column=1, sticky="ew", padx=(8, 0))
 
+        def animate_support_press():
+            original_height = 48
+            goto_support.configure(height=original_height - 2)
+            self.after(100, lambda: goto_support.configure(height=original_height))
+
+        def support_click():
+            animate_support_press()
+            self._navigate_to("support")
+
+        goto_support.configure(command=support_click)
+        self._register_responsive_widget(
+            goto_support,
+            base_height=48,
+            min_height=40,
+        )
+
+        # Modern stats section
         stats_wrapper = ctk.CTkFrame(frame, fg_color="transparent")
-        stats_wrapper.pack(fill="both", expand=True, padx=8, pady=(0, 12))
+        stats_wrapper.pack(fill="both", expand=True, padx=0, pady=(0, 16))
         stats_wrapper.grid_columnconfigure((0, 1, 2), weight=1, uniform="stats")
 
+        # Enhanced vault stat card
         vault_stat = ctk.CTkFrame(
             stats_wrapper,
-            fg_color=COLOR_FONDO_CARD_ALT,
-            corner_radius=20,
-            border_width=1,
-            border_color=COLOR_DIVIDER_LIGHT,
+            fg_color=(COLOR_BLANCO_WARM, "#2D3748"),
+            corner_radius=24,
+            border_width=0,
         )
-        vault_stat.grid(row=0, column=0, padx=8, pady=0, sticky="nsew")
+        vault_stat.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")
+
+        # Add hover effect
+        def on_vault_hover(e):
+            vault_stat.configure(fg_color=(COLOR_ROJO_LIGHT[0], "#3D2F4A"))
+
+        def on_vault_leave(e):
+            vault_stat.configure(fg_color=(COLOR_BLANCO_WARM, "#2D3748"))
+
+        vault_stat.bind("<Enter>", on_vault_hover)
+        vault_stat.bind("<Leave>", on_vault_leave)
+
+        vault_stat.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             vault_stat,
-            text="Contrasenas cifradas",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            text="Contraseñas Cifradas",
+            image=icon_lock,
+            compound="left",
+            font=self.fonts["card_label"],
             text_color=TEXT_COLOR_MUTED,
-        ).pack(anchor="w", padx=20, pady=(20, 8))
+            anchor="w"
+        ).pack(anchor="w", padx=24, pady=(24, 8))
 
         ctk.CTkLabel(
             vault_stat,
             textvariable=self.password_count_var,
-            font=ctk.CTkFont(size=30, weight="bold"),
+            font=self.fonts["card_stat_primary"],
             text_color=TEXT_COLOR_PRIMARY,
-        ).pack(anchor="w", padx=20)
+            anchor="w"
+        ).pack(anchor="w", padx=24)
 
+        # Enhanced support stat card
         support_stat = ctk.CTkFrame(
             stats_wrapper,
-            fg_color=COLOR_FONDO_CARD_ALT,
-            corner_radius=20,
-            border_width=1,
-            border_color=COLOR_DIVIDER_LIGHT,
+            fg_color=(COLOR_BLANCO_WARM, "#2D3748"),
+            corner_radius=24,
+            border_width=0,
         )
-        support_stat.grid(row=0, column=1, padx=8, sticky="nsew")
+        support_stat.grid(row=0, column=1, padx=0, sticky="nsew")
+
+        def on_support_hover(e):
+            support_stat.configure(fg_color=(COLOR_ROJO_LIGHT[0], "#3D2F4A"))
+
+        def on_support_leave(e):
+            support_stat.configure(fg_color=(COLOR_BLANCO_WARM, "#2D3748"))
+
+        support_stat.bind("<Enter>", on_support_hover)
+        support_stat.bind("<Leave>", on_support_leave)
+
+        support_stat.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             support_stat,
-            text="Tickets en seguimiento",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            text="Tickets de Soporte",
+            image=icon_ticket,
+            compound="left",
+            font=self.fonts["card_label"],
             text_color=TEXT_COLOR_MUTED,
-        ).pack(anchor="w", padx=20, pady=(20, 8))
+            anchor="w"
+        ).pack(anchor="w", padx=24, pady=(24, 8))
 
         ctk.CTkLabel(
             support_stat,
             textvariable=self.profile_ticket_metric_var,
-            font=ctk.CTkFont(size=30, weight="bold"),
+            font=self.fonts["card_stat_primary"],
             text_color=TEXT_COLOR_PRIMARY,
-        ).pack(anchor="w", padx=20)
+            anchor="w"
+        ).pack(anchor="w", padx=24)
 
+        # Enhanced sync stat card
         sync_stat = ctk.CTkFrame(
             stats_wrapper,
-            fg_color=COLOR_FONDO_CARD_ALT,
-            corner_radius=20,
-            border_width=1,
-            border_color=COLOR_DIVIDER_LIGHT,
+            fg_color=(COLOR_BLANCO_WARM, "#2D3748"),
+            corner_radius=24,
+            border_width=0,
         )
-        sync_stat.grid(row=0, column=2, padx=8, sticky="nsew")
+        sync_stat.grid(row=0, column=2, padx=0, sticky="nsew")
+
+        def on_sync_hover(e):
+            sync_stat.configure(fg_color=(COLOR_ROJO_LIGHT[0], "#3D2F4A"))
+
+        def on_sync_leave(e):
+            sync_stat.configure(fg_color=(COLOR_BLANCO_WARM, "#2D3748"))
+
+        sync_stat.bind("<Enter>", on_sync_hover)
+        sync_stat.bind("<Leave>", on_sync_leave)
+
+        sync_stat.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
             sync_stat,
-            text="Ultima sincronizacion",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            text="Última Sincronización",
+            image=icon_sync,
+            compound="left",
+            font=self.fonts["card_label"],
             text_color=TEXT_COLOR_MUTED,
-        ).pack(anchor="w", padx=20, pady=(20, 8))
+            anchor="w"
+        ).pack(anchor="w", padx=24, pady=(24, 8))
 
         ctk.CTkLabel(
             sync_stat,
             textvariable=self.profile_last_sync_var,
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=self.fonts["card_stat_secondary"],
             text_color=TEXT_COLOR_PRIMARY,
-        ).pack(anchor="w", padx=20)
+            anchor="w"
+        ).pack(anchor="w", padx=24)
 
         return frame
+
+    def _create_modern_card(self, parent, fg_color=None, corner_radius=24, border_width=0,
+                           border_color=None, padx=0, pady=0, **kwargs):
+        """Create a modern card with consistent styling"""
+        if fg_color is None:
+            fg_color = (COLOR_BLANCO_WARM, "#2D3748")
+
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=fg_color,
+            corner_radius=corner_radius,
+            border_width=border_width,
+            border_color=border_color or COLOR_DIVIDER_LIGHT,
+            **kwargs
+        )
+
+        if padx or pady:
+            card.grid_configure(padx=padx, pady=pady)
+
+        return card
+
+    def _create_modern_button(self, parent, text, command, fg_color=COLOR_ROJO_PRINCIPAL,
+                            hover_color=COLOR_ROJO_HOVER, height=44, corner_radius=16,
+                            width=None, font=None, **kwargs):
+        """Create a modern button with consistent styling and animations"""
+        if font is None:
+            font = self.fonts["button"]
+
+        button_kwargs = {
+            "text": text,
+            "command": command,
+            "fg_color": fg_color,
+            "hover_color": hover_color,
+            "height": height,
+            "corner_radius": corner_radius,
+            "font": font,
+            **kwargs
+        }
+
+        if width is not None:
+            button_kwargs["width"] = width
+
+        button = ctk.CTkButton(parent, **button_kwargs)
+
+        # Add subtle press animation
+        def animate_press():
+            original_height = height
+            button.configure(height=original_height - 2)
+            self.after(100, lambda: button.configure(height=original_height))
+
+        original_command = command
+        if original_command:
+            def animated_command():
+                animate_press()
+                if original_command:
+                    original_command()
+            button.configure(command=animated_command)
+
+        return button
 
     def _navigate_to(self, section_key: str):
         if self.nav_segmented:
@@ -411,34 +1093,44 @@ class MainView(ctk.CTkFrame):
         ctk.CTkLabel(
             form_card,
             text="Guardar nueva credencial",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=self.fonts["section_title"],
             text_color=TEXT_COLOR_PRIMARY,
         ).grid(row=0, column=0, sticky="w", padx=24, pady=(24, 6))
 
-        ctk.CTkLabel(
+        info_label = ctk.CTkLabel(
             form_card,
             text="Usamos cifrado avanzado con tu clave maestra. Completa la informacion para registrarla.",
-            font=ctk.CTkFont(size=14),
+            font=self.fonts["body"],
             text_color=TEXT_COLOR_SECONDARY,
             wraplength=380,
             justify="left",
-        ).grid(row=1, column=0, sticky="w", padx=24, pady=(0, 18))
+        )
+        info_label.grid(row=1, column=0, sticky="w", padx=24, pady=(0, 18))
+        self._register_wraplength(info_label, 380)
 
         self.site_entry = ctk.CTkEntry(
             form_card,
             placeholder_text="Sitio o servicio (ej. encryptu.com)",
             height=44,
             corner_radius=12,
+            font=self.fonts["body"],
+            validate="key",
+            validatecommand=(self._validators["site"], "%P"),
         )
         self.site_entry.grid(row=2, column=0, sticky="ew", padx=24, pady=6)
+        self._register_responsive_widget(self.site_entry, base_height=44, min_height=34)
 
         self.username_entry_save = ctk.CTkEntry(
             form_card,
             placeholder_text="Usuario asociado",
             height=44,
             corner_radius=12,
+            font=self.fonts["body"],
+            validate="key",
+            validatecommand=(self._validators["username"], "%P"),
         )
         self.username_entry_save.grid(row=3, column=0, sticky="ew", padx=24, pady=6)
+        self._register_responsive_widget(self.username_entry_save, base_height=44, min_height=34)
 
         self.password_entry = ctk.CTkEntry(
             form_card,
@@ -446,8 +1138,12 @@ class MainView(ctk.CTkFrame):
             show="*",
             height=44,
             corner_radius=12,
+            font=self.fonts["body"],
+            validate="key",
+            validatecommand=(self._validators["password"], "%P"),
         )
         self.password_entry.grid(row=4, column=0, sticky="ew", padx=24, pady=6)
+        self._register_responsive_widget(self.password_entry, base_height=44, min_height=34)
 
         self.save_button = ctk.CTkButton(
             form_card,
@@ -457,13 +1153,15 @@ class MainView(ctk.CTkFrame):
             hover_color=COLOR_ROJO_HOVER,
             height=44,
             corner_radius=14,
+            font=self.fonts["button"],
         )
         self.save_button.grid(row=5, column=0, sticky="ew", padx=24, pady=(18, 8))
+        self._register_responsive_widget(self.save_button, base_height=44, min_height=34)
 
         self.status_label_save = ctk.CTkLabel(
             form_card,
             text="",
-            font=ctk.CTkFont(size=12),
+            font=self.fonts["body_small"],
             text_color=TEXT_COLOR_SECONDARY,
         )
         self.status_label_save.grid(row=6, column=0, sticky="w", padx=24, pady=(0, 24))
@@ -485,8 +1183,8 @@ class MainView(ctk.CTkFrame):
 
         ctk.CTkLabel(
             list_header,
-            text="Vault de contrasenas",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            text="Vault de contraseñas",
+            font=self.fonts["section_title"],
             text_color=TEXT_COLOR_PRIMARY,
         ).grid(row=0, column=0, sticky="w")
 
@@ -502,13 +1200,21 @@ class MainView(ctk.CTkFrame):
             height=34,
             corner_radius=12,
             width=120,
+            font=self.fonts["button"],
         )
         refresh_button.grid(row=0, column=1, sticky="e")
+        self._register_responsive_widget(
+            refresh_button,
+            base_height=34,
+            base_width=120,
+            min_height=30,
+            min_width=100,
+        )
 
         ctk.CTkLabel(
             list_card,
             text="Gestiona, visualiza y copia credenciales bajo demanda.",
-            font=ctk.CTkFont(size=14),
+            font=self.fonts["body"],
             text_color=TEXT_COLOR_SECONDARY,
         ).grid(row=1, column=0, sticky="w", padx=24, pady=(8, 12))
 
@@ -518,7 +1224,7 @@ class MainView(ctk.CTkFrame):
         ctk.CTkLabel(
             list_card,
             text="Selecciona Ver / Copiar para desencriptar usando tu clave maestra.",
-            font=ctk.CTkFont(size=12),
+            font=self.fonts["body_small"],
             text_color=TEXT_COLOR_MUTED,
         ).grid(row=3, column=0, sticky="w", padx=24, pady=(0, 24))
 
@@ -527,8 +1233,9 @@ class MainView(ctk.CTkFrame):
     def _build_support_section(self, parent: ctk.CTkFrame) -> ctk.CTkFrame:
         frame = ctk.CTkFrame(parent, fg_color="transparent")
         frame.grid(row=0, column=0, sticky="nsew")
+        # Start with mobile layout configuration
         frame.grid_columnconfigure(0, weight=1)
-        frame.grid_columnconfigure(1, weight=2)
+        frame.grid_columnconfigure(1, weight=0)  # Initially hidden
         frame.grid_rowconfigure(0, weight=1)
         frame.grid_rowconfigure(1, weight=1)
 
@@ -543,75 +1250,100 @@ class MainView(ctk.CTkFrame):
         tickets_panel.grid_rowconfigure(5, weight=1)
         tickets_panel.grid_columnconfigure(0, weight=1)
 
+        # Add modern scrolling behavior to tickets panel
+        tickets_panel.configure(height=400)  # Set a reasonable max height
+
         ctk.CTkLabel(
             tickets_panel,
             text="Mis tickets de soporte",
-            font=ctk.CTkFont(size=20, weight="bold"),
+            font=self.fonts["section_title"],
             text_color=(COLOR_ROJO_PRINCIPAL, COLOR_ROJO_ACENTO),
         ).grid(row=0, column=0, sticky="w", padx=24, pady=(24, 6))
 
-        ctk.CTkLabel(
+        tickets_intro = ctk.CTkLabel(
             tickets_panel,
             text="Cuentanos que ocurre y enviaremos tu caso a soporte.",
-            font=ctk.CTkFont(size=13),
+            font=self.fonts["body_medium"],
             text_color=TEXT_COLOR_SECONDARY,
             wraplength=420,
             justify="left",
-        ).grid(row=1, column=0, sticky="w", padx=24)
+        )
+        tickets_intro.grid(row=1, column=0, sticky="w", padx=24)
+        self._register_wraplength(tickets_intro, 420)
 
-        form_card = ctk.CTkFrame(
+        self.support_form_card = ctk.CTkFrame(
             tickets_panel,
             fg_color=(COLOR_BLANCO, "#1F2937"),
             corner_radius=20,
             border_width=1,
             border_color=COLOR_ROJO_PRINCIPAL,
         )
-        form_card.grid(row=2, column=0, sticky="nsew", padx=24, pady=(18, 12))
-        form_card.grid_columnconfigure(0, weight=1)
-        form_card.grid_columnconfigure(1, weight=1)
+        self.support_form_card.grid(row=2, column=0, sticky="ew", padx=24, pady=(18, 12))
+        self.support_form_card.grid_columnconfigure(0, weight=1)
+        self.support_form_card.grid_columnconfigure(1, weight=1)
+
+        # Constrain form card height to prevent it from growing too large
+        self.support_form_card.grid_rowconfigure(10, weight=1)  # Button row can expand if needed
 
         ctk.CTkLabel(
-            form_card,
+            self.support_form_card,
             text="Crear nuevo ticket",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=self.fonts["form_title"],
             text_color=(COLOR_ROJO_PRINCIPAL, COLOR_ROJO_ACENTO),
         ).grid(row=0, column=0, columnspan=2, sticky="w", padx=20, pady=(20, 4))
 
-        ctk.CTkLabel(
-            form_card,
+        form_intro = ctk.CTkLabel(
+            self.support_form_card,
             text="Los mismos campos que el formulario web: nombre, apellido, correo, motivo, telefono y descripcion.",
-            font=ctk.CTkFont(size=12),
+            font=self.fonts["body_small"],
             text_color=TEXT_COLOR_MUTED,
             wraplength=440,
             justify="left",
-        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 12))
+        )
+        form_intro.grid(row=1, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 12))
+        self._register_wraplength(form_intro, 440)
 
-        ctk.CTkEntry(
-            form_card,
+        first_name_entry = ctk.CTkEntry(
+            self.support_form_card,
             placeholder_text="Nombre",
             textvariable=self.ticket_first_name_var,
             height=38,
             corner_radius=12,
-        ).grid(row=2, column=0, sticky="ew", padx=(20, 10), pady=(0, 10))
+            font=self.fonts["body"],
+            validate="key",
+            validatecommand=(self._validators["name"], "%P"),
+        )
+        first_name_entry.grid(row=2, column=0, sticky="ew", padx=(20, 10), pady=(0, 10))
+        self._register_responsive_widget(first_name_entry, base_height=38, min_height=32)
 
-        ctk.CTkEntry(
-            form_card,
+        last_name_entry = ctk.CTkEntry(
+            self.support_form_card,
             placeholder_text="Apellido",
             textvariable=self.ticket_last_name_var,
             height=38,
             corner_radius=12,
-        ).grid(row=2, column=1, sticky="ew", padx=(10, 20), pady=(0, 10))
+            font=self.fonts["body"],
+            validate="key",
+            validatecommand=(self._validators["name"], "%P"),
+        )
+        last_name_entry.grid(row=2, column=1, sticky="ew", padx=(10, 20), pady=(0, 10))
+        self._register_responsive_widget(last_name_entry, base_height=38, min_height=32)
 
-        ctk.CTkEntry(
-            form_card,
+        email_entry = ctk.CTkEntry(
+            self.support_form_card,
             placeholder_text="Correo electronico",
             textvariable=self.ticket_email_var,
             height=38,
             corner_radius=12,
-        ).grid(row=3, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+            font=self.fonts["body"],
+            validate="key",
+            validatecommand=(self._validators["email"], "%P"),
+        )
+        email_entry.grid(row=3, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+        self._register_responsive_widget(email_entry, base_height=38, min_height=32)
 
-        ctk.CTkOptionMenu(
-            form_card,
+        reason_menu = ctk.CTkOptionMenu(
+            self.support_form_card,
             values=SUPPORT_REASON_OPTIONS,
             variable=self.ticket_reason_var,
             fg_color=COLOR_ROJO_PRINCIPAL,
@@ -619,41 +1351,70 @@ class MainView(ctk.CTkFrame):
             button_hover_color=COLOR_ROJO_ACENTO,
             height=36,
             corner_radius=12,
-        ).grid(row=4, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+            font=self.fonts["body"],
+        )
+        reason_menu.grid(row=4, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+        self._register_responsive_widget(reason_menu, base_height=36, min_height=32)
 
-        ctk.CTkEntry(
-            form_card,
+        phone_entry = ctk.CTkEntry(
+            self.support_form_card,
             placeholder_text="Telefono de contacto (9 digitos)",
             textvariable=self.ticket_phone_var,
             height=38,
             corner_radius=12,
-        ).grid(row=5, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+            font=self.fonts["body"],
+            validate="key",
+            validatecommand=(self._validators["phone"], "%P"),
+        )
+        phone_entry.grid(row=5, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+        self._register_responsive_widget(phone_entry, base_height=38, min_height=32)
 
         self.support_ticket_description_input = ctk.CTkTextbox(
-            form_card,
+            self.support_form_card,
             height=120,
             corner_radius=12,
+            font=self.fonts["body"],
         )
         self.support_ticket_description_input.grid(row=6, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 12))
+        self._register_responsive_widget(
+            self.support_ticket_description_input,
+            base_height=120,
+            min_height=100,
+        )
+        self._bind_text_limit(
+            self.support_ticket_description_input,
+            500,
+            self.ticket_description_count_var,
+        )
 
-        self.ticket_form_status_label = ctk.CTkLabel(
-            form_card,
-            textvariable=self.ticket_form_status_var,
-            font=ctk.CTkFont(size=11),
+        description_counter = ctk.CTkLabel(
+            self.support_form_card,
+            textvariable=self.ticket_description_count_var,
+            font=self.fonts["tiny"],
             text_color=TEXT_COLOR_MUTED,
         )
-        self.ticket_form_status_label.grid(row=7, column=0, sticky="w", padx=20, pady=(0, 20))
+        description_counter.grid(row=7, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 6))
+
+        self.ticket_form_status_label = ctk.CTkLabel(
+            self.support_form_card,
+            textvariable=self.ticket_form_status_var,
+            font=self.fonts["tiny"],
+            text_color=TEXT_COLOR_MUTED,
+        )
+        self.ticket_form_status_label.grid(row=8, column=0, sticky="w", padx=20, pady=(0, 20))
 
         self.support_create_button = ctk.CTkButton(
-            form_card,
+            self.support_form_card,
             text="Enviar ticket",
             command=self._handle_create_support_ticket,
             fg_color=COLOR_ROJO_PRINCIPAL,
             hover_color=COLOR_ROJO_HOVER,
             height=42,
             corner_radius=14,
+            font=self.fonts["button"],
         )
-        self.support_create_button.grid(row=7, column=1, sticky="e", padx=20, pady=(0, 20))
+        self.support_create_button.grid(row=8, column=1, sticky="e", padx=20, pady=(0, 20))
+        self._register_responsive_widget(self.support_create_button, base_height=42, min_height=34)
 
         search_entry = ctk.CTkEntry(
             tickets_panel,
@@ -661,13 +1422,15 @@ class MainView(ctk.CTkFrame):
             textvariable=self.ticket_search_var,
             height=40,
             corner_radius=14,
+            font=self.fonts["body"],
         )
         search_entry.grid(row=3, column=0, sticky="ew", padx=24, pady=(12, 10))
+        self._register_responsive_widget(search_entry, base_height=40, min_height=32)
 
         ctk.CTkLabel(
             tickets_panel,
             textvariable=self.support_list_count_var,
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=self.fonts["card_label"],
             text_color=TEXT_COLOR_MUTED,
         ).grid(row=4, column=0, sticky="w", padx=24, pady=(0, 8))
 
@@ -694,7 +1457,7 @@ class MainView(ctk.CTkFrame):
         ctk.CTkLabel(
             header,
             textvariable=self.support_chat_title_var,
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=self.fonts["support_chat_title"],
             text_color=TEXT_COLOR_PRIMARY,
         ).grid(row=0, column=0, sticky="w")
 
@@ -704,7 +1467,7 @@ class MainView(ctk.CTkFrame):
         ctk.CTkLabel(
             header,
             textvariable=self.support_chat_meta_var,
-            font=ctk.CTkFont(size=12),
+            font=self.fonts["body_small"],
             text_color=TEXT_COLOR_MUTED,
         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
 
@@ -717,18 +1480,25 @@ class MainView(ctk.CTkFrame):
         composer.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 24))
         composer.grid_columnconfigure(0, weight=1)
 
-        self.support_message_input = ctk.CTkTextbox(composer, height=80, corner_radius=14)
+        self.support_message_input = ctk.CTkTextbox(
+            composer,
+            height=80,
+            corner_radius=14,
+            font=self.fonts["body"],
+        )
         self.support_message_input.grid(row=0, column=0, columnspan=2, sticky="ew")
         self.support_message_input.bind("<Control-Return>", self._send_support_message)
         self.support_message_input.bind("<Command-Return>", self._send_support_message)
-
-        self.support_status_label = ctk.CTkLabel(
-            composer,
-            textvariable=self.support_status_var,
-            font=ctk.CTkFont(size=11),
-            text_color=TEXT_COLOR_MUTED,
+        self._register_responsive_widget(
+            self.support_message_input,
+            base_height=80,
+            min_height=64,
         )
-        self.support_status_label.grid(row=1, column=0, sticky="w", pady=(6, 0))
+        self._bind_text_limit(
+            self.support_message_input,
+            500,
+            self.support_message_count_var,
+        )
 
         self.support_send_button = ctk.CTkButton(
             composer,
@@ -738,8 +1508,26 @@ class MainView(ctk.CTkFrame):
             hover_color=COLOR_ROJO_HOVER,
             height=42,
             corner_radius=14,
+            font=self.fonts["button"],
         )
         self.support_send_button.grid(row=1, column=1, sticky="e", padx=(12, 0), pady=(6, 0))
+        self._register_responsive_widget(self.support_send_button, base_height=42, min_height=34)
+
+        message_counter = ctk.CTkLabel(
+            composer,
+            textvariable=self.support_message_count_var,
+            font=self.fonts["tiny"],
+            text_color=TEXT_COLOR_MUTED,
+        )
+        message_counter.grid(row=1, column=0, sticky="w", pady=(6, 0))
+
+        self.support_status_label = ctk.CTkLabel(
+            composer,
+            textvariable=self.support_status_var,
+            font=self.fonts["tiny"],
+            text_color=TEXT_COLOR_MUTED,
+        )
+        self.support_status_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(4, 0))
 
         self._set_composer_enabled(False)
 
@@ -818,20 +1606,51 @@ class MainView(ctk.CTkFrame):
         if width <= 0:
             return
 
-        if width < 940:
+        # Better breakpoint for desktop windows - 900px for better responsiveness
+        if width < 900:
+            # Smaller desktop: Stack vertically with constrained heights
             container.grid_columnconfigure(0, weight=1)
             container.grid_columnconfigure(1, weight=0)
-            container.grid_rowconfigure(0, weight=1)
-            container.grid_rowconfigure(1, weight=1)
-            tickets_panel.grid_configure(row=0, column=0, sticky="nsew", padx=0, pady=(0, 12))
-            chat_panel.grid_configure(row=1, column=0, sticky="nsew", padx=0, pady=(0, 8))
+            container.grid_rowconfigure(0, weight=0)  # Tickets panel gets constrained height
+            container.grid_rowconfigure(1, weight=1)  # Chat panel gets remaining space
+
+            # Configure tickets panel with max height and scrolling
+            tickets_panel.grid_configure(
+                row=0, column=0, sticky="ew", padx=0, pady=(0, 16),
+                rowspan=1
+            )
+            # Constrain tickets panel height to prevent overflow
+            tickets_panel.grid_rowconfigure(5, weight=1)  # Scrollable area gets weight
+
+            chat_panel.grid_configure(
+                row=1, column=0, sticky="nsew", padx=0, pady=(0, 8)
+            )
+
+            # Adjust form card for better fit in smaller windows
+            if hasattr(self, 'support_form_card') and self.support_form_card:
+                self.support_form_card.grid_configure(pady=(8, 4))
+                # Make form card more compact and ensure it fits
+                self.support_form_card.configure(height=380)
+
         else:
+            # Larger desktop: Side by side with optimal layout
             container.grid_columnconfigure(0, weight=1)
             container.grid_columnconfigure(1, weight=2)
             container.grid_rowconfigure(0, weight=1)
             container.grid_rowconfigure(1, weight=0)
-            tickets_panel.grid_configure(row=0, column=0, sticky="nsew", padx=(0, 12), pady=8)
-            chat_panel.grid_configure(row=0, column=1, sticky="nsew", padx=(12, 0), pady=8)    
+
+            tickets_panel.grid_configure(
+                row=0, column=0, sticky="nsew", padx=(0, 16), pady=0,
+                rowspan=2  # Take full height
+            )
+            chat_panel.grid_configure(
+                row=0, column=1, sticky="nsew", padx=(16, 0), pady=0,
+                rowspan=2  # Take full height
+            )
+
+            # Restore form card padding for desktop
+            if hasattr(self, 'support_form_card') and self.support_form_card:
+                self.support_form_card.grid_configure(pady=(18, 12))
 
     def _normalize_ticket(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         ticket_id = raw.get("id")
@@ -956,6 +1775,7 @@ class MainView(ctk.CTkFrame):
             ctk.CTkLabel(
                 self.support_ticket_list_container,
                 text="Aun no hay tickets de soporte registrados.",
+                font=self.fonts["body_small"],
                 text_color=TEXT_COLOR_MUTED,
                 wraplength=240,
                 justify="center",
@@ -966,6 +1786,7 @@ class MainView(ctk.CTkFrame):
             ctk.CTkLabel(
                 self.support_ticket_list_container,
                 text="Sin resultados para tu busqueda.",
+                font=self.fonts["body_small"],
                 text_color=TEXT_COLOR_MUTED,
                 wraplength=240,
                 justify="center",
@@ -994,7 +1815,7 @@ class MainView(ctk.CTkFrame):
             title = ctk.CTkLabel(
                 card,
                 text=f"Ticket #{ticket['id']} - {ticket.get('first_name', '')} {ticket.get('last_name', '')}".strip(),
-                font=ctk.CTkFont(size=14, weight="bold"),
+                font=self.fonts["list_title"],
                 text_color=title_color,
                 anchor="w",
             )
@@ -1004,7 +1825,7 @@ class MainView(ctk.CTkFrame):
             meta = ctk.CTkLabel(
                 card,
                 text=f"{email} - {reason} - {status}",
-                font=ctk.CTkFont(size=12),
+                font=self.fonts["body_small"],
                 text_color=meta_color,
                 anchor="w",
             )
@@ -1093,7 +1914,7 @@ class MainView(ctk.CTkFrame):
             fg_color=bg_colors,
             text_color=text_colors,
             corner_radius=12,
-            font=ctk.CTkFont(size=11, weight="bold"),
+            font=self.fonts["badge_small"],
             padx=10,
             pady=4,
         )
@@ -1110,6 +1931,7 @@ class MainView(ctk.CTkFrame):
             ctk.CTkLabel(
                 self.support_messages_container,
                 text="Selecciona un ticket o crea uno nuevo para hablar con soporte.",
+                font=self.fonts["body_small"],
                 text_color=TEXT_COLOR_MUTED,
                 wraplength=420,
                 justify="center",
@@ -1121,6 +1943,7 @@ class MainView(ctk.CTkFrame):
             ctk.CTkLabel(
                 self.support_messages_container,
                 text="Aun no hay mensajes registrados. El equipo de EncryptU te respondera pronto.",
+                font=self.fonts["body_small"],
                 text_color=TEXT_COLOR_MUTED,
                 wraplength=420,
                 justify="center",
@@ -1154,7 +1977,7 @@ class MainView(ctk.CTkFrame):
             ctk.CTkLabel(
                 inner,
                 text=header_text,
-                font=ctk.CTkFont(size=11),
+                font=self.fonts["tiny"],
                 text_color=header_color,
                 anchor="w",
                 justify="left",
@@ -1164,7 +1987,7 @@ class MainView(ctk.CTkFrame):
             ctk.CTkLabel(
                 inner,
                 text=message.get("body") or "",
-                font=ctk.CTkFont(size=13),
+                font=self.fonts["body_medium"],
                 text_color=body_color,
                 anchor="w",
                 justify="left",
@@ -1210,6 +2033,8 @@ class MainView(ctk.CTkFrame):
 
         if success:
             message_input.delete("0.0", "end")
+            if self.support_message_input is not None:
+                self._enforce_text_limit(self.support_message_input, 500, self.support_message_count_var)
             self._load_ticket_messages(ticket_id, force_refresh=True, notify=False)
             self._load_support_tickets(force_refresh=True)
             self._set_support_status("Mensaje enviado al equipo de soporte.", success=True)
@@ -1317,7 +2142,12 @@ class MainView(ctk.CTkFrame):
         self.ticket_phone_var.set("")
         self.ticket_reason_var.set(SUPPORT_REASON_OPTIONS[0])
         if self.support_ticket_description_input is not None:
-            self.support_ticket_description_input.delete("1.0", "end")        
+            self.support_ticket_description_input.delete("1.0", "end")
+            self._enforce_text_limit(
+                self.support_ticket_description_input,
+                500,
+                self.ticket_description_count_var,
+            )
 
     # ------------------------------------------------------------------
     # Vault actions and status helpers
@@ -1420,14 +2250,14 @@ class MainView(ctk.CTkFrame):
             ctk.CTkLabel(
                 info,
                 text=site,
-                font=ctk.CTkFont(size=14, weight="bold"),
+                font=self.fonts["list_title"],
                 text_color=TEXT_COLOR_PRIMARY,
             ).pack(anchor="w")
 
             ctk.CTkLabel(
                 info,
                 text=username_site,
-                font=ctk.CTkFont(size=12),
+                font=self.fonts["body_small"],
                 text_color=TEXT_COLOR_MUTED,
             ).pack(anchor="w", pady=(4, 0))
 
@@ -1443,8 +2273,16 @@ class MainView(ctk.CTkFrame):
                 height=36,
                 corner_radius=12,
                 width=130,
+                font=self.fonts["button"],
             )
             view_button.pack(anchor="e")
+            self._register_responsive_widget(
+                view_button,
+                base_height=36,
+                base_width=130,
+                min_height=30,
+                min_width=110,
+            )
 
             delete_button = ctk.CTkButton(
                 actions,
@@ -1458,8 +2296,16 @@ class MainView(ctk.CTkFrame):
                 height=36,
                 corner_radius=12,
                 width=130,
+                font=self.fonts["button"],
             )
             delete_button.pack(anchor="e", pady=(8, 0))
+            self._register_responsive_widget(
+                delete_button,
+                base_height=36,
+                base_width=130,
+                min_height=30,
+                min_width=110,
+            )
 
         self.password_count_var.set(str(count))
         self._update_profile_metrics()
@@ -1495,22 +2341,68 @@ class MainView(ctk.CTkFrame):
             self.status_label_save.after(4000, lambda: self.status_label_save.configure(text="")) # type: ignore
 
     def show_temp_popup(self, message: str, color: str = "green"):
+        """Show a modern temporary popup with enhanced styling"""
         toplevel_window = self.winfo_toplevel()
         if isinstance(toplevel_window, ctk.CTk):
+            # Create modern popup with better styling
             popup = ctk.CTkToplevel(toplevel_window)
-            popup.geometry("320x120")
-            popup.title("Notificacion")
+            popup.geometry("360x140")
+            popup.title("🔥 EncryptU")
             popup.transient(toplevel_window)
             popup.grab_set()
 
-            ctk.CTkLabel(
-                popup,
-                text=message,
-                font=ctk.CTkFont(size=14),
-                text_color=color,
-                wraplength=280,
-                justify="center",
-            ).pack(expand=True, padx=20, pady=24)
+            # Configure popup styling
+            popup.configure(
+                fg_color=(COLOR_BLANCO_WARM, "#1A202C"),
+                corner_radius=20,
+                border_width=1,
+                border_color=COLOR_ROJO_PRINCIPAL
+            )
 
-            popup.after(2000, popup.destroy)
+            # Main container
+            container = ctk.CTkFrame(popup, fg_color="transparent")
+            container.pack(expand=True, padx=24, pady=24, fill="both")
+            container.grid_columnconfigure(0, weight=1)
+
+            # Add appropriate icon based on message type
+            if "error" in message.lower() or "incorrect" in message.lower():
+                icon_image = icon_error
+                fallback_text = "Error"
+            elif "success" in message.lower() or "copiada" in message.lower():
+                icon_image = icon_success
+                fallback_text = "Success"
+            elif "eliminada" in message.lower() or "eliminado" in message.lower():
+                icon_image = icon_delete
+                fallback_text = "Deleted"
+            else:
+                icon_image = icon_success  # Default to success
+                fallback_text = "Info"
+
+            # Icon and message layout
+            icon_label = ctk.CTkLabel(
+                container,
+                text=fallback_text,
+                image=icon_image,
+                compound="left",
+                font=self.fonts["hero_headline"],
+                text_color=color,
+                justify="center",
+            )
+            icon_label.grid(row=0, column=0, pady=(0, 8))
+
+            message_label = ctk.CTkLabel(
+                container,
+                text=message,
+                font=self.fonts["body"],
+                text_color=color,
+                wraplength=320,
+                justify="center",
+            )
+            message_label.grid(row=1, column=0, pady=(0, 12))
+
+            # Add a subtle animation
+            def fade_out():
+                popup.destroy()
+
+            popup.after(2500, fade_out)  # Show for 2.5 seconds
 

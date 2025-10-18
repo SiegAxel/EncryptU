@@ -13,6 +13,7 @@ const nav = [
   { href: "/marketing/acerca", label: "Nosotros" },
   { href: "/marketing/planes", label: "Planes" },
   { href: "/marketing/contacto", label: "Contacto" },
+  { href: "/marketing/ticket", label: "Tickets" }
 ];
 
 type Me =
