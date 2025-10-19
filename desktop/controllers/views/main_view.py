@@ -1,3 +1,30 @@
+# =============================================================================
+# ARCHIVO: main_view.py - Vista Principal de EncryptU
+# =============================================================================
+# Este archivo contiene la implementación de la interfaz gráfica principal de la
+# aplicación EncryptU, desarrollada con CustomTkinter para una experiencia moderna.
+#
+# FUNCIONALIDADES PRINCIPALES:
+# - Gestión de credenciales cifradas (almacenamiento/descifrado)
+# - Sistema de tickets de soporte integrado
+# - Panel de usuario con métricas y estadísticas
+# - Navegación responsiva y moderna
+# - Efectos visuales con gradientes animados
+# - Diseño adaptativo para diferentes tamaños de ventana
+#
+# SECCIONES DEL ARCHIVO:
+# 1. Imports y constantes de colores
+# 2. Configuración de iconos profesionales
+# 3. Clase MainView (componente principal)
+# 4. Gestión de fuentes responsivas
+# 5. Sistema de diseño responsivo
+# 6. Efectos visuales y fondo animado
+# 7. Cabecera y navegación principal
+# 8. Secciones de contenido (Perfil, Encriptación, Soporte)
+# 9. Funcionalidades del sistema de soporte
+# 10. Gestión del vault de contraseñas
+# =============================================================================
+
 import customtkinter as ctk
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -6,7 +33,19 @@ import re
 import pyperclip
 from PIL import Image
 
-# EncryptU Modern Color Palette
+# =============================================================================
+# PALETA DE COLORES MODERNA DE ENCRYPTU
+# =============================================================================
+# Definición de la paleta de colores corporativa utilizada en toda la interfaz.
+# Los colores están diseñados para mantener la identidad visual de EncryptU
+# con un esquema rojo moderno y elegante.
+#
+# ESTRUCTURA DE COLORES:
+# - COLOR_ROJO_PRINCIPAL: Color rojo principal de la marca
+# - Variantes para hover, acentos y estados
+# - Colores para fondos, textos y elementos interactivos
+# - Sistema de colores para badges y estados de tickets
+# =============================================================================
 COLOR_ROJO_PRINCIPAL = "#E53E3E"
 COLOR_ROJO_HOVER = "#C53030"
 COLOR_ROJO_ACENTO = "#FC8181"
@@ -36,37 +75,7 @@ BADGE_STATUS_COLORS = {
 SUPPORT_AGENT_NAME = "Equipo EncryptU"
 SUPPORT_REASON_OPTIONS = ["Soporte", "Consulta"]
 
-#Agregar logo desde img
 
-# Professional Icons Setup
-def load_icon(icon_name: str, size: tuple = (20, 20)) -> Optional[ctk.CTkImage]:
-    """Load a professional icon from the icons directory"""
-    try:
-        icon_path = f"desktop/controllers/img/icons/{icon_name}.png"
-        icon_image = Image.open(icon_path)
-        return ctk.CTkImage(
-            light_image=icon_image,
-            dark_image=icon_image,
-            size=size
-        )
-    except Exception as e:
-        # Fallback to text-based icons if image files don't exist
-        return None
-
-# Load main application icons
-icon_lock = load_icon("lock", (24, 24))
-icon_user = load_icon("user", (24, 24))
-icon_logout = load_icon("logout", (20, 20))
-icon_nav = load_icon("nav", (20, 20))
-icon_key = load_icon("key", (24, 24))
-icon_support = load_icon("support", (24, 24))
-icon_ticket = load_icon("ticket", (20, 20))
-icon_sync = load_icon("sync", (20, 20))
-icon_success = load_icon("check", (24, 24))
-icon_error = load_icon("error", (24, 24))
-icon_warning = load_icon("warning", (24, 24))
-icon_delete = load_icon("delete", (20, 20))
-icon_copy = load_icon("copy", (20, 20))
 
 # Logo images with appropriate size
 img_logo_blanco = ctk.CTkImage(
@@ -79,102 +88,152 @@ img_logo_negro = ctk.CTkImage(
     size=(120, 120)  # Appropriate size for header
 )
 
+# =============================================================================
+# CLASE MAINVIEW - VISTA PRINCIPAL DE LA APLICACIÓN
+# =============================================================================
+# Esta clase representa la interfaz principal de la aplicación EncryptU.
+# Implementa una interfaz moderna y responsiva con funcionalidades avanzadas.
+#
+# CARACTERÍSTICAS PRINCIPALES:
+# - Navegación por pestañas (Perfil, Encriptación, Soporte)
+# - Diseño responsivo que se adapta a diferentes tamaños de ventana
+# - Sistema de gestión de contraseñas cifradas
+# - Integración completa con el sistema de soporte técnico
+# - Efectos visuales modernos con gradientes animados
+# - Gestión de fuentes escalables automáticamente
+#
+# COMPONENTES PRINCIPALES:
+# - Header con información del usuario y botón de logout
+# - Navegación segmentada moderna
+# - Área de contenido dinámica con tres secciones principales
+# - Sistema de soporte con tickets y chat integrado
+# - Vault de contraseñas con funciones de cifrado/descifrado
+# =============================================================================
+
 class MainView(ctk.CTkFrame):
     """
-    Vista principal con navegacion moderna, tarjetas tematicas y gradientes
+    Vista principal con navegación moderna, tarjetas temáticas y gradientes
     acorde a la identidad visual de EncryptU.
+
+    Esta clase maneja toda la interfaz de usuario principal incluyendo:
+    - Gestión del diseño responsivo y fuentes adaptativas
+    - Sistema de navegación entre secciones
+    - Integración con el controlador para funcionalidades backend
+    - Gestión del estado de la aplicación y componentes UI
     """
 
     def __init__(self, master, controller, username):
         super().__init__(master)
-        self.controller = controller
-        self.username = username
-        self.configure(fg_color="transparent")
+        # Configuración inicial de la vista principal
+        self.controller = controller  # Referencia al controlador principal
+        self.username = username      # Nombre del usuario actual
+        self.configure(fg_color="transparent")  # Fondo transparente para efectos visuales
 
-        self.fonts: Dict[str, ctk.CTkFont] = {}
-        self._font_specs: Dict[str, Dict[str, Optional[float]]] = {}
-        self._responsive_components: List[Dict[str, Any]] = []
-        self._responsive_wraplengths: List[Dict[str, Any]] = []
-        self._responsive_job: Optional[str] = None
-        self._current_scale: float = 1.0
-        self._validators: Dict[str, Any] = {}
+        # Diccionarios para gestión de fuentes responsivas
+        self.fonts: Dict[str, ctk.CTkFont] = {}                    # Fuentes CTkFont por nombre
+        self._font_specs: Dict[str, Dict[str, Optional[float]]] = {} # Especificaciones de fuentes
+        self._responsive_components: List[Dict[str, Any]] = []      # Componentes responsivos
+        self._responsive_wraplengths: List[Dict[str, Any]] = []     # Wraplengths responsivos
+        self._responsive_job: Optional[str] = None                  # ID del job de actualización responsiva
+        self._current_scale: float = 1.0                           # Escala actual de la interfaz
+        self._validators: Dict[str, Any] = {}                       # Validadores de entrada de datos
 
-        self._init_fonts()
-        self._setup_validators()
+        # Inicialización del sistema de fuentes y validadores
+        self._init_fonts()           # Configura todas las fuentes de la aplicación
+        self._setup_validators()     # Establece validadores para campos de entrada
 
-        self.original_bg_image: Optional[Image.Image] = None
-        self.bg_image_object: Optional[ctk.CTkImage] = None
-        self.bg_label: Optional[ctk.CTkLabel] = None
-        self.logo_image: Optional[ctk.CTkImage] = None
+        # Variables para gestión de imágenes de fondo y logos
+        self.original_bg_image: Optional[Image.Image] = None    # Imagen de fondo original
+        self.bg_image_object: Optional[ctk.CTkImage] = None     # Objeto CTkImage del fondo
+        self.bg_label: Optional[ctk.CTkLabel] = None           # Label del fondo
+        self.logo_image: Optional[ctk.CTkImage] = None         # Imagen del logo
 
-        self.support_tickets: List[Dict[str, Any]] = []
-        self.support_ticket_messages: Dict[int, List[Dict[str, Any]]] = {}
-        self.support_loading = False
-        self.support_active_ticket_id: Optional[int] = None
+        # Sistema de gestión de tickets de soporte
+        self.support_tickets: List[Dict[str, Any]] = []                    # Lista de tickets de soporte
+        self.support_ticket_messages: Dict[int, List[Dict[str, Any]]] = {} # Mensajes por ticket ID
+        self.support_loading = False                                       # Estado de carga de soporte
+        self.support_active_ticket_id: Optional[int] = None               # ID del ticket activo
 
-        self.password_count_var = ctk.StringVar(value="--")
-        self.profile_ticket_metric_var = ctk.StringVar(value="0")
-        self.profile_last_sync_var = ctk.StringVar(value=datetime.now().strftime("%d/%m/%Y %H:%M"))
-        self.support_list_count_var = ctk.StringVar(
-            value="Cargando tickets..."
-        )
-        self.ticket_search_var = ctk.StringVar(value="")
-        self.support_chat_title_var = ctk.StringVar(value="Selecciona un ticket para ver los detalles.")
-        self.support_chat_meta_var = ctk.StringVar(value="")
-        self.support_status_var = ctk.StringVar(value="")
-        self.ticket_first_name_var = ctk.StringVar(value="")
-        self.ticket_last_name_var = ctk.StringVar(value="")
-        self.ticket_email_var = ctk.StringVar(value=username or "")
-        self.ticket_phone_var = ctk.StringVar(value="")
-        self.ticket_reason_var = ctk.StringVar(value=SUPPORT_REASON_OPTIONS[0])
-        self.ticket_form_status_var = ctk.StringVar(value="")
-        self.ticket_description_count_var = ctk.StringVar(value="0 / 500")
-        self.support_message_count_var = ctk.StringVar(value="0 / 500")
-        self.nav_segmented: Optional[ctk.CTkSegmentedButton] = None
-        self.nav_map = {"Perfil": "profile", "Encriptacion": "encryption", "Soporte": "support"}
-        self.sections: Dict[str, ctk.CTkFrame] = {}
-        self.content_container: Optional[ctk.CTkFrame] = None
-        self.scrollable_frame: Optional[ctk.CTkScrollableFrame] = None
-        self.status_label_save: Optional[ctk.CTkLabel] = None
-        self.support_ticket_list_container: Optional[ctk.CTkScrollableFrame] = None
-        self.support_messages_container: Optional[ctk.CTkScrollableFrame] = None
-        self.support_badge_holder: Optional[ctk.CTkFrame] = None
-        self.support_message_input: Optional[ctk.CTkTextbox] = None
-        self.support_send_button: Optional[ctk.CTkButton] = None
-        self.support_status_label: Optional[ctk.CTkLabel] = None
-        self.ticket_form_status_label: Optional[ctk.CTkLabel] = None
-        self.support_create_button: Optional[ctk.CTkButton] = None
-        self.support_ticket_description_input: Optional[ctk.CTkTextbox] = None
-        self.support_form_card: Optional[ctk.CTkFrame] = None
+        # Variables StringVar para métricas y estados de la interfaz
+        self.password_count_var = ctk.StringVar(value="--")                    # Contador de contraseñas
+        self.profile_ticket_metric_var = ctk.StringVar(value="0")              # Métrica de tickets en perfil
+        self.profile_last_sync_var = ctk.StringVar(value=datetime.now().strftime("%d/%m/%Y %H:%M"))  # Última sincronización
+        self.support_list_count_var = ctk.StringVar(value="Cargando tickets...")  # Estado de lista de soporte
+        # Variables StringVar para funcionalidades de tickets de soporte
+        self.ticket_search_var = ctk.StringVar(value="")                           # Búsqueda de tickets
+        self.support_chat_title_var = ctk.StringVar(value="Selecciona un ticket para ver los detalles.")  # Título del chat
+        self.support_chat_meta_var = ctk.StringVar(value="")                       # Metadatos del chat
+        self.support_status_var = ctk.StringVar(value="")                         # Estado del soporte
+        self.ticket_first_name_var = ctk.StringVar(value="")                      # Nombre del solicitante
+        self.ticket_last_name_var = ctk.StringVar(value="")                       # Apellido del solicitante
+        self.ticket_email_var = ctk.StringVar(value=username or "")              # Email del solicitante
+        self.ticket_phone_var = ctk.StringVar(value="")                          # Teléfono del solicitante
+        self.ticket_reason_var = ctk.StringVar(value=SUPPORT_REASON_OPTIONS[0])   # Razón del ticket
+        self.ticket_form_status_var = ctk.StringVar(value="")                     # Estado del formulario
+        self.ticket_description_count_var = ctk.StringVar(value="0 / 500")        # Contador de descripción
+        self.support_message_count_var = ctk.StringVar(value="0 / 500")           # Contador de mensajes
+        # Referencias a componentes principales de la interfaz
+        self.nav_segmented: Optional[ctk.CTkSegmentedButton] = None      # Navegación segmentada
+        self.nav_map = {"Perfil": "profile", "Encriptacion": "encryption", "Soporte": "support"}  # Mapeo navegación
+        self.sections: Dict[str, ctk.CTkFrame] = {}                     # Secciones de contenido
+        self.content_container: Optional[ctk.CTkFrame] = None           # Contenedor principal de contenido
+        self.scrollable_frame: Optional[ctk.CTkScrollableFrame] = None  # Frame scrollable para contraseñas
+        self.status_label_save: Optional[ctk.CTkLabel] = None           # Label de estado para guardar
+        # Componentes del sistema de soporte técnico
+        self.support_ticket_list_container: Optional[ctk.CTkScrollableFrame] = None  # Lista de tickets
+        self.support_messages_container: Optional[ctk.CTkScrollableFrame] = None     # Mensajes del chat
+        self.support_badge_holder: Optional[ctk.CTkFrame] = None                    # Contenedor de badges
+        self.support_message_input: Optional[ctk.CTkTextbox] = None                 # Input de mensajes
+        self.support_send_button: Optional[ctk.CTkButton] = None                    # Botón enviar mensaje
+        self.support_status_label: Optional[ctk.CTkLabel] = None                    # Estado del soporte
+        self.ticket_form_status_label: Optional[ctk.CTkLabel] = None                # Estado del formulario
+        self.support_create_button: Optional[ctk.CTkButton] = None                  # Botón crear ticket
+        self.support_ticket_description_input: Optional[ctk.CTkTextbox] = None      # Descripción del ticket
+        self.support_form_card: Optional[ctk.CTkFrame] = None                       # Tarjeta del formulario
 
-        self.site_entry: Optional[ctk.CTkEntry] = None
-        self.username_entry_save: Optional[ctk.CTkEntry] = None
-        self.password_entry: Optional[ctk.CTkEntry] = None
-        self.save_button: Optional[ctk.CTkButton] = None
+        # Componentes del formulario de encriptación
+        self.site_entry: Optional[ctk.CTkEntry] = None                    # Campo sitio web
+        self.username_entry_save: Optional[ctk.CTkEntry] = None           # Campo usuario
+        self.password_entry: Optional[ctk.CTkEntry] = None               # Campo contraseña
+        self.save_button: Optional[ctk.CTkButton] = None                  # Botón guardar
 
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(2, weight=1)
+        # Configuración del layout principal
+        self.grid_columnconfigure(0, weight=1)  # Columna 0 expandible
+        self.grid_rowconfigure(2, weight=1)     # Fila 2 (contenido) expandible
 
-        self._setup_background_image()
-        self._create_header()
-        self._create_navigation()
-        self._build_content_area()
+        # Inicialización de componentes principales
+        self._setup_background_image()      # Fondo degradado animado
+        self._create_header()              # Cabecera con usuario y logout
+        self._create_navigation()          # Navegación segmentada
+        self._build_content_area()         # Construye las tres secciones principales
 
-        self.ticket_search_var.trace_add("write", lambda *_: self._render_support_ticket_list())
+        # Configuración de eventos y estado inicial
+        self.ticket_search_var.trace_add("write", lambda *_: self._render_support_ticket_list())  # Búsqueda en tiempo real
 
-        self.support_loading = True
-        self._render_support_ticket_list()
-        self.after(150, self._initialize_support_data)
+        self.support_loading = True                    # Estado de carga inicial
+        self._render_support_ticket_list()             # Renderiza lista de tickets
+        self.after(150, self._initialize_support_data) # Inicializa datos de soporte
 
+        # Configuración inicial de navegación y contenido
         if self.nav_segmented:
-            self.nav_segmented.set("Encriptacion")
-        self._show_section("encryption")
-        self.refresh_password_list()
-        self._setup_responsive_behavior()
+            self.nav_segmented.set("Encriptacion")     # Selecciona pestaña de encriptación
+        self._show_section("encryption")               # Muestra sección de encriptación
+        self.refresh_password_list()                   # Carga lista de contraseñas
+        self._setup_responsive_behavior()              # Configura comportamiento responsivo
 
     # ------------------------------------------------------------------
-    # Fondo y ambientacion visual
+    # GESTIÓN DE FUENTES RESPONSIVAS
     # ------------------------------------------------------------------
+    # Sistema avanzado para gestión de fuentes que se adaptan automáticamente
+    # al tamaño de la ventana y mantienen una excelente legibilidad.
+    #
+    # FUNCIONALIDADES:
+    # - Registro de fuentes con parámetros específicos (tamaño, peso, límites)
+    # - Escalado automático basado en el tamaño de la ventana
+    # - Mantenimiento de proporciones y jerarquía visual
+    # - Límites mínimos y máximos para evitar textos ilegibles
+    # ------------------------------------------------------------------
+
     def _register_font(
         self,
         key: str,
@@ -193,38 +252,65 @@ class MainView(ctk.CTkFrame):
         return font
 
     def _init_fonts(self):
-        self._register_font("badge", 14, weight="bold", min_size=10)
-        self._register_font("header_title", 26, weight="bold", min_size=16)
-        self._register_font("header_subtitle", 14, min_size=10)
-        self._register_font("nav_caption", 12, weight="bold", min_size=9)
-        self._register_font("nav_segmented", 14, weight="bold", min_size=11)
-        self._register_font("hero_headline", 22, weight="bold", min_size=16)
-        self._register_font("hero_tagline", 14, min_size=11)
-        self._register_font("card_label", 12, weight="bold", min_size=9)
-        self._register_font("card_stat_primary", 30, weight="bold", min_size=20)
-        self._register_font("card_stat_secondary", 18, weight="bold", min_size=14)
-        self._register_font("section_title", 20, weight="bold", min_size=15)
-        self._register_font("form_title", 16, weight="bold", min_size=12)
-        self._register_font("body", 14, min_size=11)
-        self._register_font("body_medium", 13, min_size=11)
-        self._register_font("body_small", 12, min_size=10)
-        self._register_font("tiny", 11, min_size=9)
-        self._register_font("button", 14, weight="bold", min_size=12)
-        self._register_font("support_chat_title", 18, weight="bold", min_size=14)
-        self._register_font("list_title", 14, weight="bold", min_size=11)
-        self._register_font("badge_small", 11, weight="bold", min_size=9)
+        """Inicializa todas las fuentes utilizadas en la aplicación con sus especificaciones responsivas.
+
+        Cada fuente está diseñada para un propósito específico en la jerarquía visual:
+        - badge: Para badges y etiquetas pequeñas
+        - header_*: Para títulos y subtítulos del encabezado
+        - nav_*: Para elementos de navegación
+        - hero_*: Para secciones destacadas (hero sections)
+        - card_*: Para tarjetas de estadísticas y contenido
+        - section_*: Para títulos de secciones
+        - form_*: Para títulos de formularios
+        - body_*: Para texto general del cuerpo
+        - button: Para botones de acción
+        - support_*: Para elementos específicos del soporte
+        - list_*: Para listas y elementos de navegación
+        """
+        self._register_font("badge", 14, weight="bold", min_size=10)           # Badges pequeños
+        self._register_font("header_title", 26, weight="bold", min_size=16)    # Título principal del header
+        self._register_font("header_subtitle", 14, min_size=10)                # Subtítulo del header
+        self._register_font("nav_caption", 12, weight="bold", min_size=9)       # Títulos de navegación
+        self._register_font("nav_segmented", 14, weight="bold", min_size=11)    # Navegación segmentada
+        self._register_font("hero_headline", 22, weight="bold", min_size=16)    # Títulos hero principales
+        self._register_font("hero_tagline", 14, min_size=11)                    # Subtítulos hero
+        self._register_font("card_label", 12, weight="bold", min_size=9)        # Etiquetas de tarjetas
+        self._register_font("card_stat_primary", 30, weight="bold", min_size=20)  # Estadísticas principales
+        self._register_font("card_stat_secondary", 18, weight="bold", min_size=14) # Estadísticas secundarias
+        self._register_font("section_title", 20, weight="bold", min_size=15)    # Títulos de sección
+        self._register_font("form_title", 16, weight="bold", min_size=12)       # Títulos de formularios
+        self._register_font("body", 14, min_size=11)                           # Texto del cuerpo estándar
+        self._register_font("body_medium", 13, min_size=11)                     # Texto del cuerpo mediano
+        self._register_font("body_small", 12, min_size=10)                      # Texto del cuerpo pequeño
+        self._register_font("tiny", 11, min_size=9)                            # Texto muy pequeño
+        self._register_font("button", 14, weight="bold", min_size=12)           # Texto de botones
+        self._register_font("support_chat_title", 18, weight="bold", min_size=14)  # Títulos del chat de soporte
+        self._register_font("list_title", 14, weight="bold", min_size=11)       # Títulos de listas
+        self._register_font("badge_small", 11, weight="bold", min_size=9)       # Badges pequeños
 
     def _setup_validators(self):
-        self._validators["site"] = self.register(self._validate_site)
-        self._validators["username"] = self.register(self._validate_username)
-        self._validators["password"] = self.register(self._validate_password)
-        self._validators["name"] = self.register(self._validate_name)
-        self._validators["email"] = self.register(self._validate_email)
-        self._validators["phone"] = self.register(self._validate_phone)
+        """Configura los validadores para los diferentes tipos de campos de entrada.
+
+        Estos validadores se utilizan para validar datos en tiempo real mientras
+        el usuario escribe, asegurando que los datos cumplan con los formatos
+        y restricciones requeridas antes de enviarlos.
+        """
+        self._validators["site"] = self.register(self._validate_site)           # Validación de sitios web
+        self._validators["username"] = self.register(self._validate_username)   # Validación de usuarios
+        self._validators["password"] = self.register(self._validate_password)   # Validación de contraseñas
+        self._validators["name"] = self.register(self._validate_name)           # Validación de nombres
+        self._validators["email"] = self.register(self._validate_email)         # Validación de emails
+        self._validators["phone"] = self.register(self._validate_phone)         # Validación de teléfonos
 
     def _setup_responsive_behavior(self):
-        self.bind("<Configure>", self._handle_root_resize)
-        self.after(120, self._apply_responsive_styles)
+        """Configura el comportamiento responsivo de la aplicación.
+
+        Vincula eventos de redimensionamiento de ventana y programa la aplicación
+        inicial de estilos responsivos para asegurar una experiencia óptima
+        desde el inicio.
+        """
+        self.bind("<Configure>", self._handle_root_resize)       # Detecta cambios de tamaño de ventana
+        self.after(120, self._apply_responsive_styles)          # Aplica estilos iniciales después de 120ms
 
     def _handle_root_resize(self, event=None):
         self._resize_image(event)
@@ -272,18 +358,27 @@ class MainView(ctk.CTkFrame):
         self._apply_responsive_layout(width)
 
     def _apply_responsive_layout(self, width: int):
-        """Apply layout adjustments based on screen width"""
+        """Aplica ajustes de layout basados en el ancho de la pantalla.
+
+        Esta función implementa diferentes estrategias de diseño responsivo
+        según el tamaño de la ventana:
+
+        - < 768px: Ajustes para ventanas pequeñas de escritorio
+        - 768-900px: Ajustes para escritorio mediano-pequeño
+        - 900-1200px: Ajustes para escritorio mediano
+        - > 1200px: Ajustes para escritorio grande (óptimo)
+        """
         if width < 768:
-            # Small desktop adjustments
+            # Ajustes para ventanas pequeñas de escritorio
             self._mobile_layout_adjustments()
         elif width < 900:
-            # Medium-small desktop adjustments
+            # Ajustes para escritorio mediano-pequeño
             self._medium_small_layout_adjustments()
         elif width < 1200:
-            # Medium desktop adjustments
+            # Ajustes para escritorio mediano
             self._medium_layout_adjustments()
         else:
-            # Large desktop adjustments
+            # Ajustes para escritorio grande
             self._desktop_layout_adjustments()
 
     def _medium_small_layout_adjustments(self):
@@ -479,67 +574,139 @@ class MainView(ctk.CTkFrame):
             return True
         return value.isdigit()
     def _setup_background_image(self):
+        """Configura el fondo degradado animado de la aplicación.
+
+        Crea un fondo visualmente atractivo con gradientes que utiliza los colores
+        corporativos de EncryptU. El fondo se adapta automáticamente al tamaño
+        de la ventana y proporciona una experiencia visual moderna.
+
+        FUNCIONALIDADES:
+        - Genera gradiente base con colores corporativos
+        - Configura label de fondo transparente para superponer efectos
+        - Inicia sistema de animación sutil cada 5 segundos
+        - Programa redimensionamiento automático de la imagen
+        - Manejo de errores silencioso para mantener estabilidad
+        """
         try:
+            # Genera imagen de fondo degradado con colores corporativos
             self.original_bg_image = self._generate_gradient_image(1600, 900)
+
+            # Crea label de fondo transparente que ocupará toda la ventana
             self.bg_label = ctk.CTkLabel(self, text="", fg_color="transparent")
             self.bg_label.place(relx=0, rely=0, relwidth=1, relheight=1)
-            self.bg_label.lower()
+            self.bg_label.lower()  # Envía al fondo para no interferir con otros elementos
 
-            # Add subtle animation to background
+            # Inicia sistema de animación sutil del fondo
             self._animate_background()
+            # Programa ajuste inicial del tamaño después de 20ms
             self.after(20, self._resize_image)
         except Exception as exc:
+            # Manejo de errores silencioso para mantener estabilidad
             print(f"Error al crear el fondo degradado: {exc}")
 
     def _animate_background(self):
-        """Add subtle animation to background gradient"""
+        """Añade animación sutil al fondo degradado de la aplicación.
+
+        Crea una transición suave del fondo cada 5 segundos cambiando ligeramente
+        los colores y la rotación del gradiente. Esta animación es sutil para no
+        distraer al usuario pero mantiene el interés visual.
+
+        MECANISMO:
+        - Verifica que existan los componentes necesarios para la animación
+        - Genera una variante sutilmente diferente del gradiente original
+        - Aplica la nueva imagen al label de fondo
+        - Programa la siguiente animación cada 5 segundos
+        - Manejo de errores silencioso para mantener estabilidad
+        """
         if self.bg_label and self.original_bg_image:
-            # Subtle color transition animation
+            # Animación sutil de transición de colores
             try:
-                # Create a slightly different gradient for animation
+                # Crea una variante ligeramente diferente del gradiente para animación
                 animated_image = self._generate_animated_gradient(1600, 900)
                 if animated_image:
+                    # Crea objeto CTkImage con la nueva imagen animada
                     self.bg_image_object = ctk.CTkImage(
                         light_image=animated_image,
                         dark_image=animated_image,
                         size=(self.winfo_width(), self.winfo_height())
                     )
+                    # Aplica la nueva imagen al label de fondo
                     self.bg_label.configure(image=self.bg_image_object)
             except Exception:
-                pass  # Silently fail animation if there are issues
+                # Falla silenciosamente si hay problemas con la animación
+                pass
 
-        # Schedule next animation frame
-        self.after(5000, self._animate_background)  # Animate every 5 seconds
+        # Programa el siguiente frame de animación cada 5 segundos
+        self.after(5000, self._animate_background)
 
     def _generate_animated_gradient(self, width: int, height: int) -> Optional[Image.Image]:
-        """Generate a slightly varied gradient for animation"""
+        """Genera una variante sutil del gradiente para la animación de fondo.
+
+        Crea una versión ligeramente diferente del gradiente original con cambios
+        sutiles en rotación y colores para proporcionar una transición suave.
+
+        TÉCNICA:
+        - Crea gradiente lineal base y lo redimensiona al doble del tamaño necesario
+        - Aplica rotación ligeramente diferente (50°) para variar el efecto
+        - Recorta la imagen al tamaño exacto requerido
+        - Usa colores corporativos con variaciones sutiles para animación
+        - Combina capa base con capa superior usando máscara de gradiente
+
+        Args:
+            width: Ancho deseado de la imagen generada
+            height: Alto deseado de la imagen generada
+
+        Returns:
+            Optional[Image.Image]: Imagen de gradiente animado o None si hay error
+        """
         try:
-            # Create a subtly different gradient
-            size = max(width, height) * 2
+            # Crea una variante sutilmente diferente del gradiente
+            size = max(width, height) * 2  # Tamaño doble para mejor calidad
             gradient = Image.linear_gradient("L").resize((size, size))
-            gradient = gradient.rotate(50, expand=True)  # Slightly different rotation
+            gradient = gradient.rotate(50, expand=True)  # Rotación ligeramente diferente
             x_offset = (gradient.width - width) // 2
             y_offset = (gradient.height - height) // 2
             mask = gradient.crop((x_offset, y_offset, x_offset + width, y_offset + height))
 
-            # Use slightly different colors for animation
+            # Usa colores ligeramente diferentes para la animación
+            # Calcula variaciones sutiles del color rojo principal
             base_color = f"#{int(COLOR_ROJO_PRINCIPAL[1:3],16)+10:02x}{int(COLOR_ROJO_PRINCIPAL[3:5],16)+5:02x}{int(COLOR_ROJO_PRINCIPAL[5:7],16)+10:02x}"
-            base = Image.new("RGB", (width, height), base_color)
-            top = Image.new("RGB", (width, height), COLOR_BLANCO)
-            return Image.composite(top, base, mask)
+            base = Image.new("RGB", (width, height), base_color)  # Capa base con color modificado
+            top = Image.new("RGB", (width, height), COLOR_BLANCO)  # Capa superior blanca
+            return Image.composite(top, base, mask)  # Combina capas usando gradiente como máscara
         except Exception:
             return None
 
     def _generate_gradient_image(self, width: int, height: int) -> Image.Image:
-        size = max(width, height) * 2
-        gradient = Image.linear_gradient("L").resize((size, size))
-        gradient = gradient.rotate(45, expand=True)
-        x_offset = (gradient.width - width) // 2
-        y_offset = (gradient.height - height) // 2
-        mask = gradient.crop((x_offset, y_offset, x_offset + width, y_offset + height))
-        base = Image.new("RGB", (width, height), COLOR_ROJO_PRINCIPAL)
-        top = Image.new("RGB", (width, height), COLOR_BLANCO)
-        return Image.composite(top, base, mask)
+        """Genera la imagen de fondo degradado principal de la aplicación.
+
+        Crea un gradiente lineal sofisticado que combina los colores corporativos
+        de EncryptU (rojo principal y blanco) con una rotación de 45° para obtener
+        un efecto visual elegante y moderno.
+
+        PROCESO:
+        1. Crea gradiente lineal base con tamaño doble para mejor calidad
+        2. Aplica rotación de 45° para efecto diagonal elegante
+        3. Recorta la imagen al tamaño exacto requerido
+        4. Crea capas base (rojo corporativo) y superior (blanco)
+        5. Combina capas usando el gradiente como máscara de transparencia
+
+        Args:
+            width: Ancho deseado de la imagen generada
+            height: Alto deseado de la imagen generada
+
+        Returns:
+            Image.Image: Imagen de gradiente lista para usar como fondo
+        """
+        size = max(width, height) * 2  # Tamaño doble para mejor calidad de imagen
+        gradient = Image.linear_gradient("L").resize((size, size))  # Crea gradiente lineal base
+        gradient = gradient.rotate(45, expand=True)  # Rotación de 45° para efecto diagonal
+        x_offset = (gradient.width - width) // 2   # Calcula offset para recorte horizontal
+        y_offset = (gradient.height - height) // 2  # Calcula offset para recorte vertical
+        mask = gradient.crop((x_offset, y_offset, x_offset + width, y_offset + height))  # Recorta al tamaño deseado
+        base = Image.new("RGB", (width, height), COLOR_ROJO_PRINCIPAL)  # Capa base roja corporativa
+        top = Image.new("RGB", (width, height), COLOR_BLANCO)         # Capa superior blanca
+        return Image.composite(top, base, mask)  # Combina capas con gradiente como máscara
 
     def _resize_image(self, event=None):
         if not self.original_bg_image or not self.bg_label:
@@ -567,8 +734,24 @@ class MainView(ctk.CTkFrame):
         self.bg_label.place(relx=0.5, rely=0.5, anchor="center")
 
     # ------------------------------------------------------------------
-    # Cabecera y navegacion
+    # CABECERA Y NAVEGACIÓN PRINCIPAL
     # ------------------------------------------------------------------
+    # Implementa la cabecera moderna de la aplicación con información del usuario,
+    # logo corporativo y botón de cierre de sesión. También configura la navegación
+    # segmentada que permite cambiar entre las diferentes secciones de la aplicación.
+    #
+    # COMPONENTES DE CABECERA:
+    # - Logo corporativo con badge moderno
+    # - Información de bienvenida del usuario con icono
+    # - Subtítulo descriptivo de la aplicación
+    # - Botón de cierre de sesión con efectos hover
+    #
+    # NAVEGACIÓN:
+    # - Navegación segmentada moderna (Perfil, Encriptación, Soporte)
+    # - Efectos visuales y animaciones sutiles
+    # - Diseño responsivo que se adapta a diferentes tamaños
+    # ------------------------------------------------------------------
+
     def _create_header(self):
         # Modern header with subtle background and better spacing
         header_frame = ctk.CTkFrame(
@@ -612,9 +795,9 @@ class MainView(ctk.CTkFrame):
 
         welcome_label = ctk.CTkLabel(
             welcome_section,
-            text=f"👤 Hola, {self.username}" if icon_user is None else f"Hola, {self.username}",
-            image=icon_user,
-            compound="left" if icon_user is not None else "top",
+            text=f"Hola, {self.username}",
+            image=None,
+            compound="top",
             font=self.fonts["header_title"],
             text_color=TEXT_COLOR_PRIMARY,
             anchor="w"
@@ -637,7 +820,7 @@ class MainView(ctk.CTkFrame):
         logout_button = ctk.CTkButton(
             logout_section,
             text="Cerrar Sesión",
-            image=icon_logout,
+            image=None,
             compound="left",
             command=self.logout_action,
             fg_color="transparent",
@@ -748,8 +931,20 @@ class MainView(ctk.CTkFrame):
             self._show_section(section)
 
     # ------------------------------------------------------------------
-    # Secciones principales
+    # SECCIONES PRINCIPALES DE CONTENIDO
     # ------------------------------------------------------------------
+    # Construye y gestiona las tres secciones principales de la aplicación:
+    # 1. PERFIL: Panel personal con métricas y estadísticas del usuario
+    # 2. ENCRIPTACIÓN: Vault de contraseñas con funciones de almacenamiento/descifrado
+    # 3. SOPORTE: Sistema completo de tickets y chat de soporte técnico
+    #
+    # ARQUITECTURA:
+    # - Contenedor principal que alberga todas las secciones
+    # - Cada sección se construye en su propio frame independiente
+    # - Sistema de mostrar/ocultar secciones dinámicamente
+    # - Layout responsivo que se adapta a diferentes configuraciones
+    # ------------------------------------------------------------------
+
     def _build_content_area(self):
         self.content_container = ctk.CTkFrame(self, fg_color="transparent")
         self.content_container.grid(row=2, column=0, padx=24, pady=(0, 24), sticky="nsew")
@@ -797,9 +992,9 @@ class MainView(ctk.CTkFrame):
 
         headline = ctk.CTkLabel(
             header_section,
-            text="🔒 Tu Panel Personal Seguro" if icon_lock is None else "Tu Panel Personal Seguro",
-            image=icon_lock,
-            compound="left" if icon_lock is not None else "top",
+            text="Tu Panel Personal Seguro",
+            image=None,
+            compound="top",
             font=self.fonts["hero_headline"],
             text_color=TEXT_COLOR_PRIMARY,
             anchor="w"
@@ -827,7 +1022,7 @@ class MainView(ctk.CTkFrame):
         goto_vault = ctk.CTkButton(
             button_section,
             text="Ir a Contraseñas Guardadas",
-            image=icon_key,
+            image=None,
             compound="left",
             command=lambda: self._navigate_to("encryption"),
             fg_color=COLOR_ROJO_PRINCIPAL,
@@ -855,7 +1050,7 @@ class MainView(ctk.CTkFrame):
         goto_support = ctk.CTkButton(
             button_section,
             text="Ver Soporte",
-            image=icon_support,
+            image=None,
             compound="left",
             command=lambda: self._navigate_to("support"),
             fg_color="transparent",
@@ -914,7 +1109,7 @@ class MainView(ctk.CTkFrame):
         ctk.CTkLabel(
             vault_stat,
             text="Contraseñas Cifradas",
-            image=icon_lock,
+            image=None,
             compound="left",
             font=self.fonts["card_label"],
             text_color=TEXT_COLOR_MUTED,
@@ -952,7 +1147,7 @@ class MainView(ctk.CTkFrame):
         ctk.CTkLabel(
             support_stat,
             text="Tickets de Soporte",
-            image=icon_ticket,
+            image=None,
             compound="left",
             font=self.fonts["card_label"],
             text_color=TEXT_COLOR_MUTED,
@@ -990,7 +1185,7 @@ class MainView(ctk.CTkFrame):
         ctk.CTkLabel(
             sync_stat,
             text="Última Sincronización",
-            image=icon_sync,
+            image=None,
             compound="left",
             font=self.fonts["card_label"],
             text_color=TEXT_COLOR_MUTED,
@@ -1541,11 +1736,29 @@ class MainView(ctk.CTkFrame):
 
 
     def _initialize_support_data(self):
+        """Inicializa los datos del sistema de soporte técnico.
+
+        Se ejecuta después de un breve retraso para asegurar que la interfaz
+        esté completamente cargada antes de realizar peticiones de datos.
+        """
         self._load_support_tickets(force_refresh=True)
 
     # ------------------------------------------------------------------
-    # Support hub helpers
+    # FUNCIONALIDADES DEL SISTEMA DE SOPORTE TÉCNICO
     # ------------------------------------------------------------------
+    # Implementa un sistema completo de gestión de tickets de soporte con
+    # funcionalidades avanzadas como búsqueda, filtrado, creación de tickets
+    # y comunicación en tiempo real con el equipo de soporte.
+    #
+    # CARACTERÍSTICAS PRINCIPALES:
+    # - Carga y gestión de tickets desde el servidor
+    # - Búsqueda en tiempo real por ID, nombre, email o motivo
+    # - Creación de nuevos tickets con validación completa
+    # - Chat integrado para comunicación con soporte
+    # - Estados y badges visuales para diferentes tipos de tickets
+    # - Sincronización automática de datos y mensajes
+    # ------------------------------------------------------------------
+
     def _load_support_tickets(self, force_refresh: bool = False):
         self.support_loading = True
         self.support_list_count_var.set("Cargando tickets...")
@@ -2150,8 +2363,22 @@ class MainView(ctk.CTkFrame):
             )
 
     # ------------------------------------------------------------------
-    # Vault actions and status helpers
+    # GESTIÓN DEL VAULT DE CONTRASEÑAS Y ACCIONES DE ENCRIPTACIÓN
     # ------------------------------------------------------------------
+    # Implementa la funcionalidad completa del vault de contraseñas incluyendo
+    # almacenamiento seguro, recuperación, eliminación y gestión de credenciales
+    # cifradas con la clave maestra del usuario.
+    #
+    # FUNCIONALIDADES PRINCIPALES:
+    # - Almacenamiento seguro de nuevas credenciales
+    # - Lista y navegación por contraseñas guardadas
+    # - Descifrado bajo demanda con verificación de clave maestra
+    # - Eliminación segura de credenciales
+    # - Gestión de métricas y estadísticas del perfil
+    # - Copia automática al portapapeles para facilitar el uso
+    # - Validación en tiempo real de datos de entrada
+    # ------------------------------------------------------------------
+
     def _update_profile_metrics(self):
         self.profile_ticket_metric_var.set(str(len(self.support_tickets)))
         self.profile_last_sync_var.set(datetime.now().strftime("%d/%m/%Y %H:%M"))
@@ -2366,16 +2593,16 @@ class MainView(ctk.CTkFrame):
 
             # Add appropriate icon based on message type
             if "error" in message.lower() or "incorrect" in message.lower():
-                icon_image = icon_error
+                icon_image = None
                 fallback_text = "Error"
             elif "success" in message.lower() or "copiada" in message.lower():
-                icon_image = icon_success
+                icon_image = None
                 fallback_text = "Success"
             elif "eliminada" in message.lower() or "eliminado" in message.lower():
-                icon_image = icon_delete
+                icon_image = None
                 fallback_text = "Deleted"
             else:
-                icon_image = icon_success  # Default to success
+                icon_image = None  # Default to success
                 fallback_text = "Info"
 
             # Icon and message layout
