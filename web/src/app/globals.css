@@ -92,8 +92,45 @@ body {
     radial-gradient(780px 360px at 100% 0%, rgba(238,90,114,.20), transparent 60%),
     radial-gradient(940px 460px at -10% 120%, rgba(9,145,209,.20), transparent 60%);
 }
+.bg-split-viewport-v {
+  /* Capa 1: exactamente 100vh, 50%/50% */
+  background:
+    linear-gradient(
+      180deg,
+      rgba(238, 90, 114, .22) 0 50%,
+      rgba(9, 145, 209, .22) 0 100%
+    ) top / 100% 100vh no-repeat,
+    /* Capa 2: si el contenido pasa 100vh, sigue azul hacia abajo */
+    linear-gradient(180deg, rgba(9,145,209,.22), rgba(9,145,209,.22));
+}
+/* Mitad izquierda rosa / mitad derecha azul (respecto al VIEWPORT) */
+.bg-split-viewport-h {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(238, 90, 114, .22) 0 50%,
+      rgba(9, 145, 209, .22) 0 100%
+    ) left / 100vw 100% no-repeat,
+    linear-gradient(90deg, rgba(9,145,209,.22), rgba(9,145,209,.22));
+}
 
+/* Degradado 50/50 solo dentro del ELEMENTO (vertical) */
+.bg-split-element-v {
+  background: linear-gradient(
+    180deg,
+    rgba(238, 90, 114, .22) 0 50%,
+    rgba(9, 145, 209, .22) 0 100%
+  );
+}
 
+/* Variante un poco más intensa (usa esta si quieres más contraste) */
+.bg-split-element-v-strong {
+  background: linear-gradient(
+    180deg,
+    rgba(238, 90, 114, .32) 0 50%,
+    rgba(9, 145, 209, .32) 0 100%
+  );
+}
 
 /* Chips (badges) reutilizables */
 .chip{
@@ -108,6 +145,13 @@ body {
 .chip--brand  { background:rgba(238,90,114,.26); border-color:rgba(238,90,114,.55); color:#6E0F1E; }
 .chip--accent { background:rgba(9,145,209,.28);  border-color:rgba(9,145,209,.55);  color:#083652; }
 .chip--success{ background:rgba(34,197,94,.24);  border-color:rgba(34,197,94,.50);  color:#064E3B; }
+
+/* Chip claro sobre la burbuja rosa (opcional, queda lindo) */
+.chip--inverted {
+  background: rgba(255,255,255,.25);
+  color: #fff;
+  border-color: rgba(255,255,255,.35);
+}
 
 
 /* Burbujas del chat */
@@ -130,7 +174,14 @@ body {
   border-top-left-radius:.35rem;
   box-shadow: 0 8px 18px rgba(2,6,23,.06);
 }
+.bubble--accent{
+  background: var(--accent);
+  color:#fff;
+  border:none;
+  box-shadow:0 10px 22px rgba(9,145,209,.30), 0 1px 0 rgba(0,0,0,.05) inset;
+}
 
+.bubble--full { max-width: 100% !important; }
 
 /* Botón de enviar con color corporativo */
 .btn-brand{

@@ -105,7 +105,7 @@ export default function TicketsPageClient({ tickets = [] as Ticket[] }) {
     }
 
     return (
-        <section className="container-default py-8">
+        <section className="container-default my-8 rounded-2xl overflow-hidden bg-split-element-v p-6">
             <h1 className="mb-4 text-xl font-semibold">Mis tickets</h1>
 
             <div className="mb-3">
@@ -197,37 +197,60 @@ function TicketList(props: {
 
     return (
         <div className="space-y-3">
-            {items.map((t) => {
+            {items.map((t, idx) => {
                 const open = openId === t.id;
                 const msgs = messagesById[t.id] ?? [];
                 const draft = draftById[t.id] ?? "";
 
+                // ⇩ Intercalar colores (rosa/azul) en tickets abiertos; cerrados siguen blancos
+                const bubbleColor =
+                    t.status === "closed"
+                        ? "bubble--user border"
+                        : (idx % 2 === 0 ? "bubble--agent" : "bubble--accent");
+
+                const metaTextColor =
+                    t.status === "closed" ? "text-slate-600/80" : "text-white/90";
+
                 return (
-                    <div key={t.id} className="rounded-2xl border bg-white">
-                        {/* Cabezera del acordeón */}
+                    <div key={t.id} className="rounded-2xl border bg-white p-1">
+                        {/* Cabezera del acordeón — estilo burbuja */}
                         <button
                             onClick={() => onToggle(t.id)}
-                            className={[
-                                "flex w-full items-center justify-between gap-2 rounded-2xl px-4 py-3 text-left transition",
-                                open ? "bg-slate-50" : "hover:bg-slate-50",
-                            ].join(" ")}
+                            className="w-full rounded-2xl p-0 text-left"
                         >
-                            <div>
-                                <div className="text-sm font-medium">
-                                    #{t.id} — {t.reason}
+                            <div
+                                className={[
+                                    "bubble bubble--full flex w-full items-center justify-between gap-2",
+                                    open ? "ring-2 ring-[var(--brand-600)]/25" : "",
+                                    bubbleColor,
+                                ].join(" ")}
+                            >
+                                <div className="px-3 py-2">
+                                    <div className="text-sm font-medium">
+                                        #{t.id} — {t.reason}
+                                    </div>
+                                    <div className={["text-xs", metaTextColor].join(" ")}>
+                                        {fmtDT(t.createdAt)} · {t._count.messages} mensaje
+                                        {t._count.messages === 1 ? "" : "s"}
+                                    </div>
                                 </div>
-                                <div className="text-xs text-slate-500">
-                                    {fmtDT(t.createdAt)} · {t._count.messages} mensaje{t._count.messages === 1 ? "" : "s"}
-                                </div>
+
+                                <span
+                                    className={[
+                                        "chip mr-3",
+                                        t.status === "closed" ? "" : "chip--inverted",
+                                    ].join(" ")}
+                                >
+                                    {t.status}
+                                </span>
                             </div>
-                            <span className={["chip", t.status === "closed" ? "" : "chip--success"].join(" ")}>{t.status}</span>
                         </button>
 
                         {/* Panel desplegado */}
                         {open && (
                             <div className="border-t">
                                 {t.status === "closed" && (
-                                    <div className="bg-rose-50 text-rose-700 border-b border-rose-200 px-4 py-2 text-xs">
+                                    <div className="border-b bg-rose-50 px-4 py-2 text-xs text-rose-700">
                                         Este ticket está <b>cerrado</b>. No se pueden enviar más mensajes.
                                     </div>
                                 )}
@@ -241,24 +264,29 @@ function TicketList(props: {
                                         </div>
                                     ) : (
                                         <div className="space-y-2">
-                                            {msgs.map((m) => (
-                                                <div key={m.id} className={"flex " + (m.author === "agent" ? "justify-end" : "justify-start")}>
-                                                    <div
-                                                        className={[
-                                                            "max-w-[80%] rounded-2xl px-3 py-2 shadow-sm",
-                                                            m.author === "agent" ? "bubble bubble--agent" : "bubble bubble--user border",
-                                                        ].join(" ")}
-                                                    >
-                                                        <div className="text-[11px] opacity-80">
-                                                            {m.author === "agent" ? (m.name || "soporte") : "tú"} · {fmtTime(m.createdAt)}
+                                            {msgs.map((m, i) => {
+                                                const isAgent = m.author === "agent";
+
+                                                // Agente alterna rosa/azul por índice; usuario queda blanco
+                                                const bubbleMsg = isAgent
+                                                    ? (i % 2 === 0 ? "bubble bubble--agent" : "bubble bubble--accent")
+                                                    : "bubble bubble--user border";
+
+                                                return (
+                                                    <div key={m.id} className={"flex " + (isAgent ? "justify-end" : "justify-start")}>
+                                                        <div className={["max-w-[80%] rounded-2xl px-3 py-2 shadow-sm", bubbleMsg].join(" ")}>
+                                                            <div className="text-[11px] opacity-80">
+                                                                {isAgent ? (m.name || "soporte") : "tú"} · {fmtTime(m.createdAt)}
+                                                            </div>
+                                                            <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</div>
                                                         </div>
-                                                        <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</div>
                                                     </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>
+
 
                                 {/* Pie: solo lectura si closed, composer si abierto */}
                                 {t.status === "closed" ? (
