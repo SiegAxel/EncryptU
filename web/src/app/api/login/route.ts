@@ -54,7 +54,7 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
 
     res.cookies.set("auth", token, {
       httpOnly: true,
-      secure: false, // en prod + https => true
+      secure: false,            // ⛔️ en Render (HTTPS) debe ser true
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,

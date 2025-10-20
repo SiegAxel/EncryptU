@@ -1,97 +1,76 @@
 import { NextResponse } from "next/server";
-import nodemailer, { type Transporter } from "nodemailer";
-import { prisma } from "@/lib/prisma";
+import nodemailer from "nodemailer";
 
-export const runtime = "nodejs"; // Nodemailer requiere Node.js (no Edge)
+export const runtime = "nodejs";
 
-type Body = {
-  firstName?: string;
-  lastName?: string;
+type ContactInput = {
+  apellido?: string;
   email?: string;
-  reason?: string;
-  phone?: string;
-  description?: string;
+  motivo?: string;
+  telefono?: string;
+  descripcion?: string;
 };
 
-type ApiResponse =
-  | { ok: true; id: number }
-  | { ok: false; error: string };
+function requireEnv(name: string) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Falta variable de entorno ${name}`);
+  return v;
+}
 
-export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
+// Utilidad para extraer el mensaje sin usar `any`
+function toErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
   try {
-    const { firstName, lastName, email, reason, phone, description } = (await req.json()) as Body;
-
-    // Validación mínima (existencia de campos)
-    if (!firstName || !lastName || !email || !reason || !phone || !description) {
-      return NextResponse.json({ ok: false, error: "Faltan campos" }, { status: 400 });
-    }
-
-    // 1) Guardar en BD (Neon)
-    const ticket = await prisma.contactTicket.create({
-      data: { firstName, lastName, email, reason, phone, description },
-    });
-
-    // 2) Enviar correo (Gmail SSL 465)
-    const port = Number(process.env.SMTP_PORT || 465);
-    const transporter: Transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST!,
-      port,
-      secure: port === 465, // 465=SSL, 587=STARTTLS
-      auth: {
-        user: process.env.SMTP_USER!,
-        pass: process.env.SMTP_PASS!, // App Password SIN espacios
-      },
-    });
-
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER!;
-    const to = process.env.CONTACT_RECIPIENT || "soporte.encryptu@gmail.com";
-    const subject = `Ticket generado por ${firstName} ${lastName}`;
-
-    const text = `
-Nuevo ticket #${ticket.id}
-
-Nombre: ${firstName} ${lastName}
-Correo: ${email}
-Motivo: ${reason}
-Teléfono: ${phone}
-
-Descripción:
-${description}
-
-Creado: ${ticket.createdAt.toISOString()}
-`.trim();
-
-    const html = `
-      <h2>Nuevo ticket #${ticket.id}</h2>
-      <table style="border-collapse:collapse">
-        <tr><td><strong>Nombre:</strong></td><td>${escapeHtml(firstName)} ${escapeHtml(lastName)}</td></tr>
-        <tr><td><strong>Correo:</strong></td><td>${escapeHtml(email)}</td></tr>
-        <tr><td><strong>Motivo:</strong></td><td>${escapeHtml(reason)}</td></tr>
-        <tr><td><strong>Teléfono:</strong></td><td>${escapeHtml(phone)}</td></tr>
-      </table>
-      <p><strong>Descripción:</strong></p>
-      <p>${escapeHtml(description).replace(/\n/g, "<br/>")}</p>
-      <p><small>Creado: ${ticket.createdAt.toISOString()}</small></p>
-    `;
-
-    await transporter.sendMail({ from, to, subject, text, html });
-
-    return NextResponse.json({ ok: true, id: ticket.id });
-  } catch (err: unknown) {
-    // sin `any`: estrechamos el tipo
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(err);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    return JSON.stringify(err);
+  } catch {
+    return "Error del servidor";
   }
 }
 
-// (opcional) GET de prueba para verificar que la ruta existe
-export async function GET() {
-  return NextResponse.json({ ok: true, ping: "contactoapi" });
-}
+export async function POST(req: Request) {
+  try {
+    const body = (await req.json()) as ContactInput;
 
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c as "&" | "<" | ">" | '"' | "'"])
-  );
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    if (!emailRe.test(body.email || "") || !(body.descripcion || "").trim()) {
+      return NextResponse.json({ ok: false, error: "Datos inválidos" }, { status: 400 });
+    }
+
+    const host = requireEnv("SMTP_HOST");
+    const port = Number(requireEnv("SMTP_PORT")); // 465 o 587
+    const user = requireEnv("SMTP_USER");
+    const pass = requireEnv("SMTP_PASS");
+    const from = process.env.SMTP_FROM || user;
+
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
+
+    const asunto = `Contacto: ${body.motivo || "General"}`;
+    const html = `
+      <h2>Nuevo contacto</h2>
+      <p><b>Apellido:</b> ${body.apellido || "-"}</p>
+      <p><b>Email:</b> ${body.email}</p>
+      <p><b>Motivo:</b> ${body.motivo || "-"}</p>
+      <p><b>Teléfono:</b> ${body.telefono || "-"}</p>
+      <p><b>Descripción:</b><br/>${(body.descripcion || "").replace(/\n/g, "<br/>")}</p>
+    `;
+
+    const info = await transporter.sendMail({
+      from,
+      to: from,
+      subject: asunto,
+      html,
+    });
+
+    // `info` es `nodemailer.SentMessageInfo`; `messageId` suele ser string
+    return NextResponse.json({ ok: true, messageId: String((info as any).messageId ?? "") });
+  } catch (err: unknown) {
+    const message = toErrorMessage(err);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
 }

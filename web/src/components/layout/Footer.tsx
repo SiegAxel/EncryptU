@@ -78,10 +78,10 @@ export default function Footer() {
 
           {/* Columna derecha: enlaces */}
           <div className="flex flex-col items-end gap-2 text-right">
-            <Link href="/contacto#hablar" className="hover:text-slate-900 dark:hover:text-white">
+            <Link href="/marketing/Contáctanos" className="hover:text-slate-900 dark:hover:text-white">
               Hablemos
             </Link>
-            <Link href="/contacto" className="hover:text-slate-900 dark:hover:text-white">
+            <Link href="/marketing/Contáctanos" className="hover:text-slate-900 dark:hover:text-white">
               Contáctanos
             </Link>
             <a href="tel:+562224117480" className="hover:text-slate-900 dark:hover:text-white">
