@@ -1,6 +1,7 @@
 // src/app/api/contactoapi/route.ts
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -8,9 +9,9 @@ type Incoming = {
   firstName?: string;
   lastName?: string;
   email?: string;
-  reason?: string;
-  phone?: string;
-  description?: string;
+  reason?: string;      // "soporte" | "consulta"
+  phone?: string;       // 9 dígitos CL
+  description?: string; // texto
   apellido?: string;
   motivo?: string;
   telefono?: string;
@@ -26,6 +27,7 @@ type Normalized = {
   description: string;
 };
 
+// ──────────────────────────────── utilidades ────────────────────────────────
 function requireEnv(name: string) {
   const v = process.env[name];
   if (!v) throw new Error(`Falta variable de entorno ${name}`);
@@ -35,11 +37,7 @@ function requireEnv(name: string) {
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === "string") return err;
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return "Error del servidor";
-  }
+  try { return JSON.stringify(err); } catch { return "Error del servidor"; }
 }
 
 function normalize(input: Incoming): Normalized {
@@ -53,12 +51,13 @@ function normalize(input: Incoming): Normalized {
   };
 }
 
+// ──────────────────────────────── handler ────────────────────────────────
 export async function POST(req: Request) {
   try {
     const raw = (await req.json()) as Incoming;
     const body = normalize(raw);
 
-    // ── Validaciones ──
+    // Validaciones mínimas
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
     if (!emailRe.test(body.email)) {
       return NextResponse.json({ ok: false, error: "Correo inválido" }, { status: 400 });
@@ -73,7 +72,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Motivo no válido" }, { status: 400 });
     }
 
-    // ── SMTP Config ──
+    // ── Crear Ticket + Mensaje ──
+    const ticket = await prisma.$transaction(async (tx) => {
+      const t = await tx.contactTicket.create({
+        data: {
+          firstName: body.firstName ?? "-",
+          lastName: body.lastName ?? "-",
+          email: body.email,
+          reason: body.reason ?? "consulta",
+          phone: body.phone ?? "-",
+          description: body.description,
+          status: "open",
+        },
+        select: { id: true, firstName: true, lastName: true, email: true, reason: true },
+      });
+
+      await tx.ticketMessage.create({
+        data: {
+          ticketId: t.id,
+          author: "user",
+          name: [body.firstName, body.lastName].filter(Boolean).join(" ") || "Usuario",
+          email: body.email,
+          body: body.description,
+        },
+      });
+
+      return t;
+    });
+
+    // ── Enviar correo ──
     const host = requireEnv("SMTP_HOST");
     const port = Number(requireEnv("SMTP_PORT"));
     const user = requireEnv("SMTP_USER");
@@ -81,44 +108,37 @@ export async function POST(req: Request) {
     const from = process.env.SMTP_FROM || user;
 
     const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
+      host, port, secure: port === 465, auth: { user, pass },
     });
 
-    const asunto = `Contacto: ${body.reason ?? "General"}`;
+    const asunto = `Nuevo ticket #${ticket.id} - ${ticket.reason}`;
     const html = `
-      <h2>Nuevo contacto</h2>
-      <p><b>Nombre:</b> ${body.firstName || "-"}</p>
-      <p><b>Apellido:</b> ${body.lastName || "-"}</p>
-      <p><b>Email:</b> ${body.email}</p>
-      <p><b>Motivo:</b> ${body.reason || "-"}</p>
-      <p><b>Teléfono:</b> ${body.phone || "-"}</p>
+      <h2>Nuevo contacto recibido</h2>
+      <p><b>Ticket:</b> #${ticket.id}</p>
+      <p><b>Nombre:</b> ${ticket.firstName} ${ticket.lastName}</p>
+      <p><b>Email:</b> ${ticket.email}</p>
+      <p><b>Motivo:</b> ${ticket.reason}</p>
       <p><b>Descripción:</b><br/>${body.description.replace(/\n/g, "<br/>")}</p>
     `;
 
-    // Evita inyección de cabeceras en replyTo
     const safe = (s?: string) =>
       (s ?? "").toString().replace(/[\r\n"<>\(\)]/g, " ").trim().slice(0, 120);
     const fullName = [safe(body.firstName), safe(body.lastName)].filter(Boolean).join(" ") || "Contacto";
 
-    const id = Date.now();
-
-    // Correo principal (a tu buzón)
     const info = await transporter.sendMail({
-      from: `"EncryptU Contacto" <${from}>`, // remitente del dominio (no spoofea)
-      to: from,                              // llega a tu propio correo
-      replyTo: `"${fullName}" <${safe(body.email)}>`, // clave: destinatario para responder
+      from: `"EncryptU Contacto" <${from}>`,
+      to: from,
+      replyTo: `"${fullName}" <${safe(body.email)}>`,
       subject: asunto,
       html,
     });
 
     const { messageId } = info as { messageId?: string };
 
+    // ── Respuesta ──
     return NextResponse.json({
       ok: true,
-      id,
+      id: ticket.id,
       messageId: String(messageId ?? ""),
     });
   } catch (err: unknown) {
