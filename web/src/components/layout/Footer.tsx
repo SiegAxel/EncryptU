@@ -9,134 +9,77 @@ export default function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t bg-white text-slate-700 dark:bg-slate-950 dark:text-slate-200">
-      <Container>
-        {/* Zona superior */}
-        <div className="grid gap-8 py-10 md:grid-cols-3">
-          {/* Columna izquierda: redes */}
-          <div>
-            <p className="mb-4 text-lg font-medium">
-              Síguenos en nuestras redes sociales
-            </p>
-            <div className="flex items-center gap-6">
-              <a
-                href="https://facebook.com"
-                aria-label="Facebook"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-opacity hover:opacity-80"
-              >
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="text-[#1877F2]"
-                  aria-hidden="true"
-                >
-                  <path d="M22 12.06C22 6.51 17.52 2 12 2S2 6.51 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.41c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.23.2 2.23.2v2.45h-1.26c-1.24 0-1.63.77-1.63 1.56v1.86h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94Z" />
-                </svg>
-              </a>
-
-              <a
-                href="https://linkedin.com"
-                aria-label="LinkedIn"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-opacity hover:opacity-80"
-              >
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="text-[#0A66C2]"
-                  aria-hidden="true"
-                >
-                  <path d="M4.98 3.5C4.98 4.6 4.1 5.5 3 5.5S1 4.6 1 3.5 1.9 1.5 3 1.5s1.98.9 1.98 2Zm.02 4H1V22h4V7.5ZM13 7.3c-2.14 0-3.58 1.17-4.19 2.27h-.06V7.5H5v14.5h3.9v-7.2c0-1.9.36-3.75 2.72-3.75 2.32 0 2.35 2.16 2.35 3.86V22H18V14.5c0-4.04-.86-7.2-5-7.2Z" />
-                </svg>
-              </a>
-
-              <a
-                href="https://instagram.com"
-                aria-label="Instagram"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-opacity hover:opacity-80"
-              >
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="text-[#E1306C]"
-                  aria-hidden="true"
-                >
-                  <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7Zm5 3.5A5.5 5.5 0 1 1 6.5 13 5.51 5.51 0 0 1 12 7.5Zm0 2A3.5 3.5 0 1 0 15.5 13 3.5 3.5 0 0 0 12 9.5Zm5.25-3a1.25 1.25 0 1 1-1.25 1.25A1.25 1.25 0 0 1 17.25 6.5Z" />
-                </svg>
-              </a>
-
-              <a
-                href="https://github.com"
-                aria-label="GitHub"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="transition-opacity hover:opacity-80"
-              >
-                <svg
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  className="text-slate-900 dark:text-white"
-                  aria-hidden="true"
-                >
-                  <path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48 0-.23-.01-.84-.01-1.64-2.78.6-3.37-1.19-3.37-1.19-.45-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.33 1.08 2.9.83.09-.65.35-1.08.63-1.33-2.22-.25-4.56-1.11-4.56-4.95 0-1.09.39-1.99 1.03-2.69-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.03a9.5 9.5 0 0 1 5 0c1.91-1.3 2.75-1.03 2.75-1.03.55 1.37.2 2.39.1 2.64.64.7 1.03 1.6 1.03 2.69 0 3.85-2.34 4.7-4.57 4.95.36.31.68.92.68 1.86 0 1.34-.01 2.42-.01 2.75 0 .26.18.58.69.48A10 10 0 0 0 12 2Z" />
-                </svg>
-              </a>
+    <footer className="w-full">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-8 py-10 max-w-xs mx-auto sm:max-w-2xl lg:max-w-full">
+                <div className="col-span-full lg:mb-10 max-lg:border-b max-lg:pb-8 lg:border-r border-gray-200 lg:col-span-2 lg:max-w-xs lg:mb-0">
+                    <a href="#" className="flex justify-center mb-5 lg:justify-start mr-10">
+                        <img src="/negrito.png" alt="" />
+                    </a>
+                    <ul className="grid gap-5">
+                        <li className="flex items-center justify-center gap-2 lg:justify-start">
+                            <svg width="20" height="16" viewBox="0 0 20 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M1.87798 3.83594L6.80031 7.08201C8.55849 8.13692 9.43758 8.66437 10.4034 8.64139C11.3693 8.6184 12.2223 8.04973 13.9283 6.91239L18.1246 3.83594M8.33464 14.6693H11.668C14.8107 14.6693 16.382 14.6693 17.3583 13.693C18.3346 12.7166 18.3346 11.1453 18.3346 8.0026C18.3346 4.85991 18.3346 3.28856 17.3583 2.31225C16.382 1.33594 14.8107 1.33594 11.668 1.33594H8.33464C5.19194 1.33594 3.62059 1.33594 2.64428 2.31225C1.66797 3.28856 1.66797 4.85991 1.66797 8.0026C1.66797 11.1453 1.66797 12.7166 2.64428 13.693C3.62059 14.6693 5.19194 14.6693 8.33464 14.6693Z" stroke="#df1212" strokeWidth="1.6" strokeLinecap="round"/>
+                                </svg>
+                                Soporte.encryptu@gmail.com    
+                        </li>
+                        <li className="flex items-center justify-center gap-2 lg:justify-start">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M15.9655 12.6929C15.672 12.5811 15.5252 12.5251 15.3708 12.5118C15.2164 12.4984 15.0622 12.5283 14.7538 12.5881L12.3984 13.0445C12.0235 13.1172 11.836 13.1535 11.6427 13.1227C11.4493 13.0918 11.2957 13.0064 10.9886 12.8356C9.07557 11.7718 7.78657 10.5439 6.95042 8.81181C6.827 8.55614 6.76529 8.4283 6.74183 8.25256C6.71837 8.07683 6.74863 7.91452 6.80915 7.5899L7.27298 5.1021C7.32932 4.79993 7.35749 4.64884 7.3442 4.49766C7.33092 4.34649 7.27683 4.20263 7.16866 3.91491L6.61323 2.43758C6.35178 1.74217 6.22105 1.39447 5.93618 1.19723C5.65132 1 5.27985 1 4.53692 1H2.68622C1.66783 1 0.866113 1.84144 1.01869 2.8481C1.39788 5.36068 2.51739 9.91727 5.78835 13.1882C9.22363 16.6235 14.172 18.1141 16.895 18.7072C17.9468 18.9357 18.8794 18.1159 18.8794 17.0388V15.3317C18.8794 14.592 18.8794 14.2222 18.6836 13.938C18.4877 13.6538 18.1421 13.5222 17.4509 13.2588L15.9655 12.6929Z" stroke="#df1212" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                                +91 945 658 3256
+                        </li>
+                        <li className="flex items-center justify-center gap-2 lg:justify-start">
+                            <svg width="16" height="20" viewBox="0 0 16 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M14.6654 8.60868C14.6654 11.8081 12.1279 14.3862 10.184 16.6526C9.22437 17.7713 8.74457 18.3307 7.9987 18.3307C7.25282 18.3307 6.77302 17.7713 5.81342 16.6526C3.86945 14.3862 1.33203 11.8081 1.33203 8.60868C1.33203 6.76685 2.03441 5.00046 3.28465 3.69809C4.5349 2.39573 6.23059 1.66406 7.9987 1.66406C9.76681 1.66406 11.4625 2.39573 12.7127 3.69809C13.963 5.00046 14.6654 6.76685 14.6654 8.60868Z" stroke="#df1212ff" strokeWidth="1.6"/>
+                                <path d="M9.66536 7.7406C9.66536 8.69945 8.91917 9.47676 7.9987 9.47676C7.07822 9.47676 6.33203 8.69945 6.33203 7.7406C6.33203 6.78175 7.07822 6.00445 7.9987 6.00445C8.91917 6.00445 9.66536 6.78175 9.66536 7.7406Z" stroke="#df1212ff" strokeWidth="1.6"/>
+                                </svg>
+                                Av. San Carlos 1340, Puente Alto
+                        </li>
+                        <SocialBar />
+                    </ul>
+                </div>
+                
+                <div className="lg:mx-auto text-left ">
+                    <h4 className="text-lg text-gray-900 font-medium mb-7">Pagedone</h4>
+                    <ul className="text-sm  transition-all duration-500">
+                        <li className="mb-6"><a href="javascript:;"  className="text-gray-600 hover:text-gray-900">Home</a></li>
+                        <li className="mb-6"><a href="javascript:;"  className=" text-gray-600 hover:text-gray-900">About</a></li>
+                        <li><a href="javascript:;"  className=" text-gray-600 hover:text-gray-900">Pricing</a></li>
+                    </ul>
+                </div>
+                <div className="lg:mx-auto text-left">
+                    <h4 className="text-lg text-gray-900 font-medium mb-7">Products</h4>
+                    <ul className="text-sm  transition-all duration-500">
+                        <li className="mb-6"><a href="javascript:;"  className="text-gray-600 hover:text-gray-900">Figma UI System</a></li>
+                        <li className="mb-6"><a href="javascript:;"  className=" text-gray-600 hover:text-gray-900">Icons Assets</a></li>
+                        <li><a href="javascript:;"  className=" text-gray-600 hover:text-gray-900">Responsive Blocks</a></li>
+                    </ul>
+                </div>
+                <div className="lg:mx-auto text-left ">
+                    <h4 className="text-lg text-gray-900 font-medium mb-7">Resources</h4>
+                    <ul className="text-sm  transition-all duration-500">
+                        <li className="mb-6"><a href="javascript:;"  className="text-gray-600 hover:text-gray-900">FAQs</a></li>
+                        <li className="mb-6"><a href="javascript:;"  className=" text-gray-600 hover:text-gray-900">Quick Start</a></li>
+                        <li ><a href="javascript:;"  className=" text-gray-600 hover:text-gray-900">Documentation</a></li>
+                    </ul>
+                </div>
+                <div className="lg:mx-auto text-left ">
+                    <h4 className="text-lg text-gray-900 font-medium mb-7">Support</h4>
+                    <ul className="text-sm  transition-all duration-500">
+                        <li className="mb-6"><a href="javascript:;"  className="text-gray-600 hover:text-gray-900">Customer Support</a></li>
+                        <li className="mb-6"><a href="javascript:;"  className=" text-gray-600 hover:text-gray-900">License</a></li>
+                        <li ><a href="javascript:;"  className=" text-gray-600 hover:text-gray-900">Terms & Conditions</a></li>
+                    </ul>
+                </div>
             </div>
-          </div>
-
-          {/* Columna centro (vacía o branding futuro) */}
-          <div className="flex items-center justify-center">
-            {/* Podrías poner un logo o dejarlo vacío */}
-          </div>
-
-          {/* Columna derecha: enlaces */}
-          <div className="flex flex-col items-end gap-2 text-right">
-            {/* OJO: revisa que estas rutas existan. Ideal usar slugs en minúsculas y sin tildes */}
-            <Link
-              href="/marketing/contacto"
-              className="hover:text-slate-900 dark:hover:text-white"
-            >
-              Hablemos
-            </Link>
-            <Link
-              href="/marketing/contacto"
-              className="hover:text-slate-900 dark:hover:text-white"
-            >
-              Contáctanos
-            </Link>
-            <a
-              href="tel:+562224117480"
-              className="hover:text-slate-900 dark:hover:text-white"
-            >
-              +56 2 2241 17480
-            </a>
-            <Link href="/privacidad" className="text-rose-600 hover:underline">
-              Política de Privacidad
-            </Link>
-          </div>
+            
+            <div className="py-7 border-t border-gray-200">
+                <div className="flex items-center justify-center ">
+                    <span className="text-sm text-gray-500 ">©<a href="#">EncryptU</a> 2025, All rights reserved.</span>
+                </div>
+            </div>
         </div>
-
-        {/* Tira inferior */}
-        <div className="flex flex-col items-center justify-between gap-6 border-t py-6 md:flex-row">
-          <p className="text-sm text-slate-600">
-            © {year} EncryptU — Syntec
-          </p>
-          <SocialBar />
-        </div>
-      </Container>
     </footer>
   );
 }
