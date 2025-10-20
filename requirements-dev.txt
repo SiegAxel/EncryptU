@@ -1,5 +1,4 @@
 -r requirements.txt
-autopep8==2.0.2
 pytest==7.4.0
 cryptography==39.0.2
 coverage==7.3.0

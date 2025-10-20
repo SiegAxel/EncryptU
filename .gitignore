@@ -16,6 +16,7 @@ eggs/
 .eggs/
 # Generic library directories created by build tools
 lib/
+!web/src/lib/
 !src/lib/
 !src/lib/**
 lib64/
@@ -131,7 +132,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+
 .venv
 env/
 venv/
