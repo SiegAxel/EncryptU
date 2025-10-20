@@ -1,9 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import Container from "@/components/layout/ui/Container";
-import SocialBar from "./SocialBar";
-
 export default function Footer() {
   const year = new Date().getFullYear();
 
@@ -19,7 +15,7 @@ export default function Footer() {
           </div>
           <div className="grid grid-cols-2 gap-8 sm:gap-6 sm:grid-cols-3">
               <div>
-                  <h2 className="mb-6 text-sm font-semibold text-white uppercase dark:text-white">Resources</h2>
+                  <h2 className="mb-6 text-sm font-semibold text-white uppercase dark:text-white">Recursos</h2>
                   <ul className="text-white dark:text-gray-400 font-medium">
                       <li className="mb-4">
                           <a href="https://flowbite.com/" className="hover:underline">Flowbite</a>
@@ -44,10 +40,10 @@ export default function Footer() {
                   <h2 className="mb-6 text-sm font-semibold text-white uppercase dark:text-white">Legal</h2>
                   <ul className="text-white dark:text-gray-400 font-medium">
                       <li className="mb-4">
-                          <a href="#" className="hover:underline">Privacy Policy</a>
+                          <a href="#" className="hover:underline">Políticas de Privacidad</a>
                       </li>
                       <li>
-                          <a href="#" className="hover:underline">Terms &amp; Conditions</a>
+                          <a href="#" className="hover:underline">Terminos &amp; Condiciones</a>
                       </li>
                   </ul>
               </div>

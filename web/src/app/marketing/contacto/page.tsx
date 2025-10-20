@@ -262,7 +262,7 @@ export default function ContactPage() {
               {msg && <p className="text-sm text-slate-700">{msg}</p>}
             </form>
           </Card>
-          <img src="/negrito.png" className="mt-14"/>
+          <img src="/negrito.png" className="mt-60 ml-35"/>
         </div>
       </Container>
     </Section>
