@@ -29,7 +29,6 @@ import customtkinter as ctk
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import re
-
 import pyperclip
 from PIL import Image
 
