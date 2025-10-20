@@ -6,6 +6,7 @@ from .models.encryption_model import encriptar_contraseña, desencriptar_contras
 from .models.session_manager import SessionManager
 import sys
 import customtkinter as ctk
+from typing import Any, Dict, List, Optional
 
 class AppController:
     """
@@ -17,6 +18,8 @@ class AppController:
         self.api_client = APIClient(base_url="https://encryptu.onrender.com") 
         self.session_manager = SessionManager()
         self.master_key: str | None = None
+        self.support_tickets_cache: List[Dict[str, Any]] = []
+        self.support_messages_cache: Dict[int, List[Dict[str, Any]]] = {}
 
     def start_app(self):
         session = self.session_manager.load_session()
@@ -103,6 +106,8 @@ class AppController:
         self.session_manager.clear_session()
         self.api_client.logout()
         self.master_key = None
+        self.support_tickets_cache.clear()
+        self.support_messages_cache.clear()
         self.show_login_view()
 
     def get_saved_passwords(self):
@@ -164,6 +169,82 @@ class AppController:
             self.handle_logout()
         return None
 
+    # --- Metodos de soporte ---
+    def get_support_tickets(self, force_refresh: bool = False) -> Optional[List[Dict[str, Any]]]:
+        if not force_refresh and self.support_tickets_cache:
+            return self.support_tickets_cache
+
+        tickets = self.api_client.list_support_tickets()
+        if tickets is None:
+            self.handle_logout()
+            return None
+
+        self.support_tickets_cache = tickets
+        return tickets
+
+    def get_support_ticket_messages(self, ticket_id: int, force_refresh: bool = False) -> Optional[List[Dict[str, Any]]]:
+        if not force_refresh and ticket_id in self.support_messages_cache:
+            return self.support_messages_cache[ticket_id]
+
+        messages = self.api_client.get_support_ticket_messages(ticket_id)
+        if messages is None:
+            self.handle_logout()
+            return None
+
+        self.support_messages_cache[ticket_id] = messages
+        return messages
+
+    def handle_send_support_message(self, ticket_id: int, body: str) -> bool:
+        body = body.strip()
+        if not body:
+            return False
+
+        result = self.api_client.send_support_message(ticket_id, body)
+        if result is None:
+            self.handle_logout()
+            return False
+        if isinstance(result, dict) and result.get("ok") is False:
+            print(f"No se pudo enviar el mensaje de soporte: {result.get('error')}")
+            return False
+
+        self.support_messages_cache.pop(ticket_id, None)
+        self.support_tickets_cache.clear()
+        return True
+
+    def handle_create_support_ticket(self, ticket_data: Dict[str, Any]) -> tuple[bool, Optional[int], str]:
+        cleaned_payload = {
+            key: value.strip() if isinstance(value, str) else value
+            for key, value in ticket_data.items()
+        }
+
+        response = self.api_client.create_support_ticket(cleaned_payload)
+        if response is None:
+            self.handle_logout()
+            return False, None, "Tu sesion ha expirado. Inicia sesion nuevamente."
+
+        if isinstance(response, dict):
+            if response.get("ok") is False:
+                error_msg = str(response.get("error") or "No se pudo crear el ticket.")
+                return False, None, error_msg
+
+            ticket_id = None
+            ticket_payload = response.get("ticket")
+            message = response.get("message") or response.get("msg") or "Ticket creado correctamente."
+
+            if isinstance(ticket_payload, dict):
+                ticket_id = ticket_payload.get("id")
+
+            self.support_tickets_cache.clear()
+            self.support_messages_cache.clear()
+            return True, ticket_id, message
+
+        self.support_tickets_cache.clear()
+        self.support_messages_cache.clear()
+        return True, None, "Ticket creado correctamente."
+
+
     def on_closing(self):
         self.root.destroy()
         sys.exit(0)
+
+

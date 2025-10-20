@@ -1,10 +1,8 @@
-"use client";
+import Container from "@/components/layout/ui/Container";
+import SocialBar from "./SocialBar";
 
-import Link from "next/link";
 
 export default function Footer() {
-  const year = new Date().getFullYear();
-
   return (
     <footer className="border-t bg-white text-slate-700 dark:bg-slate-950 dark:text-slate-200">
       <div className="mx-auto max-w-6xl px-4 py-10">
@@ -91,8 +89,13 @@ export default function Footer() {
               Política de Privacidad
             </Link>
           </div>
+
+    <footer className="mt-16 border-t bg-white">
+      <Container>
+        <div className="flex flex-col items-center justify-between gap-6 py-10 md:flex-row">
+          <p className="text-sm text-slate-600">© {new Date().getFullYear()} EncryptU — Syntec</p>
+          <SocialBar />
         </div>
-      </div>
+      </Container>
     </footer>
-  );
-}
+)};

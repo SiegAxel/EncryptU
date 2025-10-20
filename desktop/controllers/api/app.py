@@ -2,17 +2,18 @@ import os
 import io
 import secrets
 import datetime
+import re
+from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Optional, List, Dict, Any
-
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, LargeBinary, text
-from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase, Mapped, mapped_column
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, ForeignKey, LargeBinary, text, inspect
+from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase, Mapped, mapped_column, relationship
 from dotenv import load_dotenv
 
 # --- CONFIGURACIÓN INICIAL ---
@@ -59,7 +60,7 @@ class FileStorage(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
 
 class ContactTicket(Base):
-    __tablename__ = "contact_tickets"
+    __tablename__ = "ContactTicket"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     firstName: Mapped[str] = mapped_column(String)
     lastName: Mapped[str] = mapped_column(String)
@@ -68,13 +69,113 @@ class ContactTicket(Base):
     phone: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(Text)
     createdAt: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    status: Mapped[str] = mapped_column(String, default="open")
+    assignedToId: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("User.id", onupdate="CASCADE", ondelete="SET NULL"), nullable=True
+    )
+    assigned_to = relationship("User", backref="tickets_assigned", lazy="joined")
+    messages = relationship(
+        "TicketMessage",
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="TicketMessage.created_at",
+    )
+
+class TicketMessage(Base):
+    __tablename__ = "TicketMessage"
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    ticket_id: Mapped[int] = mapped_column(ForeignKey("ContactTicket.id", ondelete="CASCADE"), index=True)
+    author: Mapped[str] = mapped_column(String, default="user")
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    ticket = relationship("ContactTicket", back_populates="messages")
 
 # --- INICIALIZACIÓN DE LA APP ---
-app = FastAPI(title="EncryptU API Unificada")
+def ensure_contact_ticket_columns() -> None:
+    """Ensure legacy databases include newer support ticket columns."""
+    inspector = inspect(engine)
 
-@app.on_event("startup")
-def on_startup():
+    def resolve_table() -> Optional[tuple[str, Optional[str]]]:
+        schema_candidates: List[Optional[str]] = []
+        default_schema = getattr(inspector, "default_schema_name", None)
+        if default_schema:
+            schema_candidates.append(default_schema)
+        schema_candidates.append(None)  # fallback search without schema
+
+        for schema_name in schema_candidates:
+            for candidate in ("ContactTicket"):
+                try:
+                    if inspector.has_table(candidate, schema=schema_name):
+                        return candidate, schema_name
+                except Exception:
+                    continue
+        return None
+
+    resolved = resolve_table()
+    if not resolved:
+        return
+
+    table_name, schema_name = resolved
+    try:
+        columns = {
+            col["name"] for col in inspector.get_columns(table_name, schema=schema_name)
+        }
+    except Exception:
+        return
+
+    def qualify(identifier: str) -> str:
+        def quote(name: str) -> str:
+            return f'"{name}"' if name and name.lower() != name else name
+
+        table_sql = quote(table_name)
+        if schema_name:
+            schema_sql = quote(schema_name)
+            return f"{schema_sql}.{table_sql}"
+        return table_sql
+
+    qualified_table = qualify(table_name)
+
+    statements = []
+    if "status" not in columns:
+        statements.append(
+            text(f"ALTER TABLE {qualified_table} ADD COLUMN status TEXT DEFAULT 'open'")
+        )
+        statements.append(
+            text(f"UPDATE {qualified_table} SET status = 'open' WHERE status IS NULL")
+        )
+    if "assignedToId" not in columns:
+        statements.append(
+            text(
+                f'ALTER TABLE {qualified_table} ADD COLUMN "assignedToId" INTEGER'
+            )
+        )
+        statements.append(
+            text(
+                f'ALTER TABLE {qualified_table} ADD CONSTRAINT "{table_name}_assignedToId_fkey" '
+                f'FOREIGN KEY ("assignedToId") REFERENCES "User"(id) '
+                "ON UPDATE CASCADE ON DELETE SET NULL"
+            )
+        )
+
+    if not statements:
+        return
+
+    with engine.begin() as conn:
+        for statement in statements:
+            conn.execute(statement)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_contact_ticket_columns()
+    yield
+
+
+app = FastAPI(title="EncryptU API Unificada", lifespan=lifespan)
+
 
 def get_db():
     db = SessionLocal()
@@ -132,6 +233,52 @@ class UserOut(BaseModel):
     email: EmailStr
     role: str
     createdAt: datetime.datetime
+
+
+class SupportTicketCreate(BaseModel):
+    first_name: str = Field(..., alias="firstName")
+    last_name: str = Field(..., alias="lastName")
+    email: Optional[EmailStr] = None
+    reason: str
+    phone: str
+    description: str
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    @field_validator("first_name", "last_name", "reason", "description")
+    @classmethod
+    def _trim_non_empty(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Este campo es obligatorio.")
+        return cleaned
+
+    @field_validator("phone")
+    @classmethod
+    def _validate_phone(cls, value: str) -> str:
+        digits = re.sub(r"\D", "", value)
+        if len(digits) != 9:
+            raise ValueError("El telefono debe tener exactamente 9 digitos.")
+        return digits
+
+    @field_validator("reason")
+    @classmethod
+    def _validate_reason(cls, value: str) -> str:
+        slug = value.strip().lower()
+        if slug not in {"soporte", "consulta"}:
+            raise ValueError("Motivo no valido.")
+        return slug
+    
+class SupportTicketMessageCreate(BaseModel):
+    body: str
+
+    @field_validator("body")
+    @classmethod
+    def _trim_message(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("El mensaje no puede estar vacio.")
+        return cleaned[:2000]
 
 # --- ENDPOINTS PRINCIPALES ---
 
@@ -216,6 +363,139 @@ def delete_user_by_admin(user_id: int, current_admin: User = Depends(get_current
     db.delete(user_to_delete)
     db.commit()
     return {'msg': f'Usuario con ID {user_id} y todos sus datos han sido eliminados.'}
+
+# --- ENDPOINTS DE SOPORTE ---
+
+@app.post("/support/tickets")
+def create_support_ticket(
+    ticket_data: SupportTicketCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    email = (ticket_data.email or current_user.email).strip().lower()
+    ticket = ContactTicket(
+        firstName=ticket_data.first_name,
+        lastName=ticket_data.last_name,
+        email=email,
+        reason=ticket_data.reason,
+        phone=ticket_data.phone,
+        description=ticket_data.description,
+    )
+    db.add(ticket)
+    db.commit()
+    db.refresh(ticket)
+
+    return {
+        "ok": True,
+        "ticket": {
+            "id": ticket.id,
+            "first_name": ticket.firstName,
+            "last_name": ticket.lastName,
+            "email": ticket.email,
+            "reason": ticket.reason,
+            "status": ticket.status,
+            "phone": ticket.phone,
+            "description": ticket.description,
+            "created_at": ticket.createdAt.isoformat(),
+            "messages_count": 0,
+        },
+    }
+
+
+@app.get("/support/tickets")
+def list_support_tickets(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    tickets = (
+        db.query(ContactTicket)
+        .filter(ContactTicket.email == current_user.email)
+        .order_by(ContactTicket.createdAt.desc())
+        .all()
+    )
+    payload = []
+    for ticket in tickets:
+        payload.append(
+            {
+                "id": ticket.id,
+                "first_name": ticket.firstName,
+                "last_name": ticket.lastName,
+                "email": ticket.email,
+                "reason": ticket.reason,
+                "status": ticket.status,
+                "phone": ticket.phone,
+                "description": ticket.description,
+                "created_at": ticket.createdAt.isoformat(),
+                "messages_count": len(ticket.messages),
+            }
+        )
+    return {"ok": True, "tickets": payload}
+
+
+def _get_ticket_for_user(db: Session, ticket_id: int, user: User) -> ContactTicket:
+    ticket = (
+        db.query(ContactTicket)
+        .filter(ContactTicket.id == ticket_id, ContactTicket.email == user.email)
+        .first()
+    )
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado.")
+    return ticket
+
+
+@app.get("/support/tickets/{ticket_id}/messages")
+def list_ticket_messages(
+    ticket_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ticket = _get_ticket_for_user(db, ticket_id, current_user)
+    messages = [
+        {
+            "id": message.id,
+            "author": message.author,
+            "name": message.name,
+            "email": message.email,
+            "body": message.body,
+            "timestamp": message.created_at.isoformat(),
+        }
+        for message in ticket.messages
+    ]
+    return {"ok": True, "messages": messages}
+
+
+@app.post("/support/tickets/{ticket_id}/messages")
+def create_ticket_message(
+    ticket_id: int,
+    payload: SupportTicketMessageCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _get_ticket_for_user(db, ticket_id, current_user)
+
+    message = TicketMessage(
+        ticket_id=ticket_id,
+        author="user",
+        name=current_user.name,
+        email=current_user.email,
+        body=payload.body,
+    )
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    return {
+        "ok": True,
+        "message": {
+            "id": message.id,
+            "author": message.author,
+            "name": message.name,
+            "email": message.email,
+            "body": message.body,
+            "timestamp": message.created_at.isoformat(),
+        },
+    }
+
 
 # --- ENDPOINTS DE DIAGNÓSTICO ---
 
