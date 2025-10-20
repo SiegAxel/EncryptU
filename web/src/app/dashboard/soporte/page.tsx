@@ -26,7 +26,6 @@ const fmtTime = (iso: string) =>
     new Date(iso)
   );
 
-// ───────── badges con chips ─────────
 const ReasonBadge = ({ reason }: { reason: string }) => (
   <span className={"chip " + (reason === "soporte" ? "chip--brand" : "chip--accent")}>
     {reason}
@@ -49,19 +48,50 @@ export default function SoportePage() {
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
+  const [tab, setTab] = useState<"pending" | "resolved">("pending"); // <-- NUEVO
   const listRef = useRef<HTMLDivElement>(null);
+  const [closing, setClosing] = useState(false);
+
+  // helpers de lista
+  const pending = useMemo(() => (tickets ?? []).filter(t => t.status !== "closed"), [tickets]);
+  const resolved = useMemo(() => (tickets ?? []).filter(t => t.status === "closed"), [tickets]);
+
+  const displayed = useMemo(() => {
+    const base = tab === "pending" ? pending : resolved;
+    const q = filter.trim().toLowerCase();
+    if (!q) return base;
+    return base.filter(
+      (t) =>
+        `${t.firstName} ${t.lastName} ${t.email} ${t.reason}`.toLowerCase().includes(q) ||
+        String(t.id).includes(q)
+    );
+  }, [tab, pending, resolved, filter]);
 
   // cargar tickets
   const loadTickets = useCallback(async () => {
     const res = await fetch("/api/support/tickets", { cache: "no-store" });
     const data = await res.json();
     if (data.ok) {
-      setTickets(data.tickets as Ticket[]);
-      if (!activeId && data.tickets.length) setActiveId(data.tickets[0].id);
+      const list = data.tickets as Ticket[];
+      setTickets(list);
+
+      // si no hay activo, escoger primero de la pestaña visible (o del otro grupo como fallback)
+      if (!activeId) {
+        const firstVisible =
+          (tab === "pending" ? list.filter(l => l.status !== "closed") : list.filter(l => l.status === "closed"))[0]
+          ?? list[0];
+        if (firstVisible) setActiveId(firstVisible.id);
+      } else {
+        // si el activo ya no existe, re-seleccionar
+        if (!list.find(t => t.id === activeId)) {
+          const first = list[0];
+          setActiveId(first ? first.id : null);
+        }
+      }
     } else {
       setTickets([]);
     }
-  }, [activeId]);
+  }, [activeId, tab]);
 
   // cargar mensajes del ticket activo
   const loadMessages = useCallback(async () => {
@@ -72,7 +102,6 @@ export default function SoportePage() {
     else setMessages([]);
   }, [activeId]);
 
-  // inicial + refresco periódico
   useEffect(() => {
     loadTickets();
     const i = setInterval(loadTickets, 15_000);
@@ -85,6 +114,15 @@ export default function SoportePage() {
     return () => clearInterval(i);
   }, [loadMessages]);
 
+  // cuando cambio de pestaña, si el ticket activo no pertenece a esa vista, seleccionar uno válido
+  useEffect(() => {
+    if (!tickets) return;
+    const list = tab === "pending" ? pending : resolved;
+    if (!activeId || !list.find(t => t.id === activeId)) {
+      setActiveId(list[0]?.id ?? null);
+    }
+  }, [tab, tickets, pending, resolved, activeId]);
+
   // autoscroll
   useEffect(() => {
     if (!listRef.current) return;
@@ -95,17 +133,6 @@ export default function SoportePage() {
     () => tickets?.find((t) => t.id === activeId) ?? null,
     [tickets, activeId]
   );
-
-  const filtered = useMemo(() => {
-    if (!tickets) return null;
-    const q = filter.trim().toLowerCase();
-    if (!q) return tickets;
-    return tickets.filter(
-      (t) =>
-        `${t.firstName} ${t.lastName} ${t.email} ${t.reason}`.toLowerCase().includes(q) ||
-        String(t.id).includes(q)
-    );
-  }, [tickets, filter]);
 
   // enviar mensaje
   const send = async () => {
@@ -139,6 +166,28 @@ export default function SoportePage() {
           <span className="text-xs text-slate-500">{tickets?.length ?? 0} total</span>
         </div>
 
+        {/* Tabs: Pendientes / Resueltos */}
+        <div className="mb-3 flex gap-2">
+          <button
+            className={[
+              "rounded-lg px-3 py-1 text-xs border",
+              tab === "pending" ? "bg-white shadow-sm border-slate-300" : "hover:bg-slate-50 border-transparent"
+            ].join(" ")}
+            onClick={() => setTab("pending")}
+          >
+            Pendientes <span className="ml-1 chip chip--success">{pending.length}</span>
+          </button>
+          <button
+            className={[
+              "rounded-lg px-3 py-1 text-xs border",
+              tab === "resolved" ? "bg-white shadow-sm border-slate-300" : "hover:bg-slate-50 border-transparent"
+            ].join(" ")}
+            onClick={() => setTab("resolved")}
+          >
+            Resueltos <span className="ml-1 chip">{resolved.length}</span>
+          </button>
+        </div>
+
         <div className="mb-3">
           <input
             className="input w-full"
@@ -149,12 +198,12 @@ export default function SoportePage() {
         </div>
 
         <div className="space-y-2 overflow-auto pr-1" style={{ maxHeight: "68vh" }}>
-          {!filtered ? (
+          {tickets === null ? (
             <TicketSkeleton />
-          ) : filtered.length === 0 ? (
-            <EmptyState text="Sin resultados" />
+          ) : displayed.length === 0 ? (
+            <EmptyState text={tab === "pending" ? "No hay tickets pendientes" : "No hay tickets resueltos"} />
           ) : (
-            filtered.map((t) => (
+            displayed.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setActiveId(t.id)}
@@ -162,7 +211,6 @@ export default function SoportePage() {
                   "w-full rounded-xl border px-3 py-2 text-left transition",
                   activeId === t.id ? "ticket-item--active" : "hover:bg-slate-50"
                 ].join(" ")}
-
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="truncate text-[13px] font-medium">
@@ -196,11 +244,40 @@ export default function SoportePage() {
                 </div>
                 <div className="truncate text-xs text-slate-500">{activeTicket.email}</div>
               </div>
-              <span className="text-xs text-slate-500">
-                {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
-                  new Date(activeTicket.createdAt)
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500">
+                  {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+                    new Date(activeTicket.createdAt)
+                  )}
+                </span>
+
+                {activeTicket.status !== "closed" && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        setClosing(true);
+                        const res = await fetch(`/api/support/tickets/${activeTicket.id}/close`, { method: "POST" });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data?.error || "Error al cerrar el ticket");
+                        // refresca de inmediato
+                        await loadTickets();
+                        await loadMessages();
+                      } catch (e) {
+                        alert((e as Error).message);
+                      } finally {
+                        setClosing(false);
+                      }
+                    }}
+                    className="text-xs rounded-md border border-rose-400 px-2 py-1 text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                    disabled={closing}
+                    title="Cerrar ticket"
+                  >
+                    {closing ? "Cerrando…" : "Cerrar Ticket"}
+                  </button>
                 )}
-              </span>
+              </div>
+
             </>
           ) : (
             <div className="text-sm text-slate-500">Selecciona un ticket…</div>
@@ -208,10 +285,7 @@ export default function SoportePage() {
         </div>
 
         {/* Mensajes */}
-        <div
-          ref={listRef}
-          className="h-[60vh] overflow-auto bg-slate-50 bg-chat-surface px-3 py-4"
-        >
+        <div ref={listRef} className="h-[60vh] overflow-auto bg-slate-50 bg-chat-surface px-3 py-4">
           {!activeTicket ? (
             <div className="flex h-full items-center justify-center text-sm text-slate-600">
               Selecciona un ticket para ver el chat.
@@ -223,16 +297,11 @@ export default function SoportePage() {
           ) : (
             <div className="space-y-2">
               {messages.map((m) => (
-                <div
-                  key={m.id}
-                  className={"flex " + (m.author === "agent" ? "justify-end" : "justify-start")}
-                >
+                <div key={m.id} className={"flex " + (m.author === "agent" ? "justify-end" : "justify-start")}>
                   <div
                     className={[
                       "max-w-[80%] rounded-2xl px-3 py-2 shadow-sm",
-                      m.author === "agent"
-                        ? "bubble bubble--agent"
-                        : "bubble bubble--user border"
+                      m.author === "agent" ? "bubble bubble--agent" : "bubble bubble--user border"
                     ].join(" ")}
                   >
                     <div className="text-[11px] opacity-80">
@@ -247,30 +316,35 @@ export default function SoportePage() {
         </div>
 
         {/* Composer */}
-        <form
-          className="flex items-center gap-2 border-t bg-white/80 p-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void send();
-          }}
-        >
-          <input
-            className="input flex-1"
-            placeholder="Escribe un mensaje…  (Ctrl/⌘ + Enter para enviar)"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={onKeyDown}
-            disabled={!activeTicket || sending}
-          />
-          <button
-            type="submit"
-            disabled={!activeTicket || !draft.trim() || sending}
-            className="btn-brand rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+        {activeTicket && activeTicket.status === "closed" ? (
+          <div className="flex items-center justify-center border-t bg-white/80 p-4 text-sm text-slate-500">
+            Este ticket está <span className="ml-1 font-medium text-rose-600">cerrado</span>. No se pueden enviar más mensajes.
+          </div>
+        ) : (
+          <form
+            className="flex items-center gap-2 border-t bg-white/80 p-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send();
+            }}
           >
-            {sending ? "Enviando…" : "Enviar"}
-          </button>
-
-        </form>
+            <input
+              className="input flex-1"
+              placeholder="Escribe un mensaje…  (Ctrl/⌘ + Enter para enviar)"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={onKeyDown}
+              disabled={!activeTicket || sending}
+            />
+            <button
+              type="submit"
+              disabled={!activeTicket || !draft.trim() || sending}
+              className="btn-brand rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+            >
+              {sending ? "Enviando…" : "Enviar"}
+            </button>
+          </form>
+        )}
       </div>
     </section>
   );
