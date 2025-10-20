@@ -14,8 +14,11 @@ dist/
 downloads/
 eggs/
 .eggs/
+# Generic library directories created by build tools
 lib/
 !web/src/lib/
+!src/lib/
+!src/lib/**
 lib64/
 parts/
 sdist/

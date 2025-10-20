@@ -21,12 +21,13 @@
 ---  
 
 ## 🚀 **Características**  
-| Funcionalidad | Detalle |  
-|---------------|---------|  
-| **🔐 Encriptación por Sitio** | "pepito123" en Facebook ≠ "pepito123" en Gmail |  
-| **📂 Almacenamiento Seguro** | Base de datos cifrada con AES-256 + SQLCipher |  
-| **🤖 Autocompletado** | Integración con Chrome/Firefox (próximamente) |  
-| **📲 Portabilidad** | Ejecutable .exe para Windows y Linux |  
+| Funcionalidad                      | Detalle                                                                                |
+| ---------------------------------- | -------------------------------------------------------------------------------------- |
+| **🔐 Encriptación por Contraseña** | Cada contraseña se cifra de manera única, incluso si se repite en diferentes servicios |
+| **📂 Almacenamiento Seguro**       | Base de datos cifrada con AES-256 + SQLCipher                                          |
+| **📲 Portabilidad**                | Ejecutable .exe para Windows y Linux                                                   |
+| **📧 Notificaciones**              | Avisos por correo sobre cambios críticos o respuestas de ticket                        |
+
 
 ---  
 
