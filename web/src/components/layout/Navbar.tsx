@@ -55,23 +55,32 @@ export default function Navbar() {
           </Link>
 
           <nav className="hidden items-center gap-6 md:flex">
-            {nav.map((item) => (
+            {/* enlaces públicos */}
+            <Link href="/" className={cn("text-sm hover:text-brand", pathname === "/" && "text-brand font-medium")}>
+              Inicio
+            </Link>
+            <Link href="/marketing/acerca" className={cn("text-sm hover:text-brand", pathname === "/marketing/acerca" && "text-brand font-medium")}>
+              Nosotros
+            </Link>
+            <Link href="/marketing/planes" className={cn("text-sm hover:text-brand", pathname === "/marketing/planes" && "text-brand font-medium")}>
+              Planes
+            </Link>
+            <Link href="/marketing/contacto" className={cn("text-sm hover:text-brand", pathname === "/marketing/contacto" && "text-brand font-medium")}>
+              Contacto
+            </Link>
+
+            {/* SOLO usuarios: Tickets */}
+            {me.ok && me.user.role === "usuario" && (
               <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "text-sm hover:text-brand",
-                  pathname === item.href && "text-brand font-medium"
-                )}
+                href="/marketing/ticket"
+                className={cn("text-sm hover:text-brand", pathname === "/marketing/ticket" && "text-brand font-medium")}
               >
-                {item.label}
+                Tickets
               </Link>
-            ))}
+            )}
           </nav>
 
-          <div className="hidden md:block">
-            <SocialBar />
-          </div>
+
 
           <div className="flex items-center gap-2">
             {me.ok ? (
