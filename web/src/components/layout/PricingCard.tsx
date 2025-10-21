@@ -20,78 +20,107 @@ const PricingCard = ({
   plan_id,
   isPopular = false,
 }: Props) => {
+  const accentColor = "red"; // Definimos el color de acento principal aquí
+  const lightAccent = "red-50";
+  const darkAccent = "red-900";
+  const mainAccent = "red-600";
+  const hoverAccent = "red-700";
+  const ringAccent = "red-500";
+
   return (
     <div
-      className={`relative flex flex-col p-8 mx-auto max-w-lg text-center rounded-2xl border shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
+      className={`relative flex h-full flex-col rounded-2xl border p-8 shadow-lg transition-all duration-300 hover:shadow-2xl ${
         isPopular
-          ? "border-blue-500 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900/20 dark:to-gray-900"
+          ? `border-${ringAccent}/50 bg-${lightAccent} ring-2 ring-${ringAccent} ring-offset-2 ring-offset-white dark:border-${darkAccent}/30 dark:bg-gray-900 dark:ring-offset-gray-950`
           : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
       }`}
     >
+      {/* --- Badge "Más Popular" --- */}
       {isPopular && (
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-red-300 text-white px-4 py-1 rounded-full text-sm font-semibold">
+        <div
+          className={`absolute -top-4 left-1/2 -translate-x-1/2 transform rounded-full bg-${mainAccent} px-4 py-1.5 text-sm font-semibold text-white`}
+        >
           Más Popular
         </div>
       )}
 
-      <div className="mb-6">
-        <h3 className="mb-3 text-3xl font-bold bg-gradient-to-r from-red-300 to-red-600 bg-clip-text text-transparent">
+      {/* --- Encabezado: Nombre y Descripción --- */}
+      <div className="mb-6 text-center">
+        <h3 className="mb-2 text-2xl font-bold text-gray-800 dark:text-gray-100">
           {name}
         </h3>
-        <p className="text-gray-600 dark:text-gray-400 text-base leading-relaxed">
-          {description}
-        </p>
+        <p className="text-gray-500 dark:text-gray-400">{description}</p>
       </div>
 
-      <div className="mb-8 py-6 border-y border-gray-200 dark:border-gray-700">
-        <div className="flex justify-center items-baseline gap-2">
+      {/* --- Precio --- */}
+      <div className="mb-8 border-y border-gray-200 py-6 dark:border-gray-700">
+        <div className="flex items-baseline justify-center gap-1">
           <span className="text-2xl font-semibold text-gray-500 dark:text-gray-400">
             $
           </span>
-          <span className="text-6xl font-extrabold bg-gradient-to-r from-red-300 to-red-600 bg-clip-text text-transparent">
+          <span
+            className={`text-6xl font-extrabold tracking-tight ${
+              isPopular
+                ? `bg-gradient-to-r from-${ringAccent} to-${mainAccent} bg-clip-text text-transparent`
+                : "text-gray-900 dark:text-white"
+            }`}
+          >
             {price}
           </span>
         </div>
-        <span className="text-gray-500 dark:text-gray-400 text-sm mt-2 block">
+        <span className="mt-1 block text-center text-sm text-gray-500 dark:text-gray-400">
           por mes
         </span>
       </div>
 
-      <div className="flex-1 mb-8">
+      {/* --- Lista de Características --- */}
+      <div className="mb-8 flex-1">
         <ul role="list" className="space-y-4 text-left">
-          {features.map((f, i) => (
-            <li
-              className="flex items-start space-x-3 group"
-              key={`${plan_id}_${i}_${f}`}
-            >
-              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mt-0.5">
+          {features.map((feature, i) => (
+            <li className="flex items-start space-x-3" key={`${plan_id}_${i}`}>
+              <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50">
+                {/* Mantengo el checkmark en verde para un contraste positivo,
+                    pero puedes cambiarlo a un rojo más oscuro si lo deseas */}
                 <svg
-                  className="w-4 h-4 text-green-600 dark:text-green-400"
+                  className="h-4 w-4 text-green-600 dark:text-green-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
                 >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
                     d="M5 13l4 4L19 7"
                   />
                 </svg>
               </div>
-              <span className="text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors">
-                {f}
+              <span className="text-gray-700 dark:text-gray-300">
+                {feature}
               </span>
             </li>
           ))}
         </ul>
       </div>
 
+      {/* --- Botón de Acción (CTA) --- */}
       <div className="mt-auto">
-        <PayPalProvider>
-          <ButtonPaypal planId={plan_id} />
-        </PayPalProvider>
+        <div
+          className={`group relative flex h-12 w-full cursor-pointer items-center justify-center rounded-lg ${
+            isPopular
+              ? `bg-${mainAccent} text-white shadow-lg hover:bg-${hoverAccent}`
+              : `bg-white text-${mainAccent} ring-1 ring-inset ring-${mainAccent}/50 hover:bg-${lightAccent} dark:bg-gray-700 dark:text-gray-100 dark:ring-${mainAccent}/30 dark:hover:bg-gray-600`
+          }`}
+        >
+          <span className="text-lg font-semibold">
+            {isPopular ? "Empezar ahora" : "Elegir plan"}
+          </span>
+          <div className="absolute inset-0 opacity-0">
+            <PayPalProvider>
+              <ButtonPaypal planId={plan_id} />
+            </PayPalProvider>
+          </div>
+        </div>
       </div>
     </div>
   );
