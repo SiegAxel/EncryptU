@@ -10,6 +10,7 @@ interface Props {
   price: string;
   plan_id: string;
   isPopular?: boolean;
+  detail: string;
 }
 
 const PricingCard = ({
@@ -19,6 +20,8 @@ const PricingCard = ({
   price,
   plan_id,
   isPopular = false,
+  detail,
+
 }: Props) => {
   const accentColor = "red"; // Definimos el color de acento principal aquí
   const lightAccent = "red-50";
@@ -121,6 +124,9 @@ const PricingCard = ({
             </PayPalProvider>
           </div>
         </div>
+      </div>
+      <div className="mt-4">
+        <p className="text-gray-600 dark:text-gray-400">{detail}</p>
       </div>
     </div>
   );

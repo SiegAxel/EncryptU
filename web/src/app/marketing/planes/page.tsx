@@ -13,6 +13,7 @@ export default function PricingPage() {
             features={[]}
             price="3"
             plan_id="P-3PR04716U1599892MNDZ4RTA"
+            detail="Falta detalles"
           />
           <PricingCard
             name="Estándar"
@@ -20,6 +21,7 @@ export default function PricingPage() {
             features={[]}
             price="6"
             plan_id="P-3M132065FH7874447NDZ4R6Q"
+            detail="Falta detalles"
           />
           <PricingCard
             name="Premium"
@@ -27,6 +29,7 @@ export default function PricingPage() {
             features={[]}
             price="10"
             plan_id="P-5J269540BM416772TNDZ4SEA"
+            detail="Falta detalles"
           />
         </div>
       </Container>
