@@ -5,26 +5,26 @@ export default function HomePage() {
     <section>
       <div className="grid md:grid-cols-3 gap-6">
         <PricingCard
-          title="Plan Mensual"
-          price="$19"
-          interval="mensual"
-          features={["Autologin de credenciales", "Cifrado local", "Soporte básico"]}
-        />
-
-        <PricingCard
-          title="Plan Trimestral"
-          price="$50"
-          interval="trimestral"
-          highlight
-          features={["Mejor precio por periodo corto", "Funciones avanzadas", "Prioridad media"]}
-        />
-
-        <PricingCard
-          title="Plan Anual"
-          price="$99"
-          interval="anual"
-          features={["Ahorro máximo", "Todas las funciones", "Soporte prioritario"]}
-        />
+            name="Básico"
+            description="Plan Básico"
+            features={[]}
+            price="3"
+            plan_id="P-3PR04716U1599892MNDZ4RTA"
+          />
+          <PricingCard
+            name="Estándar"
+            description="Plan Estándar"
+            features={[]}
+            price="6"
+            plan_id="P-3M132065FH7874447NDZ4R6Q"
+          />
+          <PricingCard
+            name="Premium"
+            description="Plan Premium"
+            features={[]}
+            price="10"
+            plan_id="P-5J269540BM416772TNDZ4SEA"
+          />
       </div>
 
     </section>
