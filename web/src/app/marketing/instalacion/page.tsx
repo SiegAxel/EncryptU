@@ -5,6 +5,7 @@ import Container from "@/components/layout/ui/Container";
 import Card from "@/components/layout/ui/Card";
 import ButtonLink from "@/components/layout/ui/ButtonLink";
 import { FaFacebook, FaLinkedin, FaInstagram, FaGithub } from "react-icons/fa";
+import DownloadButton from "@/components/layout/DowloadButton";
 
 export default function InstalacionPage() {
   return (
@@ -66,10 +67,14 @@ export default function InstalacionPage() {
                 </ol>
 
                 {/* CTA de descarga */}
-                <div className="pt-2">
-                  <ButtonLink href="/download">
-                    Descargar
-                  </ButtonLink>
+                <div className="pt-2" >
+                  <DownloadButton
+                    imageUrl="/team/venezolano.png"
+                    fileName="venezolano-descargado.png"
+                    className="bg-rose-400 hover:bg-rose-600 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-300"
+                  >
+                    Descargar Imagen
+                  </DownloadButton>
                 </div>
               </div>
             </Card>
