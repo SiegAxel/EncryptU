@@ -1,84 +1,204 @@
 "use client";
-import { useState } from "react";
-import Button from "@/components/layout/ui/Button";
+import { useMemo, useState } from "react";
 
 type Role = "usuario" | "soporte" | "admin";
-type User = { id: number; name: string; email: string; role: Role };
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+  createdAt?: string; // opcional si lo muestras en la lista
+};
 
-export default function AdminUsersTable({ initialUsers }: { initialUsers: User[] }) {
-  const [users, setUsers] = useState<User[]>(initialUsers);
-  const [loadingId, setLoadingId] = useState<number | null>(null);
+function shallowUserEqual(a: User, b: User) {
+  return a.name === b.name && a.email === b.email && a.role === b.role;
+}
 
-  const updateRole = async (id: number, role: Role) => {
-    setLoadingId(id);
-    const res = await fetch(`/api/admin/users/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
-    });
-    const data = await res.json();
-    setLoadingId(null);
-    if (res.ok) setUsers(arr => arr.map(u => (u.id === id ? { ...u, role } : u)));
-    else alert(data?.error ?? "No se pudo actualizar el rol");
+export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[] }) {
+  const [original, setOriginal] = useState<User[]>(initialUsers);
+  const [draft, setDraft] = useState<User[]>(initialUsers);
+  const [busyIds, setBusyIds] = useState<number[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // ¿quiénes están “sucios” (cambiados)?
+  const dirtyMap = useMemo(() => {
+    const map = new Map<number, boolean>();
+    for (const u of draft) {
+      const o = original.find(x => x.id === u.id);
+      map.set(u.id, !!o && !shallowUserEqual(o, u));
+    }
+    return map;
+  }, [draft, original]);
+
+  const dirtyCount = useMemo(
+    () => Array.from(dirtyMap.values()).filter(Boolean).length,
+    [dirtyMap]
+  );
+
+  const setField = <K extends keyof User>(id: number, key: K, value: User[K]) => {
+    setDraft(list => list.map(u => (u.id === id ? { ...u, [key]: value } : u)));
   };
 
   const resetPassword = async (id: number) => {
-    const password = prompt("Nueva contraseña (mín. 8 caracteres):") ?? "";
-    if (password.length < 8) return alert("Muy corta.");
-    setLoadingId(id);
-    const res = await fetch(`/api/admin/users/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
-    const data = await res.json();
-    setLoadingId(null);
-    if (res.ok) alert("Contraseña actualizada");
-    else alert(data?.error ?? "No se pudo actualizar la contraseña");
+    const pwd = prompt("Nueva contraseña (mín. 8 caracteres):") ?? "";
+    if (pwd.length < 8) return alert("Muy corta.");
+    setBusyIds(ids => [...ids, id]);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pwd }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "No se pudo actualizar la contraseña");
+      }
+      alert("Contraseña actualizada");
+    } catch (e: any) {
+      alert(e.message || "Error");
+    } finally {
+      setBusyIds(ids => ids.filter(x => x !== id));
+    }
   };
 
   const removeUser = async (id: number) => {
     if (!confirm("¿Eliminar usuario?")) return;
-    setLoadingId(id);
-    const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
-    const data = await res.json();
-    setLoadingId(null);
-    if (res.ok) setUsers(arr => arr.filter(u => u.id !== id));
-    else alert(data?.error ?? "No se pudo eliminar");
+    setBusyIds(ids => [...ids, id]);
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error ?? "No se pudo eliminar");
+      }
+      setOriginal(list => list.filter(u => u.id !== id));
+      setDraft(list => list.filter(u => u.id !== id));
+    } catch (e: any) {
+      alert(e.message || "Error");
+    } finally {
+      setBusyIds(ids => ids.filter(x => x !== id));
+    }
   };
 
-  if (!users.length) {
-    return <p className="text-slate-500">No hay usuarios.</p>;
-  }
+  const saveAll = async () => {
+    if (dirtyCount === 0) return;
+    setSaving(true);
+    try {
+      const changes = draft.filter(u => {
+        const o = original.find(x => x.id === u.id);
+        return o && !shallowUserEqual(o, u);
+      });
+
+      // PATCH solo de lo que cambió (name/email/role)
+      await Promise.all(
+        changes.map(u =>
+          fetch(`/api/admin/users/${u.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: u.name, email: u.email, role: u.role }),
+          }).then(async res => {
+            if (!res.ok) {
+              const data = await res.json().catch(() => ({}));
+              throw new Error(data?.error ?? "No se pudo actualizar");
+            }
+          })
+        )
+      );
+
+      // Sincronizar
+      setOriginal(draft);
+    } catch (e: any) {
+      alert(e.message || "Error al actualizar");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {users.map(u => (
-        <div key={u.id} className="card flex items-center justify-between p-5">
-          <div>
-            <div className="font-medium">{u.name}</div>
-            <div className="text-sm text-slate-500">{u.email}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              className="input w-[140px]"
-              value={u.role}
-              onChange={e => updateRole(u.id, e.target.value as Role)}
-              disabled={loadingId === u.id}
+    <div className="flex flex-col gap-4">
+      {/* Barra superior con botón Actualizar */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Usuarios</h2>
+        <button
+          onClick={saveAll}
+          disabled={dirtyCount === 0 || saving}
+          className={[
+            "rounded-md px-4 py-2 text-sm font-medium transition",
+            dirtyCount > 0 && !saving
+              ? "bg-amber-500 text-white hover:bg-amber-600"
+              : "bg-slate-300 text-slate-600 cursor-not-allowed",
+          ].join(" ")}
+          title={dirtyCount > 0 ? "Guardar cambios" : "Sin cambios"}
+        >
+          {saving ? "Guardando…" : `Actualizar${dirtyCount ? ` (${dirtyCount})` : ""}`}
+        </button>
+      </div>
+
+      {/* Lista */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {draft.map(u => {
+          const isBusy = busyIds.includes(u.id);
+          const isDirty = dirtyMap.get(u.id);
+
+          return (
+            <div
+              key={u.id}
+              className={[
+                "card p-5 flex flex-col gap-3 border",
+                isDirty ? "ring-1 ring-amber-300 border-amber-200" : "",
+              ].join(" ")}
             >
-              <option value="usuario">Usuario</option>
-              <option value="soporte">Soporte</option>
-              <option value="admin">Admin</option>
-            </select>
-            <Button variant="outline" onClick={() => resetPassword(u.id)} disabled={loadingId === u.id}>
-              Reset pass
-            </Button>
-            <Button variant="primary" onClick={() => removeUser(u.id)} disabled={loadingId === u.id}>
-              Eliminar
-            </Button>
-          </div>
-        </div>
-      ))}
+              <div className="flex items-center gap-3">
+                <input
+                  className="input flex-1"
+                  value={u.name}
+                  onChange={e => setField(u.id, "name", e.target.value)}
+                  placeholder="Nombre"
+                />
+                <select
+                  className="input w-[140px]"
+                  value={u.role}
+                  onChange={e => setField(u.id, "role", e.target.value as Role)}
+                >
+                  <option value="usuario">Usuario</option>
+                  <option value="soporte">Soporte</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <input
+                  className="input flex-1"
+                  value={u.email}
+                  onChange={e => setField(u.id, "email", e.target.value)}
+                  placeholder="Correo"
+                />
+                <button
+                  type="button"
+                  onClick={() => resetPassword(u.id)}
+                  disabled={isBusy}
+                  className="btn-outline text-xs"
+                >
+                  Reset pass
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeUser(u.id)}
+                  disabled={isBusy}
+                  className="btn-primary text-xs"
+                >
+                  Eliminar
+                </button>
+              </div>
+
+              {u.createdAt && (
+                <div className="text-xs text-slate-500">
+                  Creado: {new Date(u.createdAt).toLocaleString()}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

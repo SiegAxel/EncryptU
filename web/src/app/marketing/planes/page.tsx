@@ -11,7 +11,7 @@ export default function PricingPage() {
             name="Básico"
             description="Plan Básico"
             features={[]}
-            price="3"
+            price="Free"
             plan_id="P-3PR04716U1599892MNDZ4RTA"
             detail="Falta detalles"
           />
