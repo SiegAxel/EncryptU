@@ -114,7 +114,6 @@ export default function InstalacionPage() {
               <div className="space-y-2">
                 <h4 className="font-semibold">Información</h4>
                 <ul className="text-sm text-slate-600 space-y-1">
-                  <li><Link href="/marketing/politicas" className="underline">Políticas de Privacidad</Link></li>
                   <li><Link href="/marketing/planes" className="underline">Planes y precios</Link></li>
                   <li><Link href="/marketing/acerca" className="underline">Acerca de nosotros</Link></li>
                 </ul>
