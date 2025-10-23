@@ -28,7 +28,7 @@ export default function InstalacionPage() {
                   <li>
                     <span className="font-semibold">Descarga el programa</span>
                     <ul className="list-disc pl-5 mt-2 space-y-1">
-                      <li>Ve a la página del proyecto en <Link className="text-brand underline" href="https://github.com/" target="_blank">GitHub</Link>.</li>
+                      <li>Ve a la página del proyecto en <Link className="text-brand underline" href="https://github.com/SiegAxel/EncryptU/blob/main/docs/user-guide.md" target="_blank">GitHub</Link>.</li>
                       <li>En <em>Releases</em> encontrarás el instalador para tu sistema operativo.</li>
                     </ul>
                   </li>
@@ -102,7 +102,6 @@ export default function InstalacionPage() {
                   con la instalación o configuración. También contamos con guías y preguntas frecuentes.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <ButtonLink href="/soporte" variant="primary">Ir a soporte</ButtonLink>
                   <ButtonLink href="/marketing/contacto" variant="outline">Contactar</ButtonLink>
                 </div>
               </div>
@@ -130,7 +129,7 @@ export default function InstalacionPage() {
                   <Link href="https://facebook.com" aria-label="Facebook" target="_blank"><FaFacebook /></Link>
                   <Link href="https://linkedin.com" aria-label="LinkedIn" target="_blank"><FaLinkedin /></Link>
                   <Link href="https://instagram.com" aria-label="Instagram" target="_blank"><FaInstagram /></Link>
-                  <Link href="https://github.com" aria-label="GitHub" target="_blank"><FaGithub /></Link>
+                  <Link href="https://github.com/SiegAxel/EncryptU" aria-label="GitHub" target="_blank"><FaGithub /></Link>
                 </div>
               </div>
             </Card>
