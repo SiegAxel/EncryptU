@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/app/api/admin/requireAdmin";
 
 export const runtime = "nodejs";
 
 type Role = "usuario" | "soporte" | "admin";
+
 type PatchBody = {
   role?: Role;
   password?: string;
@@ -12,25 +13,32 @@ type PatchBody = {
   email?: string;
 };
 
-export async function PATCH(req: Request, { params }: { params: { userID: string } }) {
+// PATCH /api/admin/users/[userID]
+export async function PATCH(
+  _req: NextRequest,
+  ctx: { params: Promise<{ userID: string }> }
+) {
   const me = await requireAdmin();
   if (!me) return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
 
-  const id = Number((await params).userID);
-  const body = (await req.json()) as PatchBody;
+  const { userID } = await ctx.params; // 👈 en Next 15 debes await params
+  const id = Number(userID);
 
+  const body = (await _req.json()) as PatchBody;
   const data: Record<string, unknown> = {};
 
   if (body.role) {
-    if (!["usuario", "soporte", "admin"].includes(body.role))
+    if (!["usuario", "soporte", "admin"].includes(body.role)) {
       return NextResponse.json({ ok: false, error: "Rol inválido" }, { status: 400 });
+    }
     data.role = body.role;
   }
 
   if (typeof body.password === "string") {
-    if (body.password.length < 8)
+    if (body.password.length < 8) {
       return NextResponse.json({ ok: false, error: "Contraseña muy corta" }, { status: 400 });
-    // ⚠️ tú decidiste no re-hashear porque viene protegida desde fuera
+    }
+    // ⚠️ Tú decidiste no re-hashear aquí porque llega protegida desde fuera
     data.passwordHash = body.password;
   }
 
@@ -55,11 +63,17 @@ export async function PATCH(req: Request, { params }: { params: { userID: string
   return NextResponse.json({ ok: true, user });
 }
 
-export async function DELETE(_req: Request, { params }: { params: { userID: string } }) {
+// DELETE /api/admin/users/[userID]
+export async function DELETE(
+  _req: NextRequest,
+  ctx: { params: Promise<{ userID: string }> }
+) {
   const me = await requireAdmin();
   if (!me) return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
 
-  const id = Number((await params).userID);
+  const { userID } = await ctx.params; // 👈 await params
+  const id = Number(userID);
+
   await prisma.user.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
