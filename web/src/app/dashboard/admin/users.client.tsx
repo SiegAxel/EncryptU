@@ -7,12 +7,34 @@ type User = {
   name: string;
   email: string;
   role: Role;
-  createdAt?: string; // opcional si lo muestras en la lista
+  createdAt?: string;
 };
+
+type ApiError = { error?: string };
+type ApiOk = { ok: true };
 
 function shallowUserEqual(a: User, b: User) {
   return a.name === b.name && a.email === b.email && a.role === b.role;
 }
+
+// ---------- helpers sin any ----------
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  try {
+    return String(err);
+  } catch {
+    return "Error desconocido";
+  }
+}
+
+async function safeJson<T>(res: Response): Promise<T | null> {
+  try {
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+// -------------------------------------
 
 export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[] }) {
   const [original, setOriginal] = useState<User[]>(initialUsers);
@@ -20,11 +42,10 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
   const [busyIds, setBusyIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
 
-  // ¿quiénes están “sucios” (cambiados)?
   const dirtyMap = useMemo(() => {
     const map = new Map<number, boolean>();
     for (const u of draft) {
-      const o = original.find(x => x.id === u.id);
+      const o = original.find((x) => x.id === u.id);
       map.set(u.id, !!o && !shallowUserEqual(o, u));
     }
     return map;
@@ -36,46 +57,50 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
   );
 
   const setField = <K extends keyof User>(id: number, key: K, value: User[K]) => {
-    setDraft(list => list.map(u => (u.id === id ? { ...u, [key]: value } : u)));
+    setDraft((list) => list.map((u) => (u.id === id ? { ...u, [key]: value } : u)));
   };
 
   const resetPassword = async (id: number) => {
     const pwd = prompt("Nueva contraseña (mín. 8 caracteres):") ?? "";
-    if (pwd.length < 8) return alert("Muy corta.");
-    setBusyIds(ids => [...ids, id]);
+    if (pwd.length < 8) {
+      alert("Muy corta.");
+      return;
+    }
+    setBusyIds((ids) => [...ids, id]);
     try {
       const res = await fetch(`/api/admin/users/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: pwd }),
       });
+
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+        const data = await safeJson<ApiError>(res);
         throw new Error(data?.error ?? "No se pudo actualizar la contraseña");
       }
       alert("Contraseña actualizada");
-    } catch (e: any) {
-      alert(e.message || "Error");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e));
     } finally {
-      setBusyIds(ids => ids.filter(x => x !== id));
+      setBusyIds((ids) => ids.filter((x) => x !== id));
     }
   };
 
   const removeUser = async (id: number) => {
     if (!confirm("¿Eliminar usuario?")) return;
-    setBusyIds(ids => [...ids, id]);
+    setBusyIds((ids) => [...ids, id]);
     try {
       const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
+        const data = await safeJson<ApiError>(res);
         throw new Error(data?.error ?? "No se pudo eliminar");
       }
-      setOriginal(list => list.filter(u => u.id !== id));
-      setDraft(list => list.filter(u => u.id !== id));
-    } catch (e: any) {
-      alert(e.message || "Error");
+      setOriginal((list) => list.filter((u) => u.id !== id));
+      setDraft((list) => list.filter((u) => u.id !== id));
+    } catch (e: unknown) {
+      alert(getErrorMessage(e));
     } finally {
-      setBusyIds(ids => ids.filter(x => x !== id));
+      setBusyIds((ids) => ids.filter((x) => x !== id));
     }
   };
 
@@ -83,31 +108,28 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
     if (dirtyCount === 0) return;
     setSaving(true);
     try {
-      const changes = draft.filter(u => {
-        const o = original.find(x => x.id === u.id);
+      const changes = draft.filter((u) => {
+        const o = original.find((x) => x.id === u.id);
         return o && !shallowUserEqual(o, u);
       });
 
-      // PATCH solo de lo que cambió (name/email/role)
       await Promise.all(
-        changes.map(u =>
-          fetch(`/api/admin/users/${u.id}`, {
+        changes.map(async (u) => {
+          const res = await fetch(`/api/admin/users/${u.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: u.name, email: u.email, role: u.role }),
-          }).then(async res => {
-            if (!res.ok) {
-              const data = await res.json().catch(() => ({}));
-              throw new Error(data?.error ?? "No se pudo actualizar");
-            }
-          })
-        )
+          });
+          if (!res.ok) {
+            const data = await safeJson<ApiError>(res);
+            throw new Error(data?.error ?? "No se pudo actualizar");
+          }
+        })
       );
 
-      // Sincronizar
       setOriginal(draft);
-    } catch (e: any) {
-      alert(e.message || "Error al actualizar");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e) || "Error al actualizar");
     } finally {
       setSaving(false);
     }
@@ -115,7 +137,6 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Barra superior con botón Actualizar */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Usuarios</h2>
         <button
@@ -133,9 +154,8 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
         </button>
       </div>
 
-      {/* Lista */}
       <div className="grid gap-4 md:grid-cols-2">
-        {draft.map(u => {
+        {draft.map((u) => {
           const isBusy = busyIds.includes(u.id);
           const isDirty = dirtyMap.get(u.id);
 
@@ -151,13 +171,13 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
                 <input
                   className="input flex-1"
                   value={u.name}
-                  onChange={e => setField(u.id, "name", e.target.value)}
+                  onChange={(e) => setField(u.id, "name", e.target.value)}
                   placeholder="Nombre"
                 />
                 <select
                   className="input w-[140px]"
                   value={u.role}
-                  onChange={e => setField(u.id, "role", e.target.value as Role)}
+                  onChange={(e) => setField(u.id, "role", e.target.value as Role)}
                 >
                   <option value="usuario">Usuario</option>
                   <option value="soporte">Soporte</option>
@@ -169,7 +189,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
                 <input
                   className="input flex-1"
                   value={u.email}
-                  onChange={e => setField(u.id, "email", e.target.value)}
+                  onChange={(e) => setField(u.id, "email", e.target.value)}
                   placeholder="Correo"
                 />
                 <button
