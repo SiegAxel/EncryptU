@@ -2,7 +2,9 @@ import customtkinter as ctk
 from PIL import Image
 import os
 
-class LoginView(ctk.CTkFrame):
+from .base_view import BaseView
+
+class LoginView(BaseView):
     """
     Frame que contiene la interfaz de usuario para el inicio de sesión
     con una imagen de fondo responsiva.
@@ -38,7 +40,7 @@ class LoginView(ctk.CTkFrame):
             print(f"Error al cargar la imagen de fondo: {e}")
             # Imprimimos la ruta que se intentó usar para que sea fácil depurar
             print(f"Buscando en la ruta calculada: {self.image_path}")
-            self.configure(fg_color=("#E0E0E0", "#1E1E1E00"))
+            self.configure(fg_color=("#E0E0E0", "#1E1E1E"))
         # --- Fin de la lógica de la imagen de fondo ---
 
         # Frame contenedor (tarjeta) para centrar los widgets

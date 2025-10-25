@@ -1,0 +1,44 @@
+import customtkinter as ctk
+import tkinter as tk
+from datetime import datetime
+from typing import Dict, Optional
+import pywinstyles
+from PIL import Image
+
+# --- Colores de fondo ---
+COLOR_BACKGROUND = None        # Color de fondo principal de la aplicación
+COLOR_SURFACE = "#050030"     # Color de fondo para tarjetas y elementos elevados
+COLOR_HERO = "#FFFFFF"        # Color de fondo para la sección hero
+COLOR_CARD = "#2D2D2D"        # Color gris medio para tarjetas
+COLOR_STAT_CARD = "#363636"   # Color gris claro para tarjetas de estadísticas
+
+[... resto de las constantes de color ...]
+
+class MainView(ctk.CTkFrame):
+    def __init__(self, master, controller, username: str):
+        super().__init__(master, fg_color=COLOR_BACKGROUND)
+        self.controller = controller
+        self.username = username or "Usuario"
+        self.transparent_color = "#000001"  # Color específico para elementos transparentes
+        
+        # Configurar tamaño mínimo de la ventana principal
+        root = self.winfo_toplevel()
+        if isinstance(root, (ctk.CTk, tk.Tk)):
+            root.geometry("1024x768")  # Tamaño inicial
+            root.resizable(True, True)  # Permitir redimensionar
+            # Usar minsize si está disponible, si no usar geometry
+            try:
+                if hasattr(root, 'minsize'):
+                    root.minsize(1024, 768)
+                else:
+                    raise AttributeError("minsize not available")
+            except Exception as e:
+                print(f"Usando geometry para tamaño mínimo: {e}")
+                def ensure_min_size():
+                    w, h = root.winfo_width(), root.winfo_height()
+                    if w < 1024 or h < 768:
+                        root.geometry(f"{max(w, 1024)}x{max(h, 768)}")
+                    root.after(100, ensure_min_size)
+                ensure_min_size()
+
+[... resto del código ...]

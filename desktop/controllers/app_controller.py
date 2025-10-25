@@ -1,5 +1,8 @@
 from .views.login_view import LoginView
 from .views.main_view import MainView
+from .views.profile_view import ProfileView
+from .views.support_view import SupportView
+from .views.vault_view import VaultView
 from .views.register_view import RegisterView
 from .api.api_client import APIClient
 from .models.encryption_model import encriptar_contraseña, desencriptar_contraseña
@@ -10,14 +13,27 @@ from typing import Any, Dict, List, Optional
 
 class AppController:
     """
-    Orquesta las interacciones entre las Vistas (UI) y los Modelos (datos/lógica).
+    Orquesta las interacciones entre las Vistas (UI) y los Modelos (datos/logica).
     """
     def __init__(self, root):
         self.root = root
+        # Configurar tamaño mínimo de la ventana principal
+        self.root.geometry("1024x768")  # Tamaño inicial
+        self.root.resizable(True, True)  # Permitir redimensionar
+        
+        def ensure_min_size():
+            w, h = self.root.winfo_width(), self.root.winfo_height()
+            if w < 1024 or h < 768:
+                self.root.geometry(f"{max(w, 1024)}x{max(h, 768)}")
+            self.root.after(100, ensure_min_size)
+        
+        self.root.after(100, ensure_min_size)
+        
         self.current_view = None
         self.api_client = APIClient(base_url="https://encryptu.onrender.com") 
         self.session_manager = SessionManager()
         self.master_key: str | None = None
+        self.current_username: Optional[str] = None
         self.support_tickets_cache: List[Dict[str, Any]] = []
         self.support_messages_cache: Dict[int, List[Dict[str, Any]]] = {}
 
@@ -28,25 +44,25 @@ class AppController:
             token = session["token"]
             username = session.get("username", "Usuario")
             
-            print(f"Sesión encontrada para {username}. Validando token con la API...")
+            print(f"Sesion encontrada para {username}. Validando token con la API...")
             self.api_client.set_token(token)
             
             if self.api_client.check_token_validity():
-                print("Token válido. Mostrando vista principal.")
+                print("Token valido. Mostrando vista principal.")
                 self.show_main_view(username)
             else:
-                print("Token inválido o caducado. Se requiere nuevo inicio de sesión.")
+                print("Token invalido o caducado. Se requiere nuevo inicio de sesion.")
                 self.session_manager.clear_session()
                 self.show_login_view()
         else:
-            print("No hay sesión válida. Iniciando flujo de primer uso.")
+            print("No hay sesion valida. Iniciando flujo de primer uso.")
             self._show_initial_view()
 
     def _show_initial_view(self):
         if self._check_api_status():
             self.show_register_view()
         else:
-            print("Error crítico: La API no está disponible. La aplicación se cerrará.")
+            print("Error cri­tico: La API no esta disponible. La aplicacion se cerrara.")
             self.on_closing()
 
     def _check_api_status(self) -> bool:
@@ -64,8 +80,27 @@ class AppController:
     def show_login_view(self):
         self._switch_view(LoginView)
 
-    def show_main_view(self, username: str):
+    def show_main_view(self, username: Optional[str] = None):
+        if username is not None:
+            self.current_username = username
+        elif self.current_username:
+            username = self.current_username
+        else:
+            username = "Usuario"
+            self.current_username = username
         self._switch_view(MainView, username=username)
+
+    def show_profile_view(self, username: Optional[str] = None):
+        username = username or self.current_username or "Usuario"
+        self._switch_view(ProfileView, username=username)
+
+    def show_vault_view(self, username: Optional[str] = None):
+        username = username or self.current_username or "Usuario"
+        self._switch_view(VaultView, username=username)
+
+    def show_support_view(self, username: Optional[str] = None):
+        username = username or self.current_username or "Usuario"
+        self._switch_view(SupportView, username=username)
 
     def handle_register(self, name: str, email: str, password: str):
         if not name or not email or not password:
@@ -80,12 +115,12 @@ class AppController:
             elif "detail" in result:
                 error_detail = result["detail"]
                 if isinstance(error_detail, list) and len(error_detail) > 0:
-                    msg = error_detail[0].get('msg', 'Error de validación')
+                    msg = error_detail[0].get('msg', 'Error de validacion')
                     if isinstance(self.current_view, RegisterView): self.current_view.show_error(msg)
                 else:
                     if isinstance(self.current_view, RegisterView): self.current_view.show_error(str(error_detail))
         else:
-            if isinstance(self.current_view, RegisterView): self.current_view.show_error("Error de conexión con el servidor.")
+            if isinstance(self.current_view, RegisterView): self.current_view.show_error("Error de conexion con el servidor.")
     
     def handle_login(self, username: str, password: str):
         if not username or not password:
@@ -106,6 +141,7 @@ class AppController:
         self.session_manager.clear_session()
         self.api_client.logout()
         self.master_key = None
+        self.current_username = None
         self.support_tickets_cache.clear()
         self.support_messages_cache.clear()
         self.show_login_view()
@@ -113,32 +149,36 @@ class AppController:
     def get_saved_passwords(self):
         passwords = self.api_client.list_files()
         if passwords is None:
-            print("Token inválido al listar archivos. Forzando logout.")
+            print("Token invalido al listar archivos. Forzando logout.")
             self.handle_logout()
             return None
         return passwords
 
     def handle_encrypt_and_save(self, site: str, username: str, password: str) -> bool:
-        # --- SECCIÓN CORREGIDA ---
+        # --- SECCIiN CORREGIDA ---
         # 1. Verificar si la master_key no existe.
         if not self.master_key:
-            print("Error: No hay clave maestra en la sesión. Solicitando al usuario.")
+            print("Error: No hay clave maestra en la sesion. Solicitando al usuario.")
             
             # 2. Solicitar la clave al usuario.
-            dialog = ctk.CTkInputDialog(text="Se requiere tu Clave Maestra para continuar:", title="Verificación de Sesión")
+            dialog = ctk.CTkInputDialog(text="Se requiere tu Clave Maestra para continuar:", title="Verificacion de Sesion")
             key = dialog.get_input()
             
             # 3. Si el usuario la ingresa, la guardamos.
             if key:
                 self.master_key = key
-            # 4. Si el usuario cancela, detenemos la operación de forma segura.
+            # 4. Si el usuario cancela, detenemos la operacion de forma segura.
             else:
-                print("Operación cancelada. No se proporcionó la clave maestra.")
-                if isinstance(self.current_view, MainView):
-                    self.current_view.show_status("Operación cancelada. Se requiere la Clave Maestra.", "save", "red")
+                print("Operacion cancelada. No se proporciono la clave maestra.")
+                view = self.current_view
+                if view is not None and hasattr(view, "show_status"):
+                    try:
+                        view.show_status("Operacion cancelada. Se requiere la Clave Maestra.", "save", "red")
+                    except Exception:
+                        pass
                 return False
 
-        # 5. A este punto, self.master_key está garantizado que es un string.
+        # 5. A este punto, self.master_key esta garantizado que es un string.
         try:
             combined_filename = f"{site} | {username}"
             encrypted_data = encriptar_contraseña(password, site, self.master_key.encode('utf-8'))
@@ -149,9 +189,9 @@ class AppController:
             
             return result is not None
         except Exception as e:
-            print(f"Error durante la encriptación o subida: {e}")
+            print(f"Error durante la encriptacion o subida: {e}")
             return False
-        # --- FIN DE LA SECCIÓN CORREGIDA ---
+        # --- FIN DE LA SECCIiN CORREGIDA ---
 
     def handle_delete_password(self, file_id: int) -> bool:
         success = self.api_client.delete_file(file_id)
