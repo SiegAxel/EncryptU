@@ -4,24 +4,38 @@ from typing import Any, Dict, List, Optional
 
 from PIL import Image
 
-COLOR_BACKGROUND = "#F3F5F9"
-COLOR_SURFACE = "#FFFFFF"
-COLOR_SURFACE_ALT = "#F8FAFC"
-COLOR_TEXT = "#1F2933"
-COLOR_TEXT_MUTED = "#6B7280"
+try:
+    import pywinstyles  # type: ignore
+except ImportError:
+    pywinstyles = None  # type: ignore
+
+COLOR_BACKGROUND = "#050030"
+COLOR_TOP_CARD = "#1F202D"
+COLOR_TOP_CARD_LIGHT = "#292A3A"
+COLOR_TOP_BORDER = "#3C3D4D"
+COLOR_TOP_TEXT_PRIMARY = "#FECACA"
+COLOR_TOP_TEXT_MUTED = "#F76A6A"
+COLOR_BOTTOM_CARD = "#FFFFFF"
+COLOR_BOTTOM_BORDER = "#F3BABA"
+COLOR_BOTTOM_SOFT = "#FFF1F2"
+COLOR_TEXT_PRIMARY = "#B91C1C"
+COLOR_TEXT_SECONDARY = "#DC2626"
+COLOR_TEXT_MUTED = "#F76A6A"
+COLOR_TEXT_LIGHT = "#FECACA"
 COLOR_ACCENT = "#F43F5E"
 COLOR_ACCENT_DARK = "#DC1F45"
-COLOR_PRIMARY = "#2563EB"
-COLOR_PRIMARY_DARK = "#1D4ED8"
-COLOR_AGENT = "#7C3AED"
-COLOR_AGENT_TEXT = "#F9FAFB"
-COLOR_CLIENT = "#E5E7EB"
-COLOR_CLIENT_TEXT = "#1F2933"
+COLOR_PRIMARY = "#DC2626"
+COLOR_PRIMARY_DARK = "#B91C1C"
+COLOR_AGENT = "#1F202D"
+COLOR_AGENT_TEXT = "#FECACA"
+COLOR_CLIENT = "#292A3A"
+COLOR_CLIENT_TEXT = "#B91C1C"
 
 SUPPORT_REASONS = ["Soporte", "Consulta"]
-GRADIENT_PATH = "desktop/controllers/img/bg_main.png"
+GRADIENT_PATH = "desktop/controllers/img/bannerEncryptU.png"
 HERO_HEIGHT = 240
 
+ 
 
 from .base_view import BaseView
 
@@ -34,6 +48,8 @@ class SupportView(BaseView):
         self.username = username or "Usuario"
 
         self.fonts = self._build_fonts()
+        self.transparent_color = "#000001"
+        self._transparent_widgets = []
         self.hero_source = self._load_gradient()
         self.hero_image: Optional[ctk.CTkImage] = None
         self.hero_label: Optional[ctk.CTkLabel] = None
@@ -62,14 +78,24 @@ class SupportView(BaseView):
     # ------------------------------------------------------------------
     def _build_fonts(self) -> Dict[str, ctk.CTkFont]:
         return {
-            "hero_title": ctk.CTkFont(size=34, weight="bold"),
-            "hero_sub": ctk.CTkFont(size=16),
-            "section": ctk.CTkFont(size=18, weight="bold"),
+            "hero_title": ctk.CTkFont(family="Arial", size=52, weight="bold"),
+            "hero_sub": ctk.CTkFont(family="Arial", size=20),
+            "section": ctk.CTkFont(size=20, weight="bold"),
             "badge": ctk.CTkFont(size=13, weight="bold"),
-            "body": ctk.CTkFont(size=13),
-            "small": ctk.CTkFont(size=12),
-            "button": ctk.CTkFont(size=14, weight="bold"),
+            "body": ctk.CTkFont(size=14),
+            "small": ctk.CTkFont(size=13),
+            "button": ctk.CTkFont(size=15, weight="bold"),
         }
+
+    def _make_transparent(self, widget):
+        if pywinstyles is None or widget is None:
+            return
+        if hasattr(widget, "configure") and hasattr(widget, "winfo_id"):
+            try:
+                widget.configure(bg_color=self.transparent_color)
+                self._transparent_widgets.append(widget)
+            except Exception:
+                pass
 
     def _load_gradient(self) -> Image.Image:
         try:
@@ -86,32 +112,40 @@ class SupportView(BaseView):
     def _build_layout(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
-
         self._build_hero()
         self._build_body()
 
     def _build_hero(self):
-        hero = ctk.CTkFrame(self, fg_color="transparent")
+        hero = ctk.CTkFrame(self, fg_color=COLOR_TOP_CARD)
         hero.grid(row=0, column=0, sticky="nsew")
         hero.grid_propagate(False)
         hero.configure(height=HERO_HEIGHT)
+        self._make_transparent(hero)
 
         self.hero_image = ctk.CTkImage(self.hero_source, size=(self.hero_source.width, HERO_HEIGHT))
+        self._make_transparent(self.hero_image)
         self.hero_label = ctk.CTkLabel(hero, text="", image=self.hero_image)
-        self.hero_label.place(relx=0, rely=0, relwidth=1, relheight=1)
+        self.hero_label.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=1)
+        self._make_transparent(self.hero_label)
 
-        content = ctk.CTkFrame(hero, fg_color="transparent")
+        content = ctk.CTkFrame(hero, fg_color=self.transparent_color)
         content.pack(expand=True, fill="both", padx=36, pady=24)
         content.grid_columnconfigure(0, weight=1)
+        self._make_transparent(content)
 
         back_button = ctk.CTkButton(
             content,
-            text="<- Volver al inicio",
+            text="Volver al inicio",
             command=lambda: self.controller.show_main_view(self.username),
-            fg_color="transparent",
-            hover_color="#2B2B2B",
-            text_color="#F9FAFB",
+            fg_color=COLOR_PRIMARY,
+            hover_color=COLOR_PRIMARY_DARK,
+            text_color="#FEF2F2",
             font=self.fonts["button"],
+            corner_radius=20,
+            border_width=1,
+            border_color=COLOR_BOTTOM_BORDER,
+            height=42,
+            width=180,
         )
         back_button.grid(row=0, column=0, sticky="w", pady=(0, 12))
 
@@ -119,17 +153,19 @@ class SupportView(BaseView):
             content,
             text="Centro de soporte",
             font=self.fonts["hero_title"],
-            text_color="#F8FAFC",
+            text_color=COLOR_TOP_TEXT_PRIMARY,
         )
         title.grid(row=1, column=0, sticky="w")
+        self._make_transparent(title)
 
         subtitle = ctk.CTkLabel(
             content,
             text="Consulta tus tickets, conversa con el equipo y crea nuevas solicitudes.",
             font=self.fonts["hero_sub"],
-            text_color="#E2E8F0",
+            text_color=COLOR_TOP_TEXT_MUTED,
         )
         subtitle.grid(row=2, column=0, sticky="w", pady=(8, 0))
+        self._make_transparent(subtitle)
 
     def _build_body(self):
         body = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
@@ -140,14 +176,15 @@ class SupportView(BaseView):
 
         self._build_ticket_panel(body)
         self._build_chat_panel(body)
+        self._make_transparent(body)
 
     def _build_ticket_panel(self, parent: ctk.CTkFrame):
-        panel = ctk.CTkFrame(parent, fg_color=COLOR_SURFACE, corner_radius=24)
+        panel = ctk.CTkFrame(parent, fg_color=COLOR_BOTTOM_CARD, corner_radius=28)
         panel.grid(row=0, column=0, sticky="nsew", padx=(0, 16))
         panel.grid_columnconfigure(0, weight=1)
         panel.grid_rowconfigure(2, weight=1)
 
-        header = ctk.CTkLabel(panel, text="Mis tickets", font=self.fonts["section"], text_color=COLOR_TEXT)
+        header = ctk.CTkLabel(panel, text="Mis tickets", font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY)
         header.grid(row=0, column=0, sticky="w", padx=24, pady=(24, 8))
 
         actions = ctk.CTkFrame(panel, fg_color="transparent")
@@ -180,7 +217,7 @@ class SupportView(BaseView):
         self.tickets_container.grid(row=2, column=0, sticky="nsew", padx=16, pady=(12, 24))
 
     def _build_chat_panel(self, parent: ctk.CTkFrame):
-        panel = ctk.CTkFrame(parent, fg_color=COLOR_SURFACE, corner_radius=24)
+        panel = ctk.CTkFrame(parent, fg_color=COLOR_BOTTOM_CARD, corner_radius=28)
         panel.grid(row=0, column=1, sticky="nsew")
         panel.grid_rowconfigure(2, weight=1)
         panel.grid_columnconfigure(0, weight=1)
@@ -189,20 +226,20 @@ class SupportView(BaseView):
         header.grid(row=0, column=0, sticky="ew", padx=24, pady=(24, 12))
         header.grid_columnconfigure(0, weight=1)
 
-        title = ctk.CTkLabel(header, textvariable=self.chat_title_var, font=self.fonts["section"], text_color=COLOR_TEXT)
+        title = ctk.CTkLabel(header, textvariable=self.chat_title_var, font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY)
         title.grid(row=0, column=0, sticky="w")
 
         meta = ctk.CTkLabel(header, textvariable=self.chat_meta_var, font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
         meta.grid(row=1, column=0, sticky="w", pady=(4, 0))
 
-        self.chat_messages_container = ctk.CTkScrollableFrame(panel, fg_color=COLOR_SURFACE_ALT, corner_radius=18)
+        self.chat_messages_container = ctk.CTkScrollableFrame(panel, fg_color=COLOR_BOTTOM_CARD, corner_radius=18)
         self.chat_messages_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 12))
 
         editor = ctk.CTkFrame(panel, fg_color="transparent")
         editor.grid(row=3, column=0, sticky="ew", padx=24, pady=(0, 24))
         editor.grid_columnconfigure(0, weight=1)
 
-        self.message_input = ctk.CTkTextbox(editor, height=80, corner_radius=16, fg_color=COLOR_SURFACE_ALT, border_width=0)
+        self.message_input = ctk.CTkTextbox(editor, height=80, corner_radius=16, fg_color=COLOR_BOTTOM_CARD, border_width=0)
         self.message_input.grid(row=0, column=0, sticky="ew")
         self.message_input.bind("<Control-Return>", self._send_message_event)
 
@@ -260,14 +297,14 @@ class SupportView(BaseView):
                 self._render_messages(None)
 
     def _render_ticket_card(self, ticket: Dict[str, Any]):
-        card = ctk.CTkFrame(self.tickets_container, fg_color=COLOR_SURFACE_ALT, corner_radius=18)
+        card = ctk.CTkFrame(self.tickets_container, fg_color=COLOR_BOTTOM_CARD, corner_radius=18)
         card.pack(fill="x", padx=8, pady=6)
 
         header = ctk.CTkLabel(
             card,
             text=f"Ticket #{ticket.get('id', '--')}",
             font=self.fonts["body"],
-            text_color=COLOR_TEXT,
+            text_color=COLOR_TEXT_PRIMARY,
         )
         header.pack(anchor="w", padx=16, pady=(14, 4))
 
@@ -428,30 +465,30 @@ class SupportView(BaseView):
         modal.geometry("520x520")
         modal.resizable(False, False)
 
-        form = ctk.CTkFrame(modal, fg_color=COLOR_SURFACE, corner_radius=20)
+        form = ctk.CTkFrame(modal, fg_color=COLOR_BOTTOM_CARD, corner_radius=20)
         form.pack(expand=True, fill="both", padx=18, pady=18)
         form.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(form, text="Crear ticket", font=self.fonts["section"], text_color=COLOR_TEXT).grid(row=0, column=0, sticky="w", pady=(12, 4))
+        ctk.CTkLabel(form, text="Crear ticket", font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=(12, 4))
         ctk.CTkLabel(form, text="Cuentanos en que podemos ayudarte.", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED).grid(row=1, column=0, sticky="w", pady=(0, 12))
 
-        first_name_entry = ctk.CTkEntry(form, placeholder_text="Nombre", fg_color=COLOR_SURFACE_ALT, border_width=0)
+        first_name_entry = ctk.CTkEntry(form, placeholder_text="Nombre", fg_color=COLOR_BOTTOM_CARD, border_width=0)
         first_name_entry.grid(row=2, column=0, sticky="ew", pady=6)
 
-        last_name_entry = ctk.CTkEntry(form, placeholder_text="Apellido", fg_color=COLOR_SURFACE_ALT, border_width=0)
+        last_name_entry = ctk.CTkEntry(form, placeholder_text="Apellido", fg_color=COLOR_BOTTOM_CARD, border_width=0)
         last_name_entry.grid(row=3, column=0, sticky="ew", pady=6)
 
-        email_entry = ctk.CTkEntry(form, placeholder_text="Correo", fg_color=COLOR_SURFACE_ALT, border_width=0)
+        email_entry = ctk.CTkEntry(form, placeholder_text="Correo", fg_color=COLOR_BOTTOM_CARD, border_width=0)
         email_entry.grid(row=4, column=0, sticky="ew", pady=6)
         email_entry.insert(0, self.username)
 
-        phone_entry = ctk.CTkEntry(form, placeholder_text="Telefono (9 digitos)", fg_color=COLOR_SURFACE_ALT, border_width=0)
+        phone_entry = ctk.CTkEntry(form, placeholder_text="Telefono (9 digitos)", fg_color=COLOR_BOTTOM_CARD, border_width=0)
         phone_entry.grid(row=5, column=0, sticky="ew", pady=6)
 
-        reason_option = ctk.CTkOptionMenu(form, values=SUPPORT_REASONS, fg_color=COLOR_SURFACE_ALT, button_color=COLOR_PRIMARY, button_hover_color=COLOR_PRIMARY_DARK)
+        reason_option = ctk.CTkOptionMenu(form, values=SUPPORT_REASONS, fg_color=COLOR_BOTTOM_CARD, button_color=COLOR_PRIMARY, button_hover_color=COLOR_PRIMARY_DARK)
         reason_option.grid(row=6, column=0, sticky="ew", pady=6)
 
-        description_box = ctk.CTkTextbox(form, height=120, fg_color=COLOR_SURFACE_ALT, border_width=0)
+        description_box = ctk.CTkTextbox(form, height=120, fg_color=COLOR_BOTTOM_CARD, border_width=0)
         description_box.grid(row=7, column=0, sticky="ew", pady=12)
 
         status_label = ctk.CTkLabel(form, text="", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)

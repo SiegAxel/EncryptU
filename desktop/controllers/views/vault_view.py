@@ -5,23 +5,39 @@ from typing import Dict, List, Optional
 import pyperclip
 from PIL import Image
 
+try:
+    import pywinstyles  # type: ignore
+except ImportError:
+    pywinstyles = None  # type: ignore
+
 # --- Colores base para replicar el estilo de los mockups ---
-COLOR_BACKGROUND = "#F3F5F9"
-COLOR_WHITE = "#FFFFFF"
-COLOR_MUTED = "#6B7280"
-COLOR_TEXT_DARK = "#1F2933"
-COLOR_TEXT_LIGHT = "#F9FAFB"
+COLOR_BACKGROUND = "#050030"
+COLOR_TOP_CARD = "#1F202D"
+COLOR_TOP_CARD_LIGHT = "#292A3A"
+COLOR_TOP_BORDER = "#3C3D4D"
+COLOR_BOTTOM_CARD = "#FFFFFF"
+COLOR_BOTTOM_BORDER = "#F3BABA"
+COLOR_BOTTOM_SOFT = "#FFF1F2"
+COLOR_TEXT_PRIMARY = "#B91C1C"
+COLOR_TEXT_SECONDARY = "#DC2626"
+COLOR_TEXT_MUTED = "#F76A6A"
+COLOR_TEXT_LIGHT = "#FECACA"
 COLOR_ACCENT = "#F43F5E"
 COLOR_ACCENT_DARK = "#DC1F45"
-COLOR_FAB = "#2563EB"
-COLOR_FAB_HOVER = "#1D4ED8"
-COLOR_CARD_BORDER = "#E2E8F0"
-COLOR_HIGHLIGHT = "#C7D2FE"
+COLOR_PRIMARY = "#DC2626"
+COLOR_PRIMARY_DARK = "#B91C1C"
+COLOR_FAB = "#DC2626"
+COLOR_FAB_HOVER = "#B91C1C"
+COLOR_CARD_BORDER = "#F3BABA"
+COLOR_HIGHLIGHT = "#FFF1F2"
 COLOR_SUCCESS = "#047857"
 COLOR_ERROR = "#B91C1C"
+COLOR_WHITE = "#FFFFFF"
+COLOR_MUTED = "#F76A6A"
+COLOR_TEXT_DARK = "#B91C1C"
+COLOR_TOP_TEXT_PRIMARY = "#FFFFFF"
+COLOR_TOP_TEXT_MUTED = "#E5E7EB"
 
-GRADIENT_START = "#FF5A5F"
-GRADIENT_END = "#2D2A87"
 HERO_HEIGHT = 240
 
 BADGE_COLOR_MAP = {
@@ -61,6 +77,8 @@ class VaultView(BaseView):
         self.hero_bg_image: Optional[ctk.CTkImage] = None
         self.hero_bg_source = self._load_background_image()
         self._hero_bg_width = 0
+        self.transparent_color = "#000001"
+        self._transparent_widgets = []
 
         # Referencias para el modal de nueva credencial
         self.add_modal: Optional[ctk.CTkToplevel] = None
@@ -81,32 +99,31 @@ class VaultView(BaseView):
     # ------------------------------------------------------------------
     def _build_fonts(self) -> Dict[str, ctk.CTkFont]:
         return {
-            "hero_title": ctk.CTkFont(size=46, weight="bold"),
-            "hero_sub": ctk.CTkFont(size=16),
+            "hero_title": ctk.CTkFont(family="Arial", size=52, weight="bold"),
+            "hero_sub": ctk.CTkFont(family="Arial", size=20),
             "search": ctk.CTkFont(size=14),
             "section": ctk.CTkFont(size=20, weight="bold"),
             "card_title": ctk.CTkFont(size=16, weight="bold"),
             "card_sub": ctk.CTkFont(size=13),
             "card_icon": ctk.CTkFont(size=15, weight="bold"),
-            "body": ctk.CTkFont(size=13),
-            "button": ctk.CTkFont(size=14, weight="bold"),
+            "body": ctk.CTkFont(size=14),
+            "button": ctk.CTkFont(size=15, weight="bold"),
             "brand": ctk.CTkFont(size=22, weight="bold"),
         }
 
-    def _load_background_image(self) -> Image.Image:
-        try:
-            return Image.open("desktop/controllers/img/bg_main.png")
-        except Exception:
-            return self._create_gradient_image(1200, HERO_HEIGHT)
+    def _make_transparent(self, widget):
+        if pywinstyles is None or widget is None:
+            return
+        if hasattr(widget, "configure") and hasattr(widget, "winfo_id"):
+            try:
+                widget.configure(bg_color=self.transparent_color)
+                self._transparent_widgets.append(widget)
+            except Exception:
+                pass
 
-    def _create_gradient_image(self, width: int, height: int) -> Image.Image:
-        base = Image.new("RGB", (width, height), color=GRADIENT_START)
-        top = Image.new("RGB", (width, height), color=GRADIENT_END)
-        mask = Image.new("L", (1, height))
-        for y in range(height):
-            mask.putpixel((0, y), int(255 * (y / max(height - 1, 1))))
-        mask = mask.resize((width, height))
-        return Image.composite(top, base, mask)
+    def _load_background_image(self) -> Image.Image:
+        return Image.open("desktop/controllers/img/bannerEncryptU.png")
+
 
     def _build_layout(self):
         self.grid_rowconfigure(1, weight=1)
@@ -114,14 +131,18 @@ class VaultView(BaseView):
 
         self._build_hero_section()
         self._build_content_section()
+        
 
     def _build_hero_section(self):
         hero_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         hero_frame.grid(row=0, column=0, sticky="nsew")
         hero_frame.grid_propagate(False)
         hero_frame.configure(height=HERO_HEIGHT)
+        self._make_transparent(hero_frame)
+        
 
-        self.hero_bg_image = ctk.CTkImage(self.hero_bg_source, size=(self.hero_bg_source.width, HERO_HEIGHT))
+        initial_width = max(self.winfo_toplevel().winfo_width() or 1024, 1024)
+        self.hero_bg_image = ctk.CTkImage(self.hero_bg_source, size=(initial_width, HERO_HEIGHT))
         self.hero_bg_label = ctk.CTkLabel(hero_frame, text="", image=self.hero_bg_image)
         self.hero_bg_label.place(relx=0, rely=0, relwidth=1, relheight=1)
 
@@ -134,12 +155,17 @@ class VaultView(BaseView):
 
         back_button = ctk.CTkButton(
             hero_content,
-            text="<- Volver al inicio",
+            text="Volver al inicio",
             command=self._go_home,
-            fg_color="transparent",
-            hover_color="#2B2B2B",
-            text_color=COLOR_TEXT_LIGHT,
+            fg_color=COLOR_PRIMARY,
+            hover_color=COLOR_PRIMARY_DARK,
+            text_color="#FEF2F2",
             font=self.fonts["button"],
+            corner_radius=20,
+            border_width=1,
+            border_color=COLOR_BOTTOM_BORDER,
+            height=42,
+            width=180,
         )
         back_button.grid(row=0, column=0, sticky="w", pady=(0, 12))
 
@@ -147,26 +173,34 @@ class VaultView(BaseView):
             hero_content,
             text="Tu boveda segura",
             font=self.fonts["hero_title"],
-            text_color=COLOR_TEXT_LIGHT,
+            text_color=COLOR_TOP_TEXT_PRIMARY,
             justify="left",
         )
         title.grid(row=1, column=0, sticky="w")
+        self._make_transparent(title)
 
         subtitle = ctk.CTkLabel(
             hero_content,
             text="Gestiona, almacena y encripta tus credenciales confidenciales.",
             font=self.fonts["hero_sub"],
-            text_color=COLOR_TEXT_LIGHT,
+            text_color=COLOR_TOP_TEXT_MUTED,
         )
-        subtitle.grid(row=2, column=0, sticky="w", pady=(12, 0))
+        subtitle.grid(row=2, column=0, sticky="w", pady=(8, 0))
+        self._make_transparent(subtitle)
 
         self._build_search_box(hero_content)
         self._build_user_card(hero_content)
+        self._make_transparent(back_button)
+        self._make_transparent(hero_content)
+        self._make_transparent(hero_frame)
+        self._make_transparent(self.hero_bg_label)
+        
 
     def _build_search_box(self, parent: ctk.CTkFrame):
-        search_box = ctk.CTkFrame(parent, fg_color="#1A1A1A", corner_radius=24)
+        search_box = ctk.CTkFrame(parent, fg_color=self.transparent_color, corner_radius=30)
         search_box.grid(row=1, column=1, sticky="ew", padx=(24, 12), pady=(0, 12))
         search_box.grid_columnconfigure(1, weight=1)
+        self._make_transparent(search_box)
 
         search_label = ctk.CTkLabel(search_box, text="Search", font=self.fonts["search"], text_color=COLOR_TEXT_LIGHT)
         search_label.grid(row=0, column=0, padx=(20, 12), pady=18)
@@ -211,9 +245,10 @@ class VaultView(BaseView):
         sync_label.grid(row=3, column=1, sticky="w", padx=(24, 12))
 
     def _build_user_card(self, parent: ctk.CTkFrame):
-        card = ctk.CTkFrame(parent, fg_color="#FFFFFF", corner_radius=20)
+        card = ctk.CTkFrame(parent, fg_color=self.transparent_color, corner_radius=30)
         card.grid(row=1, column=2, rowspan=2, sticky="ne", padx=(12, 0))
         card.grid_columnconfigure(1, weight=1)
+        self._make_transparent(card)
 
         avatar = ctk.CTkButton(
             card,
@@ -245,6 +280,7 @@ class VaultView(BaseView):
             font=self.fonts["button"],
         )
         profile_button.grid(row=2, column=0, columnspan=2, padx=16, pady=(0, 16))
+        self._make_transparent(profile_button)
 
     def _build_content_section(self):
         content_frame = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
@@ -557,18 +593,22 @@ class VaultView(BaseView):
 
         container = ctk.CTkFrame(modal, fg_color=COLOR_WHITE, corner_radius=18)
         container.pack(expand=True, fill="both", padx=24, pady=24)
+        self._make_transparent(container)
 
         title = ctk.CTkLabel(container, text="Guardar nueva credencial", font=self.fonts["section"], text_color=COLOR_TEXT_DARK)
         title.pack(anchor="w", pady=(0, 12))
 
         self.site_entry = ctk.CTkEntry(container, placeholder_text="Servicio (ej. Instagram)", fg_color=COLOR_BACKGROUND, border_width=0, font=self.fonts["body"])
         self.site_entry.pack(fill="x", pady=6)
+        self._make_transparent(self.site_entry)
 
         self.username_entry_save = ctk.CTkEntry(container, placeholder_text="Usuario o correo", fg_color=COLOR_BACKGROUND, border_width=0, font=self.fonts["body"])
         self.username_entry_save.pack(fill="x", pady=6)
+        self._make_transparent(self.username_entry_save)
 
         self.password_entry = ctk.CTkEntry(container, placeholder_text="Contrasena", show="*", fg_color=COLOR_BACKGROUND, border_width=0, font=self.fonts["body"])
         self.password_entry.pack(fill="x", pady=6)
+        self._make_transparent(self.password_entry)
 
         buttons = ctk.CTkFrame(container, fg_color="transparent")
         buttons.pack(fill="x", pady=(18, 0))
