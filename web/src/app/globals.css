@@ -444,3 +444,57 @@ body {
   background: linear-gradient(180deg, #fff, #f3f6fb 85%);
 }
 
+/* ==== SELECT estilizado para todos los <select> ==== */
+select {
+  appearance: none;            /* elimina el estilo nativo del sistema */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  width: 100%;
+  padding: .6rem .9rem;
+  border-radius: .9rem;
+  border: 1px solid rgba(238,90,114,.45);
+  background-color: #fff;
+  color: #0f172a;
+  font-size: .9rem;
+  line-height: 1.4;
+  outline: none;
+  background-image: linear-gradient(to right, rgba(238,90,114,.2), rgba(9,145,209,.2));
+  background-origin: border-box;
+  transition: all .2s ease;
+}
+
+/* Efecto hover */
+select:hover {
+  border-color: rgba(238,90,114,.7);
+  box-shadow: 0 0 0 3px rgba(238,90,114,.15);
+}
+
+/* Focus (cuando está seleccionado) */
+select:focus {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgba(238,90,114,.25);
+}
+
+/* Flecha personalizada */
+select {
+  background-image:
+    linear-gradient(to right, rgba(238,90,114,.2), rgba(9,145,209,.2)),
+    url("data:image/svg+xml;utf8,<svg fill='%23EA3F5D' height='12' viewBox='0 0 20 20' width='12' xmlns='http://www.w3.org/2000/svg'><path d='M5.5 7l4.5 4.5L14.5 7z'/></svg>");
+  background-repeat: no-repeat, no-repeat;
+  background-position: 0 0, right .8rem center;
+  background-size: 100% 100%, 12px;
+  cursor: pointer;
+}
+
+/* Quitar borde azul en Firefox */
+select:-moz-focusring {
+  color: transparent;
+  text-shadow: 0 0 0 #000;
+}
+
+/* Opciones del menú */
+select option {
+  background-color: #fff;
+  color: #0f172a;
+}
