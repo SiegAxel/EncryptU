@@ -1,5 +1,4 @@
 "use client";
-
 import { useMemo, useState } from "react";
 
 type Role = "usuario" | "soporte" | "admin";
@@ -60,19 +59,14 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-[240px_1fr]">
       {/* SIDEBAR */}
-      <aside className="rounded-2xl border bg-white/80 p-4">
-        <h3 className="mb-3 text-sm font-semibold">Usuarios</h3>
+      <aside className="admin-sidebar p-4">
+        <h3 className="mb-3 text-sm font-semibold text-slate-700">Usuarios</h3>
         <div className="space-y-2">
           {roles.map((r) => (
             <button
               key={r}
               onClick={() => setActiveRole(r)}
-              className={[
-                "w-full rounded-xl border px-3 py-2 text-left transition",
-                activeRole === r
-                  ? "border-brand/50 bg-brand/10 text-brand"
-                  : "hover:bg-slate-50"
-              ].join(" ")}
+              className={["role-btn", activeRole === r ? "role-btn--active" : ""].join(" ")}
             >
               {r[0].toUpperCase() + r.slice(1)}
             </button>
@@ -90,10 +84,10 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
       </aside>
 
       {/* LISTA / TABLA */}
-      <div className="rounded-2xl border bg-white">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <div className="text-sm">
-            Rol: <span className="font-medium capitalize">{activeRole}</span>
+      <div className="admin-surface">
+        <div className="admin-header flex items-center justify-between px-4 py-3 rounded-t-[1.1rem]">
+          <div className="text-sm text-slate-800">
+            Rol: <span className="font-medium capitalize text-[var(--brand-600)]">{activeRole}</span>
           </div>
           <div className="text-xs text-slate-500">
             {filtered.length} resultado{filtered.length === 1 ? "" : "s"}
@@ -101,11 +95,16 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
         </div>
 
         {filtered.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-500">No hay usuarios en este rol.</div>
+          <div className="p-8 text-center text-sm text-slate-500">
+            No hay usuarios en este rol.
+          </div>
         ) : (
-          <ul className="divide-y">
+          <ul className="divide-y divide-slate-200">
             {filtered.map((u) => (
-              <li key={u.id} className="grid grid-cols-1 gap-3 p-4 md:grid-cols-[1fr_1fr_auto] md:items-center">
+              <li
+                key={u.id}
+                className="user-row grid grid-cols-1 gap-3 p-4 md:grid-cols-[1fr_1fr_auto] md:items-center"
+              >
                 {/* columna izquierda: nombre + email + creado */}
                 <div>
                   <input
@@ -131,7 +130,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
                   </p>
                 </div>
 
-                {/* columna centro: rol + acciones rápidas */}
+                {/* columna centro: rol + acciones */}
                 <div className="flex flex-wrap items-center gap-2">
                   <select
                     className="input w-[160px]"
@@ -145,7 +144,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
                   </select>
 
                   <button
-                    className="btn-outline"
+                    className="btn-outline h-9 px-3 text-xs"
                     onClick={() => onResetPassword(u.id)}
                     disabled={loadingId === u.id}
                   >
@@ -156,7 +155,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
                 {/* columna derecha: borrar */}
                 <div className="flex justify-start md:justify-end">
                   <button
-                    className="btn-primary"
+                    className="btn-primary h-9 px-3 text-xs"
                     onClick={() => onDelete(u.id)}
                     disabled={loadingId === u.id}
                   >

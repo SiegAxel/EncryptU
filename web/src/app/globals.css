@@ -194,12 +194,88 @@ body {
 .btn-brand:active{ transform: translateY(0); box-shadow: 0 6px 12px rgba(238,90,114,.24); }
 .btn-brand:focus-visible{ outline:none; box-shadow: 0 0 0 3px rgba(238,90,114,.24), 0 0 0 6px rgba(238,90,114,.38); }
 
-/*Ticket */
-.ticket-item--active{
-  background: linear-gradient(180deg, #ffffff, #fff4f7);
-  border-color: rgba(238,90,114,.66) !important;
-  box-shadow: 0 0 0 3px rgba(238,90,114,.24);
+/* Sidebar tickets (ligeramente más vivo) */
+.tickets-sidebar {
+  border: 1px solid rgba(15,23,42,.26);
+  border-radius: 1.1rem;
+  background: linear-gradient(180deg,#ffffff,#fdeff3 85%);
+  box-shadow: 0 6px 18px rgba(238,90,114,.10);
 }
+
+/* Ticket item */
+.ticket-item {
+  border-radius: .9rem;
+  border: 1px solid rgba(238,90,114,.38);
+  background: linear-gradient(90deg,#ffffff,#f2f8ff);
+  padding:.65rem .8rem;
+  transition: all .18s ease;
+  box-shadow: 0 3px 10px rgba(2,6,23,.06);
+}
+.ticket-item:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(90deg,#fff4f7,#eaf5ff);
+  border-color: rgba(238,90,114,.6);
+  box-shadow: 0 10px 20px rgba(2,6,23,.10);
+}
+.ticket-item--active {
+  background: linear-gradient(180deg,#fff,#ffdfe7 95%);
+  border-color: rgba(238,90,114,.8);
+  box-shadow: 0 0 0 3px rgba(238,90,114,.28);
+}
+
+/* Chat contenedor */
+.ticket-chat {
+  border: 1px solid rgba(15,23,42,.24);
+  border-radius: 1.1rem;
+  background: linear-gradient(180deg,#fff7f9 0%,#eef7ff 100%);
+  box-shadow: 0 10px 26px rgba(2,6,23,.10);
+}
+.ticket-header {
+  border-bottom: 1px solid rgba(15,23,42,.2);
+  background: linear-gradient(180deg,#ffffff,#f3f7fe);
+}
+
+/* Área vacía */
+.ticket-empty {
+  background: linear-gradient(180deg,#fff5f7,#eef6ff);
+  border: 1px dashed rgba(238,90,114,.5);
+  border-radius: .9rem;
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+  font-size: .9rem;
+}
+
+/* Input y botón enviar ya definidos (.input y .ticket-send) */
+
+
+/* Input de mensaje */
+.ticket-input {
+  background: #fff;
+  border: 1px solid rgba(15,23,42,.16);
+  border-radius: 1rem;
+  transition: all .15s ease;
+}
+.ticket-input:focus {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgba(238,90,114,.22);
+}
+
+/* Botón Enviar */
+.ticket-send {
+  background: var(--brand-600);
+  color: #fff;
+  border-radius: .9rem;
+  padding: .6rem 1.4rem;
+  box-shadow: 0 6px 18px rgba(238,90,114,.25);
+  transition: transform .12s ease, box-shadow .18s ease, background .12s ease;
+}
+.ticket-send:hover {
+  transform: translateY(-1px);
+  background: var(--brand-700);
+  box-shadow: 0 10px 22px rgba(238,90,114,.35);
+}
+
 
 
 .input {
@@ -212,5 +288,159 @@ body {
 
 .input:focus{
   border-color: var(--brand-600);
-  box-shadow: 0 0 0 3px rgba(238,90,114,.22);
+  box-shadow: 0 0 0 2px rgba(238,90,114,.22);
 }
+
+/* ====== ADMIN PANEL refinado ====== */
+.admin-surface {
+  border: 1px solid rgba(15, 23, 42, .28);
+  border-radius: 1.1rem;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.admin-header {
+  border-bottom: 1px solid rgba(15, 23, 42, .18);
+  background: linear-gradient(180deg, #fff, #f9fafc 80%);
+}
+
+.admin-sidebar {
+  border: 1px solid rgba(15, 23, 42, .22);
+  border-radius: 1.1rem;
+  background: linear-gradient(180deg, #ffffff, #fdf6f8 85%);
+  box-shadow: 0 4px 16px rgba(238, 90, 114, .08);
+}
+
+/* Botones de rol */
+.role-btn {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .5rem;
+  padding: .55rem .8rem;
+  border-radius: .95rem;
+  border: 1px solid rgba(2,6,23,.22);
+  color: #0f172a;
+  background: #fff;
+  transition: all .18s ease;
+}
+.role-btn:hover {
+  background: #fce7ec; /* rosado claro */
+  border-color: rgba(238,90,114,.35);
+}
+.role-btn--active {
+  background: linear-gradient(180deg, #fff8fa, #ffe3ea 95%);
+  border-color: rgba(238,90,114,.7);
+  color: var(--brand-700);
+  box-shadow: 0 0 0 3px rgba(238,90,114,.25);
+}
+
+/* Fila de usuario */
+.user-row {
+  transition: background .15s ease, box-shadow .2s ease;
+}
+.user-row:hover {
+  background: linear-gradient(90deg, #fff4f7, #f1f9fe 90%);
+  box-shadow: inset 0 0 0 2px rgba(238,90,114,.25);
+}
+/* Fondo suave para cada fila de usuario */
+.user-row {
+  background: linear-gradient(180deg, #fff9fa 0%, #f4f9ff 100%);
+  border-radius: 1rem;
+  margin: 0.4rem;
+  padding: 1rem;
+  transition: background .2s ease, box-shadow .2s ease;
+}
+
+.user-row:hover {
+  background: linear-gradient(180deg, #ffeef2 0%, #e7f6ff 100%);
+  box-shadow: 0 0 0 2px rgba(238,90,114,.25);
+}
+
+/* Inputs y botones */
+.input {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, .18);
+  border-radius: .9rem;
+  padding: .6rem .8rem;
+  outline: none;
+  transition: all .15s ease;
+}
+
+.input:focus {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgba(238,90,114,.28);
+}
+
+/* Eliminar → más vivo */
+.btn-primary {
+  background: var(--brand-600);
+  color:#fff;
+  box-shadow: 0 6px 16px rgba(238,90,114,.28);
+  transform: translateY(0);
+  transition: transform .12s ease, box-shadow .18s ease, background .12s ease;
+}
+.btn-primary:hover {
+  transform: translateY(-1px);
+  background: var(--brand-700);
+  box-shadow: 0 10px 22px rgba(238,90,114,.36);
+}
+
+
+/* Reset pass → más visible */
+.btn-outline {
+  border: 1.5px solid var(--brand-600);
+  color: var(--brand-600);
+}
+.btn-outline:hover {
+  background: var(--brand-600);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(238,90,114,.25);
+}
+/* ===== Card flotante para cada usuario ===== */
+.user-row {
+  /* Fondo degradado sutil rosa → azul */
+  background: linear-gradient(180deg, #fff9fa 0%, #f3f9ff 100%);
+  border-radius: 1rem;
+  border: 1px solid rgba(238,90,114,.28);
+  padding: 1rem;
+  transition:
+    transform .14s ease,
+    box-shadow .18s ease,
+    background .18s ease,
+    border-color .18s ease;
+  box-shadow: 0 6px 18px rgba(2,6,23,.06);
+}
+
+/* Elevación al hover (flota) */
+.user-row:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 10px 26px rgba(2,6,23,.10),
+    0 2px 0 rgba(255,255,255,.6) inset;
+  background: linear-gradient(180deg, #ffeef2 0%, #e9f6ff 100%);
+  border-color: rgba(238,90,114,.46);
+}
+
+/* “Tap” o click: baja apenas para feedback */
+.user-row:active {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(2,6,23,.09);
+}
+
+/* Accesible: resalta cuando algún input adentro tiene focus */
+.user-row:focus-within {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(238,90,114,.20),
+    0 12px 28px rgba(2,6,23,.12);
+  border-color: rgba(238,90,114,.66);
+}
+
+/* Header de la lista un poco más notorio para que contraste con las cards */
+.admin-header {
+  border-bottom: 1px solid rgba(15, 23, 42, .22);
+  background: linear-gradient(180deg, #fff, #f3f6fb 85%);
+}
+
