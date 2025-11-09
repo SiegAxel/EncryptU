@@ -20,7 +20,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-SECRET_KEY = secrets.token_hex(32)
+SECRET_KEY = (
+    os.getenv("AUTH_SECRET")
+    or os.getenv("SECRET_KEY")
+    or os.getenv("JWT_SECRET")
+)
+if not SECRET_KEY:
+    raise RuntimeError(
+        "AUTH_SECRET (o SECRET_KEY) no está configurado en el entorno del servidor."
+    )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -84,12 +93,20 @@ class ContactTicket(Base):
 class TicketMessage(Base):
     __tablename__ = "TicketMessage"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    ticket_id: Mapped[int] = mapped_column(ForeignKey("ContactTicket.id", ondelete="CASCADE"), index=True)
+    ticket_id: Mapped[int] = mapped_column(
+        "ticketId",
+        ForeignKey("ContactTicket.id", ondelete="CASCADE"),
+        index=True,
+    )
     author: Mapped[str] = mapped_column(String, default="user")
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     body: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        "createdAt",
+        DateTime,
+        default=datetime.datetime.utcnow,
+    )
     ticket = relationship("ContactTicket", back_populates="messages")
 
 # --- INICIALIZACIÓN DE LA APP ---

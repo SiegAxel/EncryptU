@@ -34,6 +34,29 @@ COLOR_CLIENT_TEXT = "#B91C1C"
 SUPPORT_REASONS = ["Soporte", "Consulta"]
 GRADIENT_PATH = "desktop/controllers/img/bannerEncryptU.png"
 HERO_HEIGHT = 240
+TICKETS_REFRESH_MS = 15_000
+MESSAGES_REFRESH_MS = 5_000
+TAB_PENDING = "pending"
+TAB_RESOLVED = "resolved"
+
+STATUS_LABELS = {
+    "open": "Abierto",
+    "pending": "Pendiente",
+    "closed": "Cerrado",
+    "resolved": "Resuelto",
+}
+
+STATUS_BADGE_COLORS = {
+    "open": ("#DCFCE7", "#166534"),
+    "pending": ("#FEF3C7", "#92400E"),
+    "closed": ("#FEE2E2", "#991B1B"),
+    "resolved": ("#E0E7FF", "#1D4ED8"),
+}
+
+REASON_BADGE_COLORS = {
+    "soporte": ("#DBEAFE", "#1D4ED8"),
+    "consulta": ("#FFE4E6", "#BE123C"),
+}
 
  
 
@@ -56,20 +79,33 @@ class SupportView(BaseView):
         self._hero_image_ref: Optional[ctk.CTkImage] = None
 
         self.support_tickets: List[Dict[str, Any]] = []
+        self.pending_tickets: List[Dict[str, Any]] = []
+        self.resolved_tickets: List[Dict[str, Any]] = []
         self.messages_cache: Dict[int, List[Dict[str, Any]]] = {}
         self.active_ticket_id: Optional[int] = None
+
+        self.filter_var = ctk.StringVar(value="")
+        self.tab_var = ctk.StringVar(value=TAB_PENDING)
+        self.total_count_var = ctk.StringVar(value="0 tickets")
+
+        self._tickets_refresh_job: Optional[str] = None
+        self._messages_refresh_job: Optional[str] = None
 
         self.tickets_container: Optional[ctk.CTkScrollableFrame] = None
         self.chat_messages_container: Optional[ctk.CTkScrollableFrame] = None
         self.message_input: Optional[ctk.CTkTextbox] = None
         self.send_button: Optional[ctk.CTkButton] = None
         self.status_label: Optional[ctk.CTkLabel] = None
+        self.search_entry: Optional[ctk.CTkEntry] = None
+        self.tab_buttons: Dict[str, ctk.CTkButton] = {}
 
         self.chat_title_var = ctk.StringVar(value="Selecciona un ticket")
         self.chat_meta_var = ctk.StringVar(value="")
         self.status_var = ctk.StringVar(value="")
 
         self._build_layout()
+        self.filter_var.trace_add("write", lambda *_: self._render_ticket_list())
+        self.tab_var.trace_add("write", lambda *_: self._handle_tab_change())
         self.bind("<Configure>", self._handle_resize)
         self.after(200, self.refresh_tickets)
 
@@ -182,14 +218,35 @@ class SupportView(BaseView):
         panel = ctk.CTkFrame(parent, fg_color=COLOR_BOTTOM_CARD, corner_radius=28)
         panel.grid(row=0, column=0, sticky="nsew", padx=(0, 16))
         panel.grid_columnconfigure(0, weight=1)
-        panel.grid_rowconfigure(2, weight=1)
+        panel.grid_rowconfigure(3, weight=1)
 
-        header = ctk.CTkLabel(panel, text="Mis tickets", font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY)
-        header.grid(row=0, column=0, sticky="w", padx=24, pady=(24, 8))
+        header_row = ctk.CTkFrame(panel, fg_color="transparent")
+        header_row.grid(row=0, column=0, sticky="ew", padx=24, pady=(24, 4))
+        header_row.grid_columnconfigure(0, weight=1)
+
+        header = ctk.CTkLabel(header_row, text="Mis tickets", font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY)
+        header.grid(row=0, column=0, sticky="w")
+
+        total_label = ctk.CTkLabel(
+            header_row,
+            textvariable=self.total_count_var,
+            font=self.fonts["small"],
+            text_color=COLOR_TEXT_MUTED,
+        )
+        total_label.grid(row=0, column=1, sticky="e")
 
         actions = ctk.CTkFrame(panel, fg_color="transparent")
         actions.grid(row=1, column=0, sticky="ew", padx=24)
         actions.grid_columnconfigure(0, weight=1)
+
+        self.search_entry = ctk.CTkEntry(
+            actions,
+            placeholder_text="Buscar por nombre, correo o ID",
+            textvariable=self.filter_var,
+            fg_color=COLOR_BOTTOM_SOFT,
+            border_width=0,
+        )
+        self.search_entry.grid(row=0, column=0, sticky="ew", pady=(0, 8), padx=(0, 12))
 
         refresh_button = ctk.CTkButton(
             actions,
@@ -199,8 +256,9 @@ class SupportView(BaseView):
             hover_color="#EEF2FF",
             text_color=COLOR_PRIMARY,
             font=self.fonts["button"],
+            width=90,
         )
-        refresh_button.grid(row=0, column=0, sticky="w")
+        refresh_button.grid(row=0, column=1, sticky="e", padx=(0, 8))
 
         new_ticket_button = ctk.CTkButton(
             actions,
@@ -210,11 +268,44 @@ class SupportView(BaseView):
             hover_color=COLOR_PRIMARY_DARK,
             text_color="#F8FAFC",
             font=self.fonts["button"],
+            width=110,
         )
-        new_ticket_button.grid(row=0, column=1, sticky="e")
+        new_ticket_button.grid(row=0, column=2, sticky="e")
+
+        tabs = ctk.CTkFrame(panel, fg_color="transparent")
+        tabs.grid(row=2, column=0, sticky="ew", padx=24, pady=(4, 8))
+        tabs.grid_columnconfigure(0, weight=1)
+        tabs.grid_columnconfigure(1, weight=1)
+
+        self.tab_buttons = {}
+        pending_btn = ctk.CTkButton(
+            tabs,
+            text="Pendientes (0)",
+            command=lambda: self._set_tab(TAB_PENDING),
+            fg_color=COLOR_PRIMARY,
+            hover_color=COLOR_PRIMARY_DARK,
+            text_color="#F8FAFC",
+            font=self.fonts["button"],
+            corner_radius=20,
+        )
+        pending_btn.grid(row=0, column=0, sticky="ew", padx=(0, 8))
+        self.tab_buttons[TAB_PENDING] = pending_btn
+
+        resolved_btn = ctk.CTkButton(
+            tabs,
+            text="Resueltos (0)",
+            command=lambda: self._set_tab(TAB_RESOLVED),
+            fg_color=COLOR_BOTTOM_SOFT,
+            hover_color="#F3F4F6",
+            text_color=COLOR_TEXT_PRIMARY,
+            font=self.fonts["button"],
+            corner_radius=20,
+        )
+        resolved_btn.grid(row=0, column=1, sticky="ew")
+        self.tab_buttons[TAB_RESOLVED] = resolved_btn
 
         self.tickets_container = ctk.CTkScrollableFrame(panel, fg_color="transparent")
-        self.tickets_container.grid(row=2, column=0, sticky="nsew", padx=16, pady=(12, 24))
+        self.tickets_container.grid(row=3, column=0, sticky="nsew", padx=16, pady=(4, 24))
 
     def _build_chat_panel(self, parent: ctk.CTkFrame):
         panel = ctk.CTkFrame(parent, fg_color=COLOR_BOTTOM_CARD, corner_radius=28)
@@ -265,72 +356,217 @@ class SupportView(BaseView):
         self._set_composer_enabled(False)
 
     # ------------------------------------------------------------------
-    # Datos
+    # Controles de tickets
     # ------------------------------------------------------------------
+    def _set_tab(self, tab: str):
+        if tab not in (TAB_PENDING, TAB_RESOLVED):
+            return
+        if self.tab_var.get() != tab:
+            self.tab_var.set(tab)
+
+    def _handle_tab_change(self, *_):
+        self._update_tab_styles()
+        self._render_ticket_list()
+        self._ensure_active_ticket()
+
+    def _update_tab_styles(self):
+        current = self.tab_var.get()
+        for key, button in self.tab_buttons.items():
+            if key == current:
+                button.configure(
+                    fg_color=COLOR_PRIMARY,
+                    hover_color=COLOR_PRIMARY_DARK,
+                    text_color="#F8FAFC",
+                )
+            else:
+                button.configure(
+                    fg_color=COLOR_BOTTOM_SOFT,
+                    hover_color="#F3F4F6",
+                    text_color=COLOR_TEXT_PRIMARY,
+                )
+
+    def _render_ticket_list(self):
+        if self.tickets_container is None:
+            return
+
+        for widget in self.tickets_container.winfo_children():
+            widget.destroy()
+
+        tickets_to_show = self._get_displayed_tickets()
+        if not tickets_to_show:
+            empty_text = (
+                "No hay tickets pendientes por ahora."
+                if self.tab_var.get() == TAB_PENDING
+                else "No hay tickets resueltos para mostrar."
+            )
+            ctk.CTkLabel(
+                self.tickets_container,
+                text=empty_text,
+                font=self.fonts["body"],
+                text_color=COLOR_TEXT_MUTED,
+                wraplength=280,
+                justify="center",
+            ).pack(expand=True, fill="both", padx=16, pady=32)
+            return
+
+        for ticket in tickets_to_show:
+            self._render_ticket_card(ticket)
+
+    def _get_displayed_tickets(self) -> List[Dict[str, Any]]:
+        base = self.pending_tickets if self.tab_var.get() == TAB_PENDING else self.resolved_tickets
+        query = self.filter_var.get().strip().lower()
+        if not query:
+            return base
+
+        result: List[Dict[str, Any]] = []
+        for ticket in base:
+            haystack = " ".join(
+                [
+                    str(ticket.get("id") or ""),
+                    ticket.get("full_name") or "",
+                    ticket.get("email") or "",
+                    ticket.get("reason") or "",
+                    ticket.get("status") or "",
+                ]
+            ).lower()
+            if query in haystack:
+                result.append(ticket)
+        return result
+
+    def _update_ticket_counts(self):
+        total = len(self.support_tickets)
+        pending = len(self.pending_tickets)
+        resolved = len(self.resolved_tickets)
+
+        def pluralize(value: int, singular: str, plural: str) -> str:
+            return f"{value} {singular if value == 1 else plural}"
+
+        self.total_count_var.set(pluralize(total, "ticket", "tickets"))
+
+        if TAB_PENDING in self.tab_buttons:
+            self.tab_buttons[TAB_PENDING].configure(text=f"Pendientes ({pending})")
+        if TAB_RESOLVED in self.tab_buttons:
+            self.tab_buttons[TAB_RESOLVED].configure(text=f"Resueltos ({resolved})")
+
+    def _ensure_active_ticket(self):
+        if not self.support_tickets:
+            self.active_ticket_id = None
+            self._update_chat_header(None)
+            self._render_messages(None)
+            self._schedule_message_refresh()
+            return
+
+        if self.active_ticket_id and any(t.get("id") == self.active_ticket_id for t in self.support_tickets):
+            ticket = self._get_ticket(self.active_ticket_id)
+            self._update_chat_header(ticket)
+            return
+
+        displayed = self._get_displayed_tickets()
+        target = displayed[0] if displayed else self.support_tickets[0]
+        if target:
+            self._handle_select_ticket(target.get("id"))
+        else:
+            self.active_ticket_id = None
+            self._update_chat_header(None)
+            self._render_messages(None)
+            self._schedule_message_refresh()
+
+    def _update_chat_header(self, ticket: Optional[Dict[str, Any]], ticket_id: Optional[int] = None):
+        if not ticket:
+            if ticket_id is None:
+                self.chat_title_var.set("Selecciona un ticket")
+                self.chat_meta_var.set("")
+            else:
+                self.chat_title_var.set(f"Ticket #{ticket_id}")
+                self.chat_meta_var.set("Cargando informacion del ticket...")
+            return
+
+        display_name = ticket.get("full_name") or ticket.get("email") or self.username
+        status = STATUS_LABELS.get(ticket.get("status", "").lower(), ticket.get("status", "Pendiente").title())
+        reason = str(ticket.get("reason", "soporte")).title()
+        identifier = ticket.get("id", ticket_id or "--")
+        self.chat_title_var.set(f"Ticket #{identifier} - {display_name}")
+        self.chat_meta_var.set(f"{reason} - Estado {status}")
+
     def refresh_tickets(self):
         data = self.controller.get_support_tickets(force_refresh=True)
         if data is None:
             self._show_status("No se pudieron cargar los tickets. Intenta nuevamente.", error=True)
+            self._schedule_ticket_refresh()
             return
 
         self.support_tickets = [self._normalize_ticket(item) for item in data if item]
-        if self.tickets_container:
-            for widget in self.tickets_container.winfo_children():
-                widget.destroy()
+        self.pending_tickets = [ticket for ticket in self.support_tickets if ticket.get("status") != "closed"]
+        self.resolved_tickets = [ticket for ticket in self.support_tickets if ticket.get("status") == "closed"]
 
-            if not self.support_tickets:
-                ctk.CTkLabel(
-                    self.tickets_container,
-                    text="Aun no tienes tickets abiertos.",
-                    font=self.fonts["body"],
-                    text_color=COLOR_TEXT_MUTED,
-                ).pack(padx=12, pady=24)
-            else:
-                for ticket in self.support_tickets:
-                    self._render_ticket_card(ticket)
-
-        if self.active_ticket_id:
-            if not any(t["id"] == self.active_ticket_id for t in self.support_tickets):
-                self.active_ticket_id = None
-                self.chat_title_var.set("Selecciona un ticket")
-                self.chat_meta_var.set("")
-                self._render_messages(None)
+        self._update_ticket_counts()
+        self._render_ticket_list()
+        self._ensure_active_ticket()
+        self._schedule_ticket_refresh()
 
     def _render_ticket_card(self, ticket: Dict[str, Any]):
-        card = ctk.CTkFrame(self.tickets_container, fg_color=COLOR_BOTTOM_CARD, corner_radius=18)
+        card = ctk.CTkFrame(
+            self.tickets_container,
+            fg_color=COLOR_BOTTOM_CARD,
+            corner_radius=18,
+            border_width=1,
+            border_color=COLOR_BOTTOM_BORDER,
+        )
         card.pack(fill="x", padx=8, pady=6)
 
+        full_name = ticket.get("full_name") or "Sin nombre"
         header = ctk.CTkLabel(
             card,
-            text=f"Ticket #{ticket.get('id', '--')}",
+            text=f"#{ticket.get('id', '--')} - {full_name}",
             font=self.fonts["body"],
             text_color=COLOR_TEXT_PRIMARY,
         )
-        header.pack(anchor="w", padx=16, pady=(14, 4))
+        header.pack(anchor="w", padx=16, pady=(14, 2))
 
-        reason = ctk.CTkLabel(
+        email = ticket.get("email") or "Sin correo registrado"
+        ctk.CTkLabel(
             card,
-            text=f"Motivo: {ticket.get('reason', 'soporte').title()}",
+            text=email,
             font=self.fonts["small"],
             text_color=COLOR_TEXT_MUTED,
-        )
-        reason.pack(anchor="w", padx=16)
+        ).pack(anchor="w", padx=16, pady=(0, 8))
 
-        created = ticket.get("created_at")
-        if isinstance(created, datetime):
-            created_str = created.strftime("%d/%m/%Y %H:%M")
-        elif isinstance(created, str) and created:
-            try:
-                parsed = datetime.fromisoformat(created.replace("Z", "+00:00")) if created.endswith("Z") else datetime.fromisoformat(created)
-                created_str = parsed.strftime("%d/%m/%Y %H:%M")
-            except Exception:
-                created_str = created
-        else:
-            created_str = "--"
+        badges = ctk.CTkFrame(card, fg_color="transparent")
+        badges.pack(anchor="w", padx=12, pady=(0, 8))
+
+        reason_colors = self._get_reason_badge_colors(ticket.get("reason"))
+        reason_badge = ctk.CTkLabel(
+            badges,
+            text=f" {ticket.get('reason', 'soporte').title()} ",
+            font=self.fonts["badge"],
+            text_color=reason_colors[1],
+            fg_color=reason_colors[0],
+            corner_radius=20,
+        )
+        reason_badge.pack(side="left", padx=4)
+
+        status_text = STATUS_LABELS.get(ticket.get("status", "").lower(), ticket.get("status", "Pendiente").title())
+        status_colors = self._get_status_badge_colors(ticket.get("status"))
+        status_badge = ctk.CTkLabel(
+            badges,
+            text=f" {status_text} ",
+            font=self.fonts["badge"],
+            text_color=status_colors[1],
+            fg_color=status_colors[0],
+            corner_radius=20,
+        )
+        status_badge.pack(side="left", padx=4)
+
+        created_str = self._format_timestamp(ticket.get("created_at"))
+        messages_count = ticket.get("messages_count")
+        summary_parts = [created_str]
+        if isinstance(messages_count, int):
+            summary_parts.append(f"{messages_count} mensajes")
+        summary_text = " - ".join(summary_parts)
 
         meta = ctk.CTkLabel(
             card,
-            text=f"Estado: {ticket.get('status', 'pendiente').title()}  -  {created_str}",
+            text=summary_text,
             font=self.fonts["small"],
             text_color=COLOR_TEXT_MUTED,
         )
@@ -345,20 +581,20 @@ class SupportView(BaseView):
             return
         self.active_ticket_id = ticket_id
         ticket = self._get_ticket(ticket_id)
-        if ticket:
-            self.chat_title_var.set(f"Ticket #{ticket_id}")
-            self.chat_meta_var.set(f"{ticket['reason'].title()} - Estado {ticket['status'].title()}")
-        else:
-            self.chat_title_var.set(f"Ticket #{ticket_id}")
-            self.chat_meta_var.set("")
-        self._load_messages(ticket_id)
+        self._update_chat_header(ticket, ticket_id)
 
-    def _load_messages(self, ticket_id: int):
-        if ticket_id in self.messages_cache:
+        is_closed = bool(ticket and ticket.get("status") == "closed")
+        self._set_composer_enabled(not is_closed)
+
+        self._load_messages(ticket_id)
+        self._schedule_message_refresh()
+
+    def _load_messages(self, ticket_id: int, use_cache: bool = True):
+        if use_cache and ticket_id in self.messages_cache:
             self._render_messages(self.messages_cache[ticket_id])
             return
 
-        messages = self.controller.get_support_ticket_messages(ticket_id)
+        messages = self.controller.get_support_ticket_messages(ticket_id, force_refresh=not use_cache)
         if messages is None:
             self._show_status("No se pudieron cargar los mensajes.", error=True)
             return
@@ -373,7 +609,10 @@ class SupportView(BaseView):
         for widget in self.chat_messages_container.winfo_children():
             widget.destroy()
 
-        if not messages:
+        ticket = self._get_ticket(self.active_ticket_id) if self.active_ticket_id else None
+        composer_allowed = bool(self.active_ticket_id and ticket and ticket.get("status") != "closed")
+
+        if messages is None:
             self._set_composer_enabled(False)
             ctk.CTkLabel(
                 self.chat_messages_container,
@@ -385,12 +624,26 @@ class SupportView(BaseView):
             ).pack(expand=True, fill="both", padx=24, pady=60)
             return
 
-        self._set_composer_enabled(True)
+        if not messages:
+            self._set_composer_enabled(composer_allowed)
+            ctk.CTkLabel(
+                self.chat_messages_container,
+                text="Aun no hay mensajes en este ticket.",
+                font=self.fonts["body"],
+                text_color=COLOR_TEXT_MUTED,
+                wraplength=420,
+                justify="center",
+            ).pack(expand=True, fill="both", padx=24, pady=60)
+            return
+
+        self._set_composer_enabled(composer_allowed)
         for message in messages:
             author_role = str(message.get("author") or "user").lower()
             is_agent = author_role == "agent"
             body = message.get("body") or ""
-            timestamp = self._format_timestamp(message.get("timestamp"))
+            timestamp = self._format_timestamp(
+                message.get("created_at") or message.get("createdAt") or message.get("timestamp")
+            )
             author = message.get("name") or ("Equipo EncryptU" if is_agent else "Tu")
 
             wrapper = ctk.CTkFrame(self.chat_messages_container, fg_color="transparent")
@@ -439,6 +692,12 @@ class SupportView(BaseView):
         if not self.message_input or not self.send_button:
             return
 
+        ticket = self._get_ticket(self.active_ticket_id)
+        if ticket and ticket.get("status") == "closed":
+            self._show_status("Este ticket ya esta cerrado.", error=True)
+            self._set_composer_enabled(False)
+            return
+
         message = self.message_input.get("0.0", "end").strip()
         if not message:
             self._show_status("Escribe un mensaje antes de enviar.", error=True)
@@ -454,6 +713,7 @@ class SupportView(BaseView):
             self._show_status("Mensaje enviado al equipo de soporte.", success=True)
             self.messages_cache.pop(self.active_ticket_id, None)
             self._load_messages(self.active_ticket_id)
+            self._schedule_message_refresh()
         else:
             self._show_status("No se pudo enviar el mensaje.", error=True)
 
@@ -547,10 +807,12 @@ class SupportView(BaseView):
             if ok:
                 status_label.configure(text=feedback or "Ticket creado correctamente.", text_color=COLOR_PRIMARY)
                 self.messages_cache.clear()
+                self.tab_var.set(TAB_PENDING)
                 self.refresh_tickets()
                 if ticket_id:
                     self.active_ticket_id = ticket_id
                     self._load_messages(ticket_id)
+                    self._schedule_message_refresh()
                 modal.after(1200, modal.destroy)
             else:
                 status_label.configure(text=feedback or "No pudimos crear el ticket.", text_color=COLOR_ACCENT)
@@ -573,12 +835,43 @@ class SupportView(BaseView):
     # ------------------------------------------------------------------
     def _normalize_ticket(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         created_raw = raw.get("created_at") or raw.get("createdAt")
+        first = str(raw.get("firstName") or raw.get("first_name") or "").strip()
+        last = str(raw.get("lastName") or raw.get("last_name") or "").strip()
+        email = str(raw.get("email") or raw.get("contactEmail") or "").strip()
+        full_name = " ".join(part for part in [first, last] if part).strip()
+
+        messages_count: Optional[int] = None
+        counter = raw.get("_count") or {}
+        if isinstance(counter, dict):
+            candidate = counter.get("messages") or counter.get("messages_count")
+            try:
+                messages_count = int(candidate) if candidate is not None else None
+            except (TypeError, ValueError):
+                messages_count = None
+
         return {
             "id": raw.get("id"),
             "reason": str(raw.get("reason", "soporte")).lower(),
             "status": str(raw.get("status", "pendiente")).lower(),
+            "first_name": first or None,
+            "last_name": last or None,
+            "full_name": full_name or None,
+            "email": email or None,
+            "messages_count": messages_count,
             "created_at": self._parse_datetime(created_raw),
         }
+
+    def _get_status_badge_colors(self, status: Optional[str]) -> tuple[str, str]:
+        default = ("#E5E7EB", COLOR_PRIMARY)
+        if not status:
+            return default
+        return STATUS_BADGE_COLORS.get(status.lower(), default)
+
+    def _get_reason_badge_colors(self, reason: Optional[str]) -> tuple[str, str]:
+        default = ("#E0F2FE", "#075985")
+        if not reason:
+            return default
+        return REASON_BADGE_COLORS.get(reason.lower(), default)
 
     def _parse_datetime(self, value: Any) -> datetime:
         if isinstance(value, datetime):
@@ -617,6 +910,45 @@ class SupportView(BaseView):
         if self.send_button:
             self.send_button.configure(state="normal" if enabled else "disabled")
 
+    # ------------------------------------------------------------------
+    # Refrescos automaticos
+    # ------------------------------------------------------------------
+    def _schedule_ticket_refresh(self):
+        if self._tickets_refresh_job:
+            try:
+                self.after_cancel(self._tickets_refresh_job)
+            except Exception:
+                pass
+        self._tickets_refresh_job = self.after(TICKETS_REFRESH_MS, self.refresh_tickets)
+
+    def _schedule_message_refresh(self):
+        if self._messages_refresh_job:
+            try:
+                self.after_cancel(self._messages_refresh_job)
+            except Exception:
+                pass
+            self._messages_refresh_job = None
+
+        if not self.active_ticket_id:
+            return
+        self._messages_refresh_job = self.after(MESSAGES_REFRESH_MS, self._refresh_active_messages)
+
+    def _refresh_active_messages(self):
+        if not self.active_ticket_id:
+            return
+        self._load_messages(self.active_ticket_id, use_cache=False)
+        self._schedule_message_refresh()
+
+    def _cancel_refresh_jobs(self):
+        for job_attr in ("_tickets_refresh_job", "_messages_refresh_job"):
+            job_id = getattr(self, job_attr, None)
+            if job_id:
+                try:
+                    self.after_cancel(job_id)
+                except Exception:
+                    pass
+                setattr(self, job_attr, None)
+
     def _show_status(self, message: str, error: bool = False, success: bool = False, pending: bool = False):
         if error:
             color = COLOR_ACCENT
@@ -629,6 +961,11 @@ class SupportView(BaseView):
         self.status_var.set(message)
         if self.status_label is not None:
             self.status_label.configure(text_color=color)
+
+    def destroy(self):
+        self._cancel_refresh_jobs()
+        super().destroy()
+
     def _handle_resize(self, event):
         if event.widget is self and self.hero_label and self.hero_source:
             width = max(event.width, 900)
