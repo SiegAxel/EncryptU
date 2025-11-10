@@ -2,38 +2,38 @@ import customtkinter as ctk
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 try:
     import pywinstyles  # type: ignore
 except ImportError:
     pywinstyles = None  # type: ignore
 
-COLOR_BACKGROUND = "#050030"
-COLOR_TOP_CARD = "#1F202D"
-COLOR_TOP_CARD_LIGHT = "#292A3A"
-COLOR_TOP_BORDER = "#3C3D4D"
-COLOR_TOP_TEXT_PRIMARY = "#FECACA"
-COLOR_TOP_TEXT_MUTED = "#F76A6A"
+COLOR_BACKGROUND = "#F4F6FB"
+COLOR_HERO = "#FFFFFF"
+COLOR_TOP_TEXT_PRIMARY = "#0F172A"
+COLOR_TOP_TEXT_MUTED = "#64748B"
+COLOR_HERO_TEXT_PRIMARY = "#FFFFFF"
+COLOR_HERO_TEXT_MUTED = "#B6B6B6"
 COLOR_BOTTOM_CARD = "#FFFFFF"
-COLOR_BOTTOM_BORDER = "#F3BABA"
-COLOR_BOTTOM_SOFT = "#FFF1F2"
-COLOR_TEXT_PRIMARY = "#B91C1C"
-COLOR_TEXT_SECONDARY = "#DC2626"
-COLOR_TEXT_MUTED = "#F76A6A"
-COLOR_TEXT_LIGHT = "#FECACA"
-COLOR_ACCENT = "#F43F5E"
-COLOR_ACCENT_DARK = "#DC1F45"
-COLOR_PRIMARY = "#DC2626"
-COLOR_PRIMARY_DARK = "#B91C1C"
-COLOR_AGENT = "#1F202D"
-COLOR_AGENT_TEXT = "#FECACA"
-COLOR_CLIENT = "#292A3A"
-COLOR_CLIENT_TEXT = "#B91C1C"
+COLOR_BOTTOM_CARD_SOFT = "#FBFCFF"
+COLOR_BOTTOM_BORDER = "#E2E8F0"
+COLOR_TEXT_PRIMARY = "#0F172A"
+COLOR_TEXT_MUTED = "#94A3B8"
+COLOR_ACCENT = "#F28AA2"
+COLOR_ACCENT_DARK = "#E05D80"
+COLOR_PRIMARY = "#EE5A72"
+COLOR_PRIMARY_DARK = "#D9435C"
+COLOR_SUCCESS = "#34C38F"
+COLOR_SUCCESS_DARK = "#1B7B57"
+COLOR_AGENT = "#F8F5FF"
+COLOR_AGENT_TEXT = "#4C1D95"
+COLOR_CLIENT = "#FFF0F3"
+COLOR_CLIENT_TEXT = "#9F1239"
 
 SUPPORT_REASONS = ["Soporte", "Consulta"]
 GRADIENT_PATH = "desktop/controllers/img/bannerEncryptU.png"
-HERO_HEIGHT = 240
+HERO_HEIGHT = 130
 TICKETS_REFRESH_MS = 15_000
 MESSAGES_REFRESH_MS = 5_000
 TAB_PENDING = "pending"
@@ -47,15 +47,15 @@ STATUS_LABELS = {
 }
 
 STATUS_BADGE_COLORS = {
-    "open": ("#DCFCE7", "#166534"),
-    "pending": ("#FEF3C7", "#92400E"),
-    "closed": ("#FEE2E2", "#991B1B"),
-    "resolved": ("#E0E7FF", "#1D4ED8"),
+    "open": ("#DDFBEA", "#0F7B4B"),
+    "pending": ("#FFF4DB", "#92400E"),
+    "closed": ("#FFE4E6", "#9F1239"),
+    "resolved": ("#E1E8FF", "#243F8C"),
 }
 
 REASON_BADGE_COLORS = {
-    "soporte": ("#DBEAFE", "#1D4ED8"),
-    "consulta": ("#FFE4E6", "#BE123C"),
+    "soporte": ("#FFE6EC", "#A31642"),
+    "consulta": ("#E4F2FF", "#0F4C81"),
 }
 
  
@@ -101,21 +101,30 @@ class SupportView(BaseView):
 
         self.chat_title_var = ctk.StringVar(value="Selecciona un ticket")
         self.chat_meta_var = ctk.StringVar(value="")
+        self.chat_email_var = ctk.StringVar(value="")
+        self.chat_date_var = ctk.StringVar(value="")
         self.status_var = ctk.StringVar(value="")
+        self.chat_reason_label: Optional[ctk.CTkLabel] = None
+        self.chat_status_label: Optional[ctk.CTkLabel] = None
+        self.chat_email_label: Optional[ctk.CTkLabel] = None
+        self.chat_date_label: Optional[ctk.CTkLabel] = None
+        self.close_button: Optional[ctk.CTkButton] = None
 
         self._build_layout()
         self.filter_var.trace_add("write", lambda *_: self._render_ticket_list())
         self.tab_var.trace_add("write", lambda *_: self._handle_tab_change())
         self.bind("<Configure>", self._handle_resize)
         self.after(200, self.refresh_tickets)
+        self.after(100, self._apply_transparencies)
 
     # ------------------------------------------------------------------
     # Construccion
     # ------------------------------------------------------------------
     def _build_fonts(self) -> Dict[str, ctk.CTkFont]:
         return {
-            "hero_title": ctk.CTkFont(family="Arial", size=52, weight="bold"),
+            "hero_title": ctk.CTkFont(family="Arial", size=40, weight="bold"),
             "hero_sub": ctk.CTkFont(family="Arial", size=20),
+            "logo": ctk.CTkFont(family="Arial", size=28, weight="bold"),
             "section": ctk.CTkFont(size=20, weight="bold"),
             "badge": ctk.CTkFont(size=13, weight="bold"),
             "body": ctk.CTkFont(size=14),
@@ -126,6 +135,20 @@ class SupportView(BaseView):
     def _make_transparent(self, widget):
         if pywinstyles is None or widget is None:
             return
+
+        # Avoid forcing Windows color-key transparency on widgets that render
+        # text directly, otherwise ClearType is lost and the font looks jagged.
+        try:
+            if isinstance(widget, ctk.CTkButton):
+                return
+            if isinstance(widget, ctk.CTkLabel):
+                has_text = bool(widget.cget("text"))
+                has_image = bool(widget.cget("image"))
+                if has_text and not has_image:
+                    return
+        except Exception:
+            return
+
         if hasattr(widget, "configure") and hasattr(widget, "winfo_id"):
             try:
                 widget.configure(bg_color=self.transparent_color)
@@ -133,17 +156,38 @@ class SupportView(BaseView):
             except Exception:
                 pass
 
+    def _apply_transparencies(self):
+        if pywinstyles is None:
+            return
+        for widget in self._transparent_widgets:
+            if hasattr(widget, "winfo_id"):
+                try:
+                    pywinstyles.set_opacity(widget.winfo_id(), color=self.transparent_color)
+                except Exception as exc:
+                    print(f"Error al aplicar transparencia: {exc}")
+
     def _load_gradient(self) -> Image.Image:
+        width = 1600
+        height = HERO_HEIGHT
         try:
-            return Image.open(GRADIENT_PATH)
+            base = Image.open(GRADIENT_PATH).convert("RGBA")
+            base = base.resize((width, height))
         except Exception:
-            gradient = Image.new("RGB", (1200, HERO_HEIGHT), COLOR_ACCENT)
-            overlay = Image.new("RGB", (1200, HERO_HEIGHT), "#2D2A87")
-            mask = Image.new("L", (1, HERO_HEIGHT))
-            for y in range(HERO_HEIGHT):
-                mask.putpixel((0, y), int(255 * (y / max(HERO_HEIGHT - 1, 1))))
-            mask = mask.resize((1200, HERO_HEIGHT))
-            return Image.composite(overlay, gradient, mask)
+            base = Image.new("RGBA", (width, height), "#FFFFFF")
+
+        overlay = Image.new("RGBA", (width, height), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(overlay)
+        draw.ellipse(
+            (-220, -180, 420, height + 220),
+            fill=(242, 138, 162, 90),
+        )
+        draw.ellipse(
+            (width - 520, -200, width + 80, height + 240),
+            fill=(184, 215, 255, 110),
+        )
+        draw.rectangle((0, height - 40, width, height), fill=(255, 255, 255, 180))
+        combined = Image.alpha_composite(base, overlay)
+        return combined.convert("RGB")
 
     def _build_layout(self):
         self.grid_columnconfigure(0, weight=1)
@@ -152,79 +196,128 @@ class SupportView(BaseView):
         self._build_body()
 
     def _build_hero(self):
-        hero = ctk.CTkFrame(self, fg_color=COLOR_TOP_CARD)
+        hero = ctk.CTkFrame(self, fg_color=COLOR_HERO)
         hero.grid(row=0, column=0, sticky="nsew")
         hero.grid_propagate(False)
         hero.configure(height=HERO_HEIGHT)
+        hero.grid_columnconfigure(0, weight=1)
         self._make_transparent(hero)
 
         self.hero_image = ctk.CTkImage(self.hero_source, size=(self.hero_source.width, HERO_HEIGHT))
-        self._make_transparent(self.hero_image)
         self.hero_label = ctk.CTkLabel(hero, text="", image=self.hero_image)
         self.hero_label.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=1)
         self._make_transparent(self.hero_label)
 
-        content = ctk.CTkFrame(hero, fg_color=self.transparent_color)
-        content.pack(expand=True, fill="both", padx=36, pady=24)
+        content = ctk.CTkFrame(hero, fg_color="transparent")
+        content.pack(expand=True, fill="both", padx=36, pady=18)
         content.grid_columnconfigure(0, weight=1)
         self._make_transparent(content)
 
+        header_row = ctk.CTkFrame(content, fg_color="transparent")
+        header_row.grid(row=0, column=0, sticky="ew")
+        header_row.grid_columnconfigure(0, weight=1)
+        self._make_transparent(header_row)
+
+        brand = ctk.CTkFrame(header_row, fg_color="transparent")
+        brand.grid(row=0, column=0, sticky="w")
+        brand_label = ctk.CTkLabel(brand, text="Encrypt", font=self.fonts["logo"], text_color=COLOR_HERO_TEXT_PRIMARY)
+        brand_label.pack(side="left")
+        brand_accent = ctk.CTkLabel(brand, text="U", font=self.fonts["logo"], text_color=COLOR_PRIMARY)
+        brand_accent.pack(side="left", padx=(2, 0))
+        self._make_transparent(brand)
+        self._make_transparent(brand_label)
+        self._make_transparent(brand_accent)
+
         back_button = ctk.CTkButton(
-            content,
+            header_row,
             text="Volver al inicio",
             command=lambda: self.controller.show_main_view(self.username),
-            fg_color=COLOR_PRIMARY,
-            hover_color=COLOR_PRIMARY_DARK,
-            text_color="#FEF2F2",
+            fg_color="#FFFFFF",
+            hover_color="#FFE6EC",
+            text_color=COLOR_PRIMARY,
             font=self.fonts["button"],
-            corner_radius=20,
+            corner_radius=18,
             border_width=1,
-            border_color=COLOR_BOTTOM_BORDER,
-            height=42,
-            width=180,
+            border_color=COLOR_PRIMARY,
+            height=38,
+            width=150,
         )
-        back_button.grid(row=0, column=0, sticky="w", pady=(0, 12))
+        back_button.grid(row=0, column=1, sticky="e")
+        self._make_transparent(back_button)
+
+        badge = ctk.CTkLabel(
+            header_row,
+            text="Soporte · Desktop",
+            font=self.fonts["small"],
+            text_color=COLOR_HERO_TEXT_MUTED,
+        )
+        badge.grid(row=1, column=0, sticky="w", pady=(4, 0))
+        self._make_transparent(badge)
 
         title = ctk.CTkLabel(
             content,
             text="Centro de soporte",
             font=self.fonts["hero_title"],
-            text_color=COLOR_TOP_TEXT_PRIMARY,
+            text_color=COLOR_HERO_TEXT_PRIMARY,
         )
-        title.grid(row=1, column=0, sticky="w")
+        title.grid(row=1, column=0, sticky="w", pady=(4, 2))
         self._make_transparent(title)
 
         subtitle = ctk.CTkLabel(
             content,
             text="Consulta tus tickets, conversa con el equipo y crea nuevas solicitudes.",
             font=self.fonts["hero_sub"],
-            text_color=COLOR_TOP_TEXT_MUTED,
+            text_color=COLOR_HERO_TEXT_MUTED,
         )
-        subtitle.grid(row=2, column=0, sticky="w", pady=(8, 0))
+        subtitle.grid(row=2, column=0, sticky="w")
         self._make_transparent(subtitle)
 
+        divider = ctk.CTkFrame(hero, fg_color=COLOR_BOTTOM_BORDER, height=1)
+        divider.pack(fill="x", side="bottom")
+
     def _build_body(self):
-        body = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
-        body.grid(row=1, column=0, sticky="nsew", padx=36, pady=(0, 32))
-        body.grid_columnconfigure(0, weight=1, uniform="col")
-        body.grid_columnconfigure(1, weight=2, uniform="col")
+        wrapper = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
+        wrapper.grid(row=1, column=0, sticky="nsew", padx=28, pady=(0, 28))
+        wrapper.grid_columnconfigure(0, weight=1)
+        wrapper.grid_rowconfigure(0, weight=1)
+
+        body = ctk.CTkFrame(
+            wrapper,
+            fg_color=COLOR_BOTTOM_CARD,
+            corner_radius=28,
+            border_width=1,
+            border_color=COLOR_BOTTOM_BORDER,
+        )
+        body.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        body.grid_columnconfigure(0, weight=38)
+        body.grid_columnconfigure(1, weight=62)
         body.grid_rowconfigure(0, weight=1)
 
         self._build_ticket_panel(body)
         self._build_chat_panel(body)
-        self._make_transparent(body)
 
     def _build_ticket_panel(self, parent: ctk.CTkFrame):
-        panel = ctk.CTkFrame(parent, fg_color=COLOR_BOTTOM_CARD, corner_radius=28)
-        panel.grid(row=0, column=0, sticky="nsew", padx=(0, 16))
+        panel = ctk.CTkFrame(
+            parent,
+            fg_color=COLOR_BOTTOM_CARD_SOFT,
+            corner_radius=24,
+            border_width=1,
+            border_color=COLOR_BOTTOM_BORDER,
+        )
+        panel.grid(row=0, column=0, sticky="nsew", padx=(24, 12), pady=24)
         panel.grid_columnconfigure(0, weight=1)
-        panel.grid_rowconfigure(3, weight=1)
+        panel.grid_rowconfigure(4, weight=1)
 
         header_row = ctk.CTkFrame(panel, fg_color="transparent")
-        header_row.grid(row=0, column=0, sticky="ew", padx=24, pady=(24, 4))
+        header_row.grid(row=0, column=0, sticky="ew", padx=24, pady=(18, 4))
         header_row.grid_columnconfigure(0, weight=1)
 
-        header = ctk.CTkLabel(header_row, text="Mis tickets", font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY)
+        header = ctk.CTkLabel(
+            header_row,
+            text="Tickets",
+            font=self.fonts["section"],
+            text_color=COLOR_TEXT_PRIMARY,
+        )
         header.grid(row=0, column=0, sticky="w")
 
         total_label = ctk.CTkLabel(
@@ -235,45 +328,28 @@ class SupportView(BaseView):
         )
         total_label.grid(row=0, column=1, sticky="e")
 
-        actions = ctk.CTkFrame(panel, fg_color="transparent")
-        actions.grid(row=1, column=0, sticky="ew", padx=24)
-        actions.grid_columnconfigure(0, weight=1)
+        search_holder = ctk.CTkFrame(
+            panel,
+            fg_color=COLOR_BOTTOM_CARD,
+            corner_radius=20,
+            border_width=1,
+            border_color="#EDF2F7",
+        )
+        search_holder.grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 10))
+        search_holder.grid_columnconfigure(0, weight=1)
 
         self.search_entry = ctk.CTkEntry(
-            actions,
-            placeholder_text="Buscar por nombre, correo o ID",
+            search_holder,
+            placeholder_text="Buscar por nombre, mail, #id...",
             textvariable=self.filter_var,
-            fg_color=COLOR_BOTTOM_SOFT,
-            border_width=0,
-        )
-        self.search_entry.grid(row=0, column=0, sticky="ew", pady=(0, 8), padx=(0, 12))
-
-        refresh_button = ctk.CTkButton(
-            actions,
-            text="Actualizar",
-            command=self.refresh_tickets,
             fg_color="transparent",
-            hover_color="#EEF2FF",
-            text_color=COLOR_PRIMARY,
-            font=self.fonts["button"],
-            width=90,
+            border_width=0,
+            font=self.fonts["body"],
         )
-        refresh_button.grid(row=0, column=1, sticky="e", padx=(0, 8))
-
-        new_ticket_button = ctk.CTkButton(
-            actions,
-            text="Nuevo ticket",
-            command=self._open_new_ticket_modal,
-            fg_color=COLOR_PRIMARY,
-            hover_color=COLOR_PRIMARY_DARK,
-            text_color="#F8FAFC",
-            font=self.fonts["button"],
-            width=110,
-        )
-        new_ticket_button.grid(row=0, column=2, sticky="e")
+        self.search_entry.grid(row=0, column=0, sticky="ew", padx=16, pady=10)
 
         tabs = ctk.CTkFrame(panel, fg_color="transparent")
-        tabs.grid(row=2, column=0, sticky="ew", padx=24, pady=(4, 8))
+        tabs.grid(row=2, column=0, sticky="ew", padx=24, pady=(2, 4))
         tabs.grid_columnconfigure(0, weight=1)
         tabs.grid_columnconfigure(1, weight=1)
 
@@ -282,9 +358,9 @@ class SupportView(BaseView):
             tabs,
             text="Pendientes (0)",
             command=lambda: self._set_tab(TAB_PENDING),
-            fg_color=COLOR_PRIMARY,
-            hover_color=COLOR_PRIMARY_DARK,
-            text_color="#F8FAFC",
+            fg_color="#E6F6EE",
+            hover_color="#D4F0E4",
+            text_color=COLOR_SUCCESS_DARK,
             font=self.fonts["button"],
             corner_radius=20,
         )
@@ -295,63 +371,192 @@ class SupportView(BaseView):
             tabs,
             text="Resueltos (0)",
             command=lambda: self._set_tab(TAB_RESOLVED),
-            fg_color=COLOR_BOTTOM_SOFT,
-            hover_color="#F3F4F6",
-            text_color=COLOR_TEXT_PRIMARY,
+            fg_color=COLOR_BOTTOM_CARD,
+            hover_color="#F5F6FB",
+            text_color=COLOR_TEXT_MUTED,
             font=self.fonts["button"],
             corner_radius=20,
         )
         resolved_btn.grid(row=0, column=1, sticky="ew")
         self.tab_buttons[TAB_RESOLVED] = resolved_btn
 
-        self.tickets_container = ctk.CTkScrollableFrame(panel, fg_color="transparent")
-        self.tickets_container.grid(row=3, column=0, sticky="nsew", padx=16, pady=(4, 24))
+        chip_strip = ctk.CTkFrame(panel, fg_color="transparent")
+        chip_strip.grid(row=3, column=0, sticky="ew", padx=24, pady=(0, 6))
+        chip_strip.grid_columnconfigure(0, weight=1)
+        chip_strip.grid_columnconfigure(1, weight=1)
+
+        refresh_button = ctk.CTkButton(
+            chip_strip,
+            text="Actualizar",
+            command=self.refresh_tickets,
+            fg_color="transparent",
+            hover_color="#EEF3FF",
+            text_color=COLOR_ACCENT_DARK,
+            font=self.fonts["button"],
+            width=80,
+        )
+        refresh_button.grid(row=0, column=0, sticky="w")
+
+        new_ticket_button = ctk.CTkButton(
+            chip_strip,
+            text="Nuevo ticket",
+            command=self._open_new_ticket_modal,
+            fg_color=COLOR_PRIMARY,
+            hover_color=COLOR_PRIMARY_DARK,
+            text_color="#FFFFFF",
+            font=self.fonts["button"],
+            width=110,
+        )
+        new_ticket_button.grid(row=0, column=1, sticky="e")
+
+        self.tickets_container = ctk.CTkScrollableFrame(
+            panel,
+            fg_color="transparent",
+        )
+        self.tickets_container.grid(row=4, column=0, sticky="nsew", padx=16, pady=(0, 20))
 
     def _build_chat_panel(self, parent: ctk.CTkFrame):
-        panel = ctk.CTkFrame(parent, fg_color=COLOR_BOTTOM_CARD, corner_radius=28)
-        panel.grid(row=0, column=1, sticky="nsew")
+        panel = ctk.CTkFrame(
+            parent,
+            fg_color=COLOR_BOTTOM_CARD_SOFT,
+            corner_radius=24,
+            border_width=1,
+            border_color=COLOR_BOTTOM_BORDER,
+        )
+        panel.grid(row=0, column=1, sticky="nsew", padx=(0, 24), pady=24)
         panel.grid_rowconfigure(2, weight=1)
         panel.grid_columnconfigure(0, weight=1)
 
         header = ctk.CTkFrame(panel, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=24, pady=(24, 12))
+        header.grid(row=0, column=0, sticky="ew", padx=28, pady=(20, 10))
         header.grid_columnconfigure(0, weight=1)
+        header.grid_columnconfigure(1, weight=0)
 
-        title = ctk.CTkLabel(header, textvariable=self.chat_title_var, font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY)
-        title.grid(row=0, column=0, sticky="w")
+        title_block = ctk.CTkFrame(header, fg_color="transparent")
+        title_block.grid(row=0, column=0, sticky="w")
 
-        meta = ctk.CTkLabel(header, textvariable=self.chat_meta_var, font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
-        meta.grid(row=1, column=0, sticky="w", pady=(4, 0))
+        title = ctk.CTkLabel(
+            title_block,
+            textvariable=self.chat_title_var,
+            font=self.fonts["section"],
+            text_color=COLOR_TEXT_PRIMARY,
+        )
+        title.pack(anchor="w")
 
-        self.chat_messages_container = ctk.CTkScrollableFrame(panel, fg_color=COLOR_BOTTOM_CARD, corner_radius=18)
-        self.chat_messages_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 12))
+        badge_row = ctk.CTkFrame(title_block, fg_color="transparent")
+        badge_row.pack(anchor="w", pady=(6, 0))
+
+        self.chat_reason_label = ctk.CTkLabel(
+            badge_row,
+            text="",
+            font=self.fonts["badge"],
+            text_color="#A31642",
+            fg_color="#FFE6EC",
+            corner_radius=999,
+        )
+        self.chat_reason_label.pack(side="left", padx=(0, 6))
+
+        self.chat_status_label = ctk.CTkLabel(
+            badge_row,
+            text="",
+            font=self.fonts["badge"],
+            text_color=COLOR_SUCCESS_DARK,
+            fg_color="#DDFBEA",
+            corner_radius=999,
+        )
+        self.chat_status_label.pack(side="left")
+
+        meta_block = ctk.CTkFrame(header, fg_color="transparent")
+        meta_block.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(4, 0))
+        meta_block.grid_columnconfigure(0, weight=1)
+        meta_block.grid_columnconfigure(1, weight=0)
+
+        self.chat_email_label = ctk.CTkLabel(
+            meta_block,
+            textvariable=self.chat_email_var,
+            font=self.fonts["small"],
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.chat_email_label.grid(row=0, column=0, sticky="w")
+
+        right_meta = ctk.CTkFrame(header, fg_color="transparent")
+        right_meta.grid(row=0, column=1, rowspan=2, sticky="ne", padx=(12, 0))
+
+        self.chat_date_label = ctk.CTkLabel(
+            right_meta,
+            textvariable=self.chat_date_var,
+            font=self.fonts["small"],
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.chat_date_label.pack(anchor="e")
+
+        self.close_button = ctk.CTkButton(
+            right_meta,
+            text="Cerrar ticket",
+            command=self._handle_close_ticket,
+            state="disabled",
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_DARK,
+            text_color="#FFFFFF",
+            font=self.fonts["button"],
+            width=120,
+        )
+        self.close_button.pack(anchor="e", pady=(6, 0))
+
+        self.chat_messages_container = ctk.CTkScrollableFrame(
+            panel,
+            fg_color=COLOR_BOTTOM_CARD,
+            corner_radius=18,
+        )
+        self.chat_messages_container.grid(row=2, column=0, sticky="nsew", padx=24, pady=(0, 12))
 
         editor = ctk.CTkFrame(panel, fg_color="transparent")
-        editor.grid(row=3, column=0, sticky="ew", padx=24, pady=(0, 24))
+        editor.grid(row=3, column=0, sticky="ew", padx=28, pady=(8, 24))
         editor.grid_columnconfigure(0, weight=1)
 
-        self.message_input = ctk.CTkTextbox(editor, height=80, corner_radius=16, fg_color=COLOR_BOTTOM_CARD, border_width=0)
+        self.message_input = ctk.CTkTextbox(
+            editor,
+            height=78,
+            corner_radius=18,
+            fg_color=COLOR_BOTTOM_CARD,
+            border_width=1,
+            border_color="#E2E8F0",
+        )
         self.message_input.grid(row=0, column=0, sticky="ew")
         self.message_input.bind("<Control-Return>", self._send_message_event)
+        self.message_input.bind("<Command-Return>", self._send_message_event)
 
         button_row = ctk.CTkFrame(editor, fg_color="transparent")
-        button_row.grid(row=1, column=0, sticky="ew", pady=(12, 0))
+        button_row.grid(row=1, column=0, sticky="ew", pady=(10, 0))
         button_row.grid_columnconfigure(0, weight=1)
 
-        self.status_label = ctk.CTkLabel(button_row, textvariable=self.status_var, font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
-        self.status_label.grid(row=0, column=0, sticky="w")
+        hint = ctk.CTkLabel(
+            button_row,
+            text="Escribe un mensaje...  (Ctrl/⌘ + Enter para enviar)",
+            font=self.fonts["small"],
+            text_color=COLOR_TEXT_MUTED,
+        )
+        hint.grid(row=0, column=0, sticky="w")
+
+        self.status_label = ctk.CTkLabel(
+            button_row,
+            textvariable=self.status_var,
+            font=self.fonts["small"],
+            text_color=COLOR_TEXT_MUTED,
+        )
+        self.status_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
 
         self.send_button = ctk.CTkButton(
             button_row,
             text="Enviar",
             command=self._send_message,
-            fg_color=COLOR_ACCENT,
-            hover_color=COLOR_ACCENT_DARK,
-            text_color="#F8FAFC",
+            fg_color=COLOR_PRIMARY,
+            hover_color=COLOR_PRIMARY_DARK,
+            text_color="#FFFFFF",
             font=self.fonts["button"],
             width=120,
         )
-        self.send_button.grid(row=0, column=1, sticky="e")
+        self.send_button.grid(row=0, column=1, rowspan=2, sticky="e")
 
         self._set_composer_enabled(False)
 
@@ -373,16 +578,23 @@ class SupportView(BaseView):
         current = self.tab_var.get()
         for key, button in self.tab_buttons.items():
             if key == current:
-                button.configure(
-                    fg_color=COLOR_PRIMARY,
-                    hover_color=COLOR_PRIMARY_DARK,
-                    text_color="#F8FAFC",
-                )
+                if key == TAB_PENDING:
+                    button.configure(
+                        fg_color="#DDFBEA",
+                        hover_color="#C7F2DA",
+                        text_color=COLOR_SUCCESS_DARK,
+                    )
+                else:
+                    button.configure(
+                        fg_color="#FFE5EC",
+                        hover_color="#FFD9E4",
+                        text_color="#A31642",
+                    )
             else:
                 button.configure(
-                    fg_color=COLOR_BOTTOM_SOFT,
+                    fg_color=COLOR_BOTTOM_CARD,
                     hover_color="#F3F4F6",
-                    text_color=COLOR_TEXT_PRIMARY,
+                    text_color=COLOR_TEXT_MUTED,
                 )
 
     def _render_ticket_list(self):
@@ -399,14 +611,22 @@ class SupportView(BaseView):
                 if self.tab_var.get() == TAB_PENDING
                 else "No hay tickets resueltos para mostrar."
             )
-            ctk.CTkLabel(
+            state = ctk.CTkFrame(
                 self.tickets_container,
+                fg_color=COLOR_BOTTOM_CARD,
+                corner_radius=18,
+                border_width=1,
+                border_color=COLOR_BOTTOM_BORDER,
+            )
+            state.pack(expand=True, fill="both", padx=24, pady=32)
+            ctk.CTkLabel(
+                state,
                 text=empty_text,
                 font=self.fonts["body"],
                 text_color=COLOR_TEXT_MUTED,
-                wraplength=280,
+                wraplength=240,
                 justify="center",
-            ).pack(expand=True, fill="both", padx=16, pady=32)
+            ).pack(expand=True, padx=16, pady=20)
             return
 
         for ticket in tickets_to_show:
@@ -473,20 +693,46 @@ class SupportView(BaseView):
 
     def _update_chat_header(self, ticket: Optional[Dict[str, Any]], ticket_id: Optional[int] = None):
         if not ticket:
-            if ticket_id is None:
-                self.chat_title_var.set("Selecciona un ticket")
-                self.chat_meta_var.set("")
-            else:
-                self.chat_title_var.set(f"Ticket #{ticket_id}")
-                self.chat_meta_var.set("Cargando informacion del ticket...")
+            target_id = ticket_id or "--"
+            self.chat_title_var.set(f"Ticket #{target_id}")
+            self.chat_email_var.set("")
+            self.chat_date_var.set("")
+            if self.chat_reason_label:
+                self.chat_reason_label.configure(text="", fg_color="transparent")
+            if self.chat_status_label:
+                self.chat_status_label.configure(text="", fg_color="transparent")
+            if self.close_button:
+                self.close_button.configure(state="disabled")
             return
 
         display_name = ticket.get("full_name") or ticket.get("email") or self.username
-        status = STATUS_LABELS.get(ticket.get("status", "").lower(), ticket.get("status", "Pendiente").title())
-        reason = str(ticket.get("reason", "soporte")).title()
         identifier = ticket.get("id", ticket_id or "--")
-        self.chat_title_var.set(f"Ticket #{identifier} - {display_name}")
-        self.chat_meta_var.set(f"{reason} - Estado {status}")
+        status_raw = ticket.get("status", "")
+        status = STATUS_LABELS.get(status_raw.lower(), status_raw.title())
+        reason = str(ticket.get("reason", "soporte")).title()
+
+        self.chat_title_var.set(f"Ticket #{identifier} — {display_name}")
+        self.chat_email_var.set(ticket.get("email") or "")
+        self.chat_date_var.set(self._format_date(ticket.get("created_at")))
+
+        reason_colors = self._get_reason_badge_colors(ticket.get("reason"))
+        if self.chat_reason_label:
+            self.chat_reason_label.configure(
+                text=f"  {reason}  ",
+                fg_color=reason_colors[0],
+                text_color=reason_colors[1],
+            )
+
+        status_colors = self._get_status_badge_colors(status_raw)
+        if self.chat_status_label:
+            self.chat_status_label.configure(
+                text=f"  {status}  ",
+                fg_color=status_colors[0],
+                text_color=status_colors[1],
+            )
+
+        if self.close_button:
+            self.close_button.configure(state="normal" if status_raw != "closed" else "disabled")
 
     def refresh_tickets(self):
         data = self.controller.get_support_tickets(force_refresh=True)
@@ -505,23 +751,28 @@ class SupportView(BaseView):
         self._schedule_ticket_refresh()
 
     def _render_ticket_card(self, ticket: Dict[str, Any]):
+        is_active = ticket.get("id") == self.active_ticket_id
         card = ctk.CTkFrame(
             self.tickets_container,
             fg_color=COLOR_BOTTOM_CARD,
             corner_radius=18,
-            border_width=1,
-            border_color=COLOR_BOTTOM_BORDER,
+            border_width=2 if is_active else 1,
+            border_color=COLOR_ACCENT if is_active else COLOR_BOTTOM_BORDER,
         )
-        card.pack(fill="x", padx=8, pady=6)
+        card.pack(fill="x", padx=10, pady=6)
 
         full_name = ticket.get("full_name") or "Sin nombre"
-        header = ctk.CTkLabel(
-            card,
-            text=f"#{ticket.get('id', '--')} - {full_name}",
+        header_row = ctk.CTkFrame(card, fg_color="transparent")
+        header_row.pack(fill="x", padx=14, pady=(12, 0))
+        header_row.grid_columnconfigure(0, weight=1)
+
+        title = ctk.CTkLabel(
+            header_row,
+            text=f"#{ticket.get('id', '--')} — {full_name}",
             font=self.fonts["body"],
             text_color=COLOR_TEXT_PRIMARY,
         )
-        header.pack(anchor="w", padx=16, pady=(14, 2))
+        title.grid(row=0, column=0, sticky="w")
 
         email = ticket.get("email") or "Sin correo registrado"
         ctk.CTkLabel(
@@ -529,48 +780,56 @@ class SupportView(BaseView):
             text=email,
             font=self.fonts["small"],
             text_color=COLOR_TEXT_MUTED,
-        ).pack(anchor="w", padx=16, pady=(0, 8))
+        ).pack(anchor="w", padx=16, pady=(0, 6))
 
         badges = ctk.CTkFrame(card, fg_color="transparent")
-        badges.pack(anchor="w", padx=12, pady=(0, 8))
+        badges.pack(fill="x", padx=12, pady=(0, 8))
+        badges.grid_columnconfigure(0, weight=1)
+        badges.grid_columnconfigure(1, weight=1)
 
         reason_colors = self._get_reason_badge_colors(ticket.get("reason"))
         reason_badge = ctk.CTkLabel(
             badges,
-            text=f" {ticket.get('reason', 'soporte').title()} ",
+            text=f"  {ticket.get('reason', 'soporte').title()}  ",
             font=self.fonts["badge"],
             text_color=reason_colors[1],
             fg_color=reason_colors[0],
-            corner_radius=20,
+            corner_radius=999,
         )
-        reason_badge.pack(side="left", padx=4)
+        reason_badge.grid(row=0, column=0, sticky="w", padx=(4, 6))
 
         status_text = STATUS_LABELS.get(ticket.get("status", "").lower(), ticket.get("status", "Pendiente").title())
         status_colors = self._get_status_badge_colors(ticket.get("status"))
         status_badge = ctk.CTkLabel(
             badges,
-            text=f" {status_text} ",
+            text=f"  {status_text}  ",
             font=self.fonts["badge"],
             text_color=status_colors[1],
             fg_color=status_colors[0],
-            corner_radius=20,
+            corner_radius=999,
         )
-        status_badge.pack(side="left", padx=4)
+        status_badge.grid(row=0, column=1, sticky="e", padx=(6, 4))
+
+        footer = ctk.CTkFrame(card, fg_color="transparent")
+        footer.pack(fill="x", padx=16, pady=(0, 12))
+        footer.grid_columnconfigure(0, weight=1)
 
         created_str = self._format_timestamp(ticket.get("created_at"))
-        messages_count = ticket.get("messages_count")
-        summary_parts = [created_str]
-        if isinstance(messages_count, int):
-            summary_parts.append(f"{messages_count} mensajes")
-        summary_text = " - ".join(summary_parts)
-
-        meta = ctk.CTkLabel(
-            card,
-            text=summary_text,
+        ctk.CTkLabel(
+            footer,
+            text=created_str,
             font=self.fonts["small"],
             text_color=COLOR_TEXT_MUTED,
-        )
-        meta.pack(anchor="w", padx=16, pady=(0, 14))
+        ).grid(row=0, column=0, sticky="w")
+
+        messages_count = ticket.get("messages_count")
+        if isinstance(messages_count, int):
+            ctk.CTkLabel(
+                footer,
+                text=f"{messages_count} msgs",
+                font=self.fonts["small"],
+                text_color=COLOR_TEXT_MUTED,
+            ).grid(row=0, column=1, sticky="e")
 
         card.bind("<Button-1>", lambda _e, tid=ticket.get("id"): self._handle_select_ticket(tid))
         for child in card.winfo_children():
@@ -614,26 +873,42 @@ class SupportView(BaseView):
 
         if messages is None:
             self._set_composer_enabled(False)
-            ctk.CTkLabel(
+            ghost = ctk.CTkFrame(
                 self.chat_messages_container,
+                fg_color=COLOR_BOTTOM_CARD,
+                corner_radius=24,
+                border_width=1,
+                border_color=COLOR_BOTTOM_BORDER,
+            )
+            ghost.pack(expand=True, fill="both", padx=24, pady=40)
+            ctk.CTkLabel(
+                ghost,
                 text="Selecciona un ticket para ver la conversacion.",
                 font=self.fonts["body"],
                 text_color=COLOR_TEXT_MUTED,
                 wraplength=420,
                 justify="center",
-            ).pack(expand=True, fill="both", padx=24, pady=60)
+            ).pack(expand=True, padx=24, pady=32)
             return
 
         if not messages:
             self._set_composer_enabled(composer_allowed)
-            ctk.CTkLabel(
+            empty_card = ctk.CTkFrame(
                 self.chat_messages_container,
+                fg_color=COLOR_BOTTOM_CARD,
+                corner_radius=24,
+                border_width=2,
+                border_color="#CBD5F5",
+            )
+            empty_card.pack(expand=True, fill="both", padx=24, pady=30)
+            ctk.CTkLabel(
+                empty_card,
                 text="Aun no hay mensajes en este ticket.",
                 font=self.fonts["body"],
                 text_color=COLOR_TEXT_MUTED,
-                wraplength=420,
+                wraplength=460,
                 justify="center",
-            ).pack(expand=True, fill="both", padx=24, pady=60)
+            ).pack(expand=True, padx=32, pady=40)
             return
 
         self._set_composer_enabled(composer_allowed)
@@ -895,6 +1170,17 @@ class SupportView(BaseView):
                 return value
         return "--"
 
+    def _format_date(self, value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.strftime("%d-%m-%Y")
+        if isinstance(value, str) and value:
+            try:
+                parsed = datetime.fromisoformat(value.replace("Z", "+00:00") if value.endswith("Z") else value)
+                return parsed.strftime("%d-%m-%Y")
+            except ValueError:
+                return value
+        return ""
+
     def _get_ticket(self, ticket_id: int) -> Optional[Dict[str, Any]]:
         for ticket in self.support_tickets:
             if ticket.get("id") == ticket_id:
@@ -961,6 +1247,9 @@ class SupportView(BaseView):
         self.status_var.set(message)
         if self.status_label is not None:
             self.status_label.configure(text_color=color)
+
+    def _handle_close_ticket(self):
+        self._show_status("Cerrar ticket aun no esta disponible en la app de escritorio.", error=True)
 
     def destroy(self):
         self._cancel_refresh_jobs()
