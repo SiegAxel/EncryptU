@@ -15,7 +15,7 @@ COLOR_CARD_SOFT = "#FBFCFF"
 COLOR_BORDER = "#E2E8F0"
 COLOR_TEXT_PRIMARY = "#0F172A"
 COLOR_TEXT_SECONDARY = "#1E293B"
-COLOR_TEXT_MUTED = "#B89494"
+COLOR_TEXT_MUTED = "#FF0000"
 COLOR_ACCENT = "#EE5A72"
 COLOR_ACCENT_DARK = "#D9435C"
 COLOR_SUCCESS = "#16A34A"
@@ -50,16 +50,15 @@ class ProfileView(BaseView):
     def _build_fonts(self) -> Dict[str, ctk.CTkFont]:
         return {
             "hero_title": ctk.CTkFont(family="Arial", size=40, weight="bold"),
-            "hero_sub": ctk.CTkFont(family="Arial", size=16),
-            "section": ctk.CTkFont(size=19, weight="bold"),
-            "card_title": ctk.CTkFont(size=14, weight="bold"),
-            "body": ctk.CTkFont(size=12),
-            "muted": ctk.CTkFont(size=11),
-            "badge": ctk.CTkFont(size=10, weight="bold"),
-            "button": ctk.CTkFont(size=13, weight="bold"),
-            "button_small": ctk.CTkFont(size=11, weight="bold"),
-            "stat_value": ctk.CTkFont(size=19, weight="bold"),
-            "stat_hint": ctk.CTkFont(size=10),
+            "hero_sub": ctk.CTkFont(family="Arial", size=18),
+            "section": ctk.CTkFont(size=20, weight="bold"),
+            "card_title": ctk.CTkFont(size=16, weight="bold"),
+            "body": ctk.CTkFont(size=14),
+            "muted": ctk.CTkFont(size=13),
+            "badge": ctk.CTkFont(size=12, weight="bold"),
+            "button": ctk.CTkFont(size=15, weight="bold"),
+            "stat_value": ctk.CTkFont(size=24, weight="bold"),
+            "stat_hint": ctk.CTkFont(size=12),
         }
 
     def _build_profile_stats(self) -> List[Dict[str, str]]:
@@ -118,7 +117,7 @@ class ProfileView(BaseView):
             text="<",
             command=self._go_home,
             fg_color="transparent",
-            hover_color="#E2E8F0",
+            hover_color="#6E0000",
             text_color=COLOR_ACCENT,
             font=self.fonts["button"],
             width=44,
@@ -328,7 +327,7 @@ class ProfileView(BaseView):
             ),
             font=self.fonts["body"],
             text_color=COLOR_TEXT_SECONDARY,
-            wraplength=300,
+            wraplength=340,
             justify="left",
         )
         description.grid(row=2, column=0, sticky="w", padx=24)
@@ -345,8 +344,6 @@ class ProfileView(BaseView):
             text="65% de tus registros están sincronizados en este dispositivo.",
             font=self.fonts["stat_hint"],
             text_color=COLOR_TEXT_MUTED,
-            wraplength=300,
-            justify="left",
         )
         progress_hint.grid(row=5, column=0, sticky="w", padx=24, pady=(6, 20))
 
@@ -371,64 +368,62 @@ class ProfileView(BaseView):
             text="Accede rápidamente a las secciones clave de EncryptU.",
             font=self.fonts["body"],
             text_color=COLOR_TEXT_SECONDARY,
-            wraplength=280,
+            wraplength=360,
             justify="left",
         )
         description.grid(row=1, column=0, sticky="w", padx=24, pady=(0, 16))
 
         buttons = ctk.CTkFrame(card, fg_color="transparent")
         buttons.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 24))
-        buttons.grid_columnconfigure(0, weight=1, minsize=120)
-        buttons.grid_columnconfigure(1, weight=1, minsize=120)
+        buttons.grid_columnconfigure(0, weight=1)
+        buttons.grid_columnconfigure(1, weight=1)
 
         vault_button = ctk.CTkButton(
             buttons,
-            text="Bóveda",
+            text="Bóveda de contraseñas",
             command=lambda: self.controller.show_vault_view(self.username),
             fg_color=COLOR_CARD_SOFT,
             hover_color="#EEF2FF",
             text_color=COLOR_TEXT_PRIMARY,
-            font=self.fonts["button_small"],
+            font=self.fonts["button"],
             corner_radius=18,
-            height=32,
+            height=44,
         )
         vault_button.grid(row=0, column=0, sticky="ew", padx=(0, 12))
 
         support_button = ctk.CTkButton(
             buttons,
-            text="Soporte",
+            text="Soporte prioritario",
             command=lambda: self.controller.show_support_view(self.username),
             fg_color=COLOR_ACCENT,
             hover_color=COLOR_ACCENT_DARK,
             text_color=COLOR_CARD,
-            font=self.fonts["button_small"],
+            font=self.fonts["button"],
             corner_radius=18,
-            height=32,
+            height=44,
         )
-        support_button.grid(row=0, column=1, sticky="ew", padx=(12, 0))
+        support_button.grid(row=0, column=1, sticky="ew")
 
     def _build_checklist_card(self, parent: ctk.CTkFrame):
         card = self._create_card(parent, "Checklist de seguridad", row=2, pady=(24, 0))
-        card.grid_columnconfigure(0, weight=1)
 
         for idx, item in enumerate(self.security_checklist, start=1):
             row = ctk.CTkFrame(card, fg_color=COLOR_CARD_SOFT, corner_radius=16, border_width=1, border_color=COLOR_BORDER)
-            row.grid(row=idx, column=0, sticky="ew", padx=(24, 24), pady=(0, 10))
+            row.grid(row=idx, column=0, sticky="ew", padx=24, pady=(0, 12))
             row.grid_columnconfigure(1, weight=1)
 
             check = ctk.CTkLabel(row, text="✓", font=self.fonts["section"], text_color=COLOR_ACCENT)
-            check.grid(row=0, column=0, sticky="nw", padx=(16, 10), pady=12)
+            check.grid(row=0, column=0, sticky="nw", padx=18, pady=14)
 
             text = ctk.CTkLabel(
                 row,
                 text=item,
                 font=self.fonts["body"],
                 text_color=COLOR_TEXT_PRIMARY,
-                wraplength=250,
+                wraplength=300,
                 justify="left",
-                anchor="w",
             )
-            text.grid(row=0, column=1, sticky="w", padx=(6, 16), pady=12)
+            text.grid(row=0, column=1, sticky="w", padx=(0, 18), pady=14)
 
     # ------------------------------------------------------------------
     # Navegación y helpers
