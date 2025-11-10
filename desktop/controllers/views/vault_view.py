@@ -5,44 +5,28 @@ from typing import Dict, List, Optional
 import pyperclip
 from PIL import Image
 
-try:
-    import pywinstyles  # type: ignore
-except ImportError:
-    pywinstyles = None  # type: ignore
+from .base_view import BaseView
 
-# --- Colores base para replicar el estilo de los mockups ---
-COLOR_BACKGROUND = "#050030"
-COLOR_TOP_CARD = "#1F202D"
-COLOR_TOP_CARD_LIGHT = "#292A3A"
-COLOR_TOP_BORDER = "#3C3D4D"
-COLOR_BOTTOM_CARD = "#FFFFFF"
-COLOR_BOTTOM_BORDER = "#F3BABA"
-COLOR_BOTTOM_SOFT = "#FFF1F2"
-COLOR_TEXT_PRIMARY = "#B91C1C"
-COLOR_TEXT_SECONDARY = "#DC2626"
-COLOR_TEXT_MUTED = "#F76A6A"
-COLOR_TEXT_LIGHT = "#FECACA"
-COLOR_ACCENT = "#F43F5E"
-COLOR_ACCENT_DARK = "#DC1F45"
-COLOR_PRIMARY = "#DC2626"
-COLOR_PRIMARY_DARK = "#B91C1C"
-COLOR_FAB = "#DC2626"
-COLOR_FAB_HOVER = "#B91C1C"
-COLOR_CARD_BORDER = "#F3BABA"
-COLOR_HIGHLIGHT = "#FFF1F2"
-COLOR_SUCCESS = "#047857"
-COLOR_ERROR = "#B91C1C"
+# ----------------------------------------------------------------------
+# Paleta compartida con la vista de soporte
+# ----------------------------------------------------------------------
+COLOR_BACKGROUND = "#F4F6FB"
+COLOR_CARD = "#FFFFFF"
+COLOR_CARD_SOFT = "#FBFCFF"
+COLOR_BORDER = "#E2E8F0"
+COLOR_TEXT_PRIMARY = "#0F172A"
+COLOR_TEXT_MUTED = "#94A3B8"
+COLOR_ACCENT = "#EE5A72"
+COLOR_ACCENT_DARK = "#D9435C"
+COLOR_SUCCESS = "#16A34A"
+COLOR_DANGER = "#DC2626"
 COLOR_WHITE = "#FFFFFF"
-COLOR_MUTED = "#F76A6A"
-COLOR_TEXT_DARK = "#B91C1C"
-COLOR_TOP_TEXT_PRIMARY = "#FFFFFF"
-COLOR_TOP_TEXT_MUTED = "#E5E7EB"
 
-HERO_HEIGHT = 240
+BLACK_LOGO_PATH = "desktop/controllers/img/Blacklogo.png"
 
 BADGE_COLOR_MAP = {
     "instagram": "#F472B6",
-    "gmail": "#F87171",
+    "gmail": "#FB7185",
     "twitter": "#60A5FA",
     "figma": "#34D399",
     "facebook": "#3B82F6",
@@ -51,10 +35,8 @@ BADGE_COLOR_MAP = {
 BADGE_FALLBACK_COLORS = ["#60A5FA", "#FBBF24", "#34D399", "#F472B6"]
 
 
-from .base_view import BaseView
-
 class VaultView(BaseView):
-    """Vista dedicada para guardar, encriptar y listar credenciales del usuario."""
+    """Gestor de credenciales con la estética limpia de la vista de soporte."""
 
     def __init__(self, master, controller, username: str):
         super().__init__(master, fg_color=COLOR_BACKGROUND)
@@ -63,316 +45,283 @@ class VaultView(BaseView):
         self.username = username or "Usuario"
 
         self.fonts = self._build_fonts()
-        self.password_count_var = ctk.StringVar(value="0")
+        self.logo_image = self._load_logo_image()
+
+        self.password_count_var = ctk.StringVar(value="0 credenciales")
+        self.last_sync_var = ctk.StringVar(value="Sincroniza para comenzar")
         self.status_label_save: Optional[ctk.CTkLabel] = None
-        self.status_message = ""
+
         self.search_var = ctk.StringVar()
         self.search_var.trace_add("write", self._on_search_change)
 
         self.credentials: List[Dict[str, str]] = []
         self.filtered_credentials: List[Dict[str, str]] = []
-
         self.scrollable_frame: Optional[ctk.CTkScrollableFrame] = None
-        self.hero_bg_label: Optional[ctk.CTkLabel] = None
-        self.hero_bg_image: Optional[ctk.CTkImage] = None
-        self.hero_bg_source = self._load_background_image()
-        self._hero_bg_width = 0
-        self.transparent_color = "#000001"
-        self._transparent_widgets = []
 
-        # Referencias para el modal de nueva credencial
+        # Referencias del modal
         self.add_modal: Optional[ctk.CTkToplevel] = None
         self.site_entry: Optional[ctk.CTkEntry] = None
         self.username_entry_save: Optional[ctk.CTkEntry] = None
         self.password_entry: Optional[ctk.CTkEntry] = None
         self.save_button: Optional[ctk.CTkButton] = None
 
-
         self._build_layout()
-        self.bind("<Configure>", self._on_resize)
-
-        # Se espera un corto tiempo antes de cargar datos para asegurar que la UI este lista.
         self.after(150, self.refresh_password_list)
 
     # ------------------------------------------------------------------
-    # Construccion de UI
+    # Construcción de UI
     # ------------------------------------------------------------------
     def _build_fonts(self) -> Dict[str, ctk.CTkFont]:
         return {
-            "hero_title": ctk.CTkFont(family="Arial", size=52, weight="bold"),
-            "hero_sub": ctk.CTkFont(family="Arial", size=20),
-            "search": ctk.CTkFont(size=14),
+            "hero_title": ctk.CTkFont(family="Arial", size=40, weight="bold"),
+            "hero_sub": ctk.CTkFont(family="Arial", size=18),
             "section": ctk.CTkFont(size=20, weight="bold"),
             "card_title": ctk.CTkFont(size=16, weight="bold"),
             "card_sub": ctk.CTkFont(size=13),
-            "card_icon": ctk.CTkFont(size=15, weight="bold"),
             "body": ctk.CTkFont(size=14),
+            "small": ctk.CTkFont(size=12),
             "button": ctk.CTkFont(size=15, weight="bold"),
-            "brand": ctk.CTkFont(size=22, weight="bold"),
+            "badge": ctk.CTkFont(size=13, weight="bold"),
         }
 
-    def _make_transparent(self, widget):
-        if pywinstyles is None or widget is None:
-            return
-        if hasattr(widget, "configure") and hasattr(widget, "winfo_id"):
-            try:
-                widget.configure(bg_color=self.transparent_color)
-                self._transparent_widgets.append(widget)
-            except Exception:
-                pass
-
-    def _load_background_image(self) -> Image.Image:
-        return Image.open("desktop/controllers/img/bannerEncryptU.png")
-
+    def _load_logo_image(self) -> ctk.CTkImage:
+        try:
+            logo = Image.open(BLACK_LOGO_PATH)
+            target_height = 168
+            aspect_ratio = logo.width / logo.height if logo.height else 1
+            size = (int(target_height * aspect_ratio), target_height)
+            return ctk.CTkImage(light_image=logo, dark_image=logo, size=size)
+        except Exception:
+            fallback = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+            return ctk.CTkImage(light_image=fallback, dark_image=fallback, size=(1, 1))
 
     def _build_layout(self):
-        self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
-        self._build_hero_section()
-        self._build_content_section()
-        
+        self._build_header()
+        self._build_body()
 
-    def _build_hero_section(self):
-        hero_frame = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-        hero_frame.grid(row=0, column=0, sticky="nsew")
-        hero_frame.grid_propagate(False)
-        hero_frame.configure(height=HERO_HEIGHT)
-        self._make_transparent(hero_frame)
-        
-
-        initial_width = max(self.winfo_toplevel().winfo_width() or 1024, 1024)
-        self.hero_bg_image = ctk.CTkImage(self.hero_bg_source, size=(initial_width, HERO_HEIGHT))
-        self.hero_bg_label = ctk.CTkLabel(hero_frame, text="", image=self.hero_bg_image)
-        self.hero_bg_label.place(relx=0, rely=0, relwidth=1, relheight=1)
-
-        hero_content = ctk.CTkFrame(hero_frame, fg_color="transparent")
-        hero_content.pack(expand=True, fill="both", padx=36, pady=24)
-        hero_content.grid_columnconfigure(0, weight=3)
-        hero_content.grid_columnconfigure(1, weight=2)
-        hero_content.grid_columnconfigure(2, weight=1)
-        hero_content.grid_rowconfigure((0, 1, 2, 3), weight=0)
+    def _build_header(self):
+        header = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
+        header.grid(row=0, column=0, sticky="ew", padx=28, pady=(20, 12))
+        header.grid_columnconfigure(1, weight=1)
+        header.grid_columnconfigure(2, weight=0)
 
         back_button = ctk.CTkButton(
-            hero_content,
-            text="Volver al inicio",
+            header,
+            text="<",
             command=self._go_home,
-            fg_color=COLOR_PRIMARY,
-            hover_color=COLOR_PRIMARY_DARK,
-            text_color="#FEF2F2",
+            fg_color="transparent",
+            hover_color="#E2E8F0",
+            text_color=COLOR_ACCENT,
             font=self.fonts["button"],
-            corner_radius=20,
+            width=44,
+            height=44,
+            corner_radius=16,
             border_width=1,
-            border_color=COLOR_BOTTOM_BORDER,
-            height=42,
-            width=180,
+            border_color=COLOR_ACCENT,
         )
-        back_button.grid(row=0, column=0, sticky="w", pady=(0, 12))
+        back_button.grid(row=0, column=0, rowspan=2, sticky="w")
+
+        title_block = ctk.CTkFrame(header, fg_color="transparent")
+        title_block.grid(row=0, column=1, sticky="w", padx=(16, 0))
+        title_block.grid_columnconfigure(0, weight=1)
+
+        badge = ctk.CTkLabel(
+            title_block,
+            text="Vault · Desktop",
+            font=self.fonts["small"],
+            text_color=COLOR_TEXT_MUTED,
+        )
+        badge.grid(row=0, column=0, sticky="w")
 
         title = ctk.CTkLabel(
-            hero_content,
-            text="Tu boveda segura",
+            title_block,
+            text="Mis credenciales",
             font=self.fonts["hero_title"],
-            text_color=COLOR_TOP_TEXT_PRIMARY,
-            justify="left",
+            text_color=COLOR_TEXT_PRIMARY,
         )
         title.grid(row=1, column=0, sticky="w")
-        self._make_transparent(title)
 
         subtitle = ctk.CTkLabel(
-            hero_content,
-            text="Gestiona, almacena y encripta tus credenciales confidenciales.",
+            header,
+            text="Administra, cifra y comparte de forma segura tus accesos importantes.",
             font=self.fonts["hero_sub"],
-            text_color=COLOR_TOP_TEXT_MUTED,
+            text_color=COLOR_TEXT_MUTED,
         )
-        subtitle.grid(row=2, column=0, sticky="w", pady=(8, 0))
-        self._make_transparent(subtitle)
+        subtitle.grid(row=1, column=1, sticky="w", padx=(16, 0))
 
-        self._build_search_box(hero_content)
-        self._build_user_card(hero_content)
-        self._make_transparent(back_button)
-        self._make_transparent(hero_content)
-        self._make_transparent(hero_frame)
-        self._make_transparent(self.hero_bg_label)
-        
+        logo_label = ctk.CTkLabel(header, text="", image=self.logo_image)
+        logo_label.grid(row=0, column=2, rowspan=2, sticky="e")
 
-    def _build_search_box(self, parent: ctk.CTkFrame):
-        search_box = ctk.CTkFrame(parent, fg_color=self.transparent_color, corner_radius=30)
-        search_box.grid(row=1, column=1, sticky="ew", padx=(24, 12), pady=(0, 12))
-        search_box.grid_columnconfigure(1, weight=1)
-        self._make_transparent(search_box)
+    def _build_body(self):
+        wrapper = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
+        wrapper.grid(row=1, column=0, sticky="nsew", padx=24, pady=(0, 24))
+        wrapper.grid_rowconfigure(0, weight=1)
+        wrapper.grid_columnconfigure(0, weight=1)
 
-        search_label = ctk.CTkLabel(search_box, text="Search", font=self.fonts["search"], text_color=COLOR_TEXT_LIGHT)
-        search_label.grid(row=0, column=0, padx=(20, 12), pady=18)
+        body = ctk.CTkFrame(wrapper, fg_color=COLOR_CARD_SOFT, corner_radius=32)
+        body.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        body.grid_rowconfigure(0, weight=1)
+        body.grid_columnconfigure(0, weight=48)
+        body.grid_columnconfigure(1, weight=52)
 
-        search_entry = ctk.CTkEntry(
-            search_box,
-            textvariable=self.search_var,
-            placeholder_text="Buscar credenciales",
-            font=self.fonts["search"],
-            border_width=0,
-            fg_color="transparent",
-            text_color=COLOR_TEXT_LIGHT,
-        )
-        search_entry.grid(row=0, column=1, sticky="ew", pady=18)
+        self._build_credentials_panel(body)
+        self._build_summary_panel(body)
 
-        search_button = ctk.CTkButton(
-            search_box,
-            text="Buscar",
-            command=self._on_search_submit,
-            width=90,
-            fg_color="#3F4868",
-            hover_color="#2D3450",
-            text_color=COLOR_TEXT_LIGHT,
-            font=self.fonts["button"],
-        )
-        search_button.grid(row=0, column=2, padx=(0, 20), pady=12)
-
-        self.status_label_save = ctk.CTkLabel(
+    def _build_credentials_panel(self, parent: ctk.CTkFrame):
+        panel = ctk.CTkFrame(
             parent,
-            text="",
-            font=self.fonts["search"],
-            text_color=COLOR_TEXT_LIGHT,
+            fg_color=COLOR_CARD,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            corner_radius=28,
         )
-        self.status_label_save.grid(row=2, column=1, sticky="w", padx=(24, 12))
+        panel.grid(row=0, column=0, sticky="nsew", padx=(24, 12), pady=24)
+        panel.grid_rowconfigure(4, weight=1)
+        panel.grid_columnconfigure(0, weight=1)
 
-        sync_label = ctk.CTkLabel(
-            parent,
-            text=f"Ultima sincronizacion: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-            font=self.fonts["search"],
-            text_color=COLOR_TEXT_LIGHT,
-        )
-        sync_label.grid(row=3, column=1, sticky="w", padx=(24, 12))
+        header = ctk.CTkFrame(panel, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 4))
+        header.grid_columnconfigure(0, weight=1)
 
-    def _build_user_card(self, parent: ctk.CTkFrame):
-        card = ctk.CTkFrame(parent, fg_color=self.transparent_color, corner_radius=30)
-        card.grid(row=1, column=2, rowspan=2, sticky="ne", padx=(12, 0))
-        card.grid_columnconfigure(1, weight=1)
-        self._make_transparent(card)
-
-        avatar = ctk.CTkButton(
-            card,
-            text=self._get_initials(self.username),
-            width=54,
-            height=54,
-            fg_color=COLOR_WHITE,
-            text_color=COLOR_ACCENT,
-            font=self.fonts["card_title"],
-            corner_radius=26,
-            hover_color=COLOR_HIGHLIGHT,
-            command=self._go_profile,
-        )
-        avatar.grid(row=0, column=0, padx=16, pady=16)
-
-        name_label = ctk.CTkLabel(card, text=self._format_username(self.username), font=self.fonts["card_title"], text_color=COLOR_TEXT_LIGHT)
-        name_label.grid(row=0, column=1, sticky="e", padx=(0, 18), pady=(18, 0))
-
-        email_label = ctk.CTkLabel(card, text=self.username, font=self.fonts["card_sub"], text_color=COLOR_TEXT_LIGHT)
-        email_label.grid(row=1, column=1, sticky="e", padx=(0, 18))
-
-        profile_button = ctk.CTkButton(
-            card,
-            text="Ver perfil",
-            command=self._go_profile,
-            fg_color="transparent",
-            hover_color="#2B2B2B",
-            text_color=COLOR_TEXT_LIGHT,
-            font=self.fonts["button"],
-        )
-        profile_button.grid(row=2, column=0, columnspan=2, padx=16, pady=(0, 16))
-        self._make_transparent(profile_button)
-
-    def _build_content_section(self):
-        content_frame = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
-        content_frame.grid(row=1, column=0, sticky="nsew")
-        content_frame.grid_rowconfigure(0, weight=1)
-        content_frame.grid_rowconfigure(1, weight=0)
-        content_frame.grid_columnconfigure(0, weight=1)
-
-        self._build_recent_credentials(content_frame)
-        self._build_footer(content_frame)
-
-    def _build_recent_credentials(self, parent: ctk.CTkFrame):
-        container = ctk.CTkFrame(parent, fg_color="transparent")
-        container.grid(row=0, column=0, sticky="nsew", padx=36, pady=(24, 0))
-        container.grid_rowconfigure(1, weight=1)
-        container.grid_columnconfigure(0, weight=1)
-
-        header = ctk.CTkFrame(container, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew")
-        header.grid_columnconfigure(1, weight=1)
-
-        title = ctk.CTkLabel(header, text="Agregadas Recientemente", font=self.fonts["section"], text_color=COLOR_TEXT_DARK)
+        title = ctk.CTkLabel(header, text="Credenciales", font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY)
         title.grid(row=0, column=0, sticky="w")
 
-        count_label = ctk.CTkLabel(
-            header,
-            textvariable=self.password_count_var,
-            font=self.fonts["card_title"],
-            text_color=COLOR_MUTED,
-        )
-        count_label.grid(row=0, column=1, sticky="e")
+        count = ctk.CTkLabel(header, textvariable=self.password_count_var, font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
+        count.grid(row=0, column=1, sticky="e")
 
-        self.scrollable_frame = ctk.CTkScrollableFrame(container, fg_color="transparent")
-        self.scrollable_frame.grid(row=1, column=0, sticky="nsew", pady=(16, 0))
-        self.scrollable_frame.grid_columnconfigure(0, weight=1, uniform="cards")
-        self.scrollable_frame.grid_columnconfigure(1, weight=1, uniform="cards")
+        search_holder = ctk.CTkFrame(panel, fg_color=COLOR_CARD_SOFT, corner_radius=20, border_width=1, border_color=COLOR_BORDER)
+        search_holder.grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 8))
+        search_holder.grid_columnconfigure(1, weight=1)
 
-    def _build_footer(self, parent: ctk.CTkFrame):
-        footer = ctk.CTkFrame(parent, fg_color="transparent")
-        footer.grid(row=1, column=0, sticky="ew", padx=36, pady=(24, 32))
-        footer.grid_columnconfigure(0, weight=1)
-        footer.grid_columnconfigure(1, weight=0)
+        search_icon = ctk.CTkLabel(search_holder, text="🔍", font=self.fonts["body"], text_color=COLOR_TEXT_MUTED)
+        search_icon.grid(row=0, column=0, padx=(16, 8), pady=10)
 
-        brand_frame = ctk.CTkFrame(footer, fg_color="transparent")
-        brand_frame.grid(row=0, column=0, sticky="w")
-
-        logo_label = ctk.CTkLabel(
-            brand_frame,
-            text="EU",
-            font=ctk.CTkFont(size=32, weight="bold"),
-            text_color=COLOR_ACCENT,
-        )
-        logo_label.pack(side="left")
-
-        brand_text = ctk.CTkLabel(
-            brand_frame,
-            text="EncryptU",
-            font=self.fonts["brand"],
-            text_color=COLOR_TEXT_DARK,
-        )
-        brand_text.pack(side="left", padx=(12, 0))
-
-        logout_button = ctk.CTkButton(
-            brand_frame,
-            text="Cerrar Sesion",
-            command=self.logout_action,
+        search_entry = ctk.CTkEntry(
+            search_holder,
+            placeholder_text="Buscar por servicio o usuario",
+            textvariable=self.search_var,
+            border_width=0,
             fg_color="transparent",
-            hover_color="#E5E7EB",
+            font=self.fonts["body"],
+        )
+        search_entry.grid(row=0, column=1, sticky="ew", pady=10)
+
+        actions = ctk.CTkFrame(panel, fg_color="transparent")
+        actions.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 4))
+        actions.grid_columnconfigure(0, weight=1)
+        actions.grid_columnconfigure(1, weight=1)
+
+        refresh_btn = ctk.CTkButton(
+            actions,
+            text="Actualizar",
+            command=self.refresh_password_list,
+            fg_color="transparent",
+            hover_color="#EEF2FF",
             text_color=COLOR_ACCENT,
             font=self.fonts["button"],
         )
-        logout_button.pack(side="left", padx=(24, 0))
+        refresh_btn.grid(row=0, column=0, sticky="w")
 
-        fab_button = ctk.CTkButton(
-            footer,
-            text="+",
-            width=64,
-            height=64,
-            corner_radius=32,
-            fg_color=COLOR_FAB,
-            hover_color=COLOR_FAB_HOVER,
-            text_color=COLOR_TEXT_LIGHT,
-            font=ctk.CTkFont(size=34, weight="bold"),
+        new_btn = ctk.CTkButton(
+            actions,
+            text="Nueva credencial",
             command=self._open_add_credential_modal,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_DARK,
+            text_color=COLOR_WHITE,
+            font=self.fonts["button"],
         )
-        fab_button.grid(row=0, column=1, sticky="e")
+        new_btn.grid(row=0, column=1, sticky="e")
+
+        divider = ctk.CTkFrame(panel, fg_color=COLOR_BORDER, height=1)
+        divider.grid(row=3, column=0, sticky="ew", padx=24, pady=(8, 4))
+
+        self.scrollable_frame = ctk.CTkScrollableFrame(panel, fg_color="transparent")
+        self.scrollable_frame.grid(row=4, column=0, sticky="nsew", padx=12, pady=(0, 12))
+        self.scrollable_frame.grid_columnconfigure(0, weight=1)
+
+    def _build_summary_panel(self, parent: ctk.CTkFrame):
+        panel = ctk.CTkFrame(
+            parent,
+            fg_color=COLOR_CARD,
+            border_width=1,
+            border_color=COLOR_BORDER,
+            corner_radius=28,
+        )
+        panel.grid(row=0, column=1, sticky="nsew", padx=(12, 24), pady=24)
+        panel.grid_columnconfigure(0, weight=1)
+
+        header = ctk.CTkLabel(panel, text="Resumen & Acciones", font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY)
+        header.grid(row=0, column=0, sticky="w", padx=24, pady=(20, 8))
+
+        stats_card = ctk.CTkFrame(panel, fg_color=COLOR_CARD_SOFT, corner_radius=20, border_width=1, border_color=COLOR_BORDER)
+        stats_card.grid(row=1, column=0, sticky="ew", padx=24, pady=(0, 16))
+        stats_card.grid_columnconfigure(1, weight=1)
+
+        total_label = ctk.CTkLabel(stats_card, text="Total guardadas", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
+        total_label.grid(row=0, column=0, sticky="w", padx=20, pady=(16, 0))
+
+        total_value = ctk.CTkLabel(stats_card, textvariable=self.password_count_var, font=self.fonts["hero_sub"], text_color=COLOR_TEXT_PRIMARY)
+        total_value.grid(row=1, column=0, sticky="w", padx=20)
+
+        sync_label = ctk.CTkLabel(stats_card, text="Última sincronización", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
+        sync_label.grid(row=0, column=1, sticky="e", padx=20, pady=(16, 0))
+
+        sync_value = ctk.CTkLabel(stats_card, textvariable=self.last_sync_var, font=self.fonts["body"], text_color=COLOR_TEXT_PRIMARY)
+        sync_value.grid(row=1, column=1, sticky="e", padx=20)
+
+        self.status_label_save = ctk.CTkLabel(stats_card, text="", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
+        self.status_label_save.grid(row=2, column=0, columnspan=2, sticky="w", padx=20, pady=(10, 16))
+
+        tips_card = ctk.CTkFrame(panel, fg_color=COLOR_CARD_SOFT, corner_radius=20, border_width=1, border_color=COLOR_BORDER)
+        tips_card.grid(row=2, column=0, sticky="nsew", padx=24, pady=(0, 16))
+        tips_card.grid_columnconfigure(0, weight=1)
+
+        tips_title = ctk.CTkLabel(tips_card, text="Consejos rápidos", font=self.fonts["card_title"], text_color=COLOR_TEXT_PRIMARY)
+        tips_title.grid(row=0, column=0, sticky="w", padx=20, pady=(16, 4))
+
+        tips_text = (
+            "• Usa la clave maestra para desencriptar solo cuando la necesites.\n"
+            "• Copiamos tu contraseña al portapapeles por 1 uso.\n"
+            "• Actualiza frecuentemente tus credenciales críticas."
+        )
+        ctk.CTkLabel(tips_card, text=tips_text, font=self.fonts["body"], text_color=COLOR_TEXT_MUTED, justify="left", wraplength=360).grid(
+            row=1, column=0, sticky="w", padx=20, pady=(0, 12)
+        )
+
+        action_row = ctk.CTkFrame(tips_card, fg_color="transparent")
+        action_row.grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 20))
+
+        quick_add = ctk.CTkButton(
+            action_row,
+            text="Agregar credencial",
+            command=self._open_add_credential_modal,
+            fg_color=COLOR_ACCENT,
+            hover_color=COLOR_ACCENT_DARK,
+            text_color=COLOR_WHITE,
+            font=self.fonts["button"],
+        )
+        quick_add.pack(side="left")
+
+        logout_btn = ctk.CTkButton(
+            panel,
+            text="Cerrar sesión",
+            command=self.logout_action,
+            fg_color="transparent",
+            hover_color="#E2E8F0",
+            text_color=COLOR_ACCENT,
+            font=self.fonts["button"],
+        )
+        logout_btn.grid(row=3, column=0, sticky="e", padx=24, pady=(0, 24))
 
     # ------------------------------------------------------------------
     # Datos y renderizado
     # ------------------------------------------------------------------
     def refresh_password_list(self):
-        if not self.scrollable_frame:
+        if not self.scrollable_frame or not self.scrollable_frame.winfo_exists() or not self.winfo_exists():
             return
 
         for widget in self.scrollable_frame.winfo_children():
@@ -381,8 +330,9 @@ class VaultView(BaseView):
         passwords = self.controller.get_saved_passwords()
 
         if passwords is None:
-            self.password_count_var.set("--")
-            self._show_empty_state("No se pudieron obtener las credenciales. Inicia sesion nuevamente.")
+            self.password_count_var.set("-- credenciales")
+            self.last_sync_var.set("Sin conexión")
+            self._show_empty_state("No se pudieron obtener las credenciales. Inicia sesión nuevamente.")
             return
 
         parsed: List[Dict[str, str]] = []
@@ -395,7 +345,8 @@ class VaultView(BaseView):
             parsed.append({"id": file_id, "site": site, "username": username})
 
         self.credentials = parsed
-        self.password_count_var.set(str(len(parsed)))
+        self.password_count_var.set(f"{len(parsed)} credenciales")
+        self.last_sync_var.set(datetime.now().strftime("%d/%m/%Y %H:%M"))
         self._filter_credentials(force_render=True)
 
     def _split_filename(self, filename: str) -> tuple[str, str]:
@@ -410,53 +361,61 @@ class VaultView(BaseView):
             self.filtered_credentials = list(self.credentials)
         else:
             self.filtered_credentials = [
-                cred
-                for cred in self.credentials
-                if query in cred["site"].lower() or query in cred["username"].lower()
+                cred for cred in self.credentials if query in cred["site"].lower() or query in cred["username"].lower()
             ]
         if force_render or self.scrollable_frame:
             self._render_credential_cards()
 
     def _render_credential_cards(self):
-        if not self.scrollable_frame:
+        if not self.scrollable_frame or not self.scrollable_frame.winfo_exists():
             return
 
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
         if not self.filtered_credentials:
-            self._show_empty_state("No encontramos resultados para tu busqueda.")
+            self._show_empty_state("No encontramos resultados para tu búsqueda.")
             return
 
-        columns = 2
         for index, cred in enumerate(self.filtered_credentials):
-            row = index // columns
-            column = index % columns
-            card = ctk.CTkFrame(self.scrollable_frame, fg_color=COLOR_WHITE, corner_radius=18, border_width=1, border_color=COLOR_CARD_BORDER)
-            card.grid(row=row, column=column, padx=12, pady=10, sticky="nsew")
+            card = ctk.CTkFrame(
+                self.scrollable_frame,
+                fg_color=COLOR_CARD_SOFT,
+                border_width=1,
+                border_color=COLOR_BORDER,
+                corner_radius=24,
+            )
+            card.grid(row=index, column=0, sticky="ew", padx=12, pady=6)
             card.grid_columnconfigure(1, weight=1)
 
-            badge = ctk.CTkFrame(card, width=54, height=54, corner_radius=16, fg_color=self._badge_color_for_site(cred["site"]))
-            badge.grid(row=0, column=0, rowspan=2, padx=16, pady=16)
+            badge = ctk.CTkFrame(
+                card,
+                width=52,
+                height=52,
+                corner_radius=18,
+                fg_color=self._badge_color_for_site(cred["site"]),
+            )
+            badge.grid(row=0, column=0, rowspan=2, padx=18, pady=18)
             badge.grid_propagate(False)
-            badge_label = ctk.CTkLabel(badge, text=self._badge_initials(cred["site"]), font=self.fonts["card_icon"], text_color=COLOR_TEXT_LIGHT)
+
+            badge_label = ctk.CTkLabel(badge, text=self._badge_initials(cred["site"]), font=self.fonts["badge"], text_color=COLOR_WHITE)
             badge_label.place(relx=0.5, rely=0.5, anchor="center")
 
-            title = ctk.CTkLabel(card, text=cred["site"], font=self.fonts["card_title"], text_color=COLOR_TEXT_DARK)
+            title = ctk.CTkLabel(card, text=cred["site"], font=self.fonts["card_title"], text_color=COLOR_TEXT_PRIMARY)
             title.grid(row=0, column=1, sticky="w", pady=(18, 0))
 
-            subtitle = ctk.CTkLabel(card, text=cred["username"], font=self.fonts["card_sub"], text_color=COLOR_MUTED)
+            subtitle = ctk.CTkLabel(card, text=cred["username"], font=self.fonts["card_sub"], text_color=COLOR_TEXT_MUTED)
             subtitle.grid(row=1, column=1, sticky="w", pady=(0, 18))
 
             actions = ctk.CTkFrame(card, fg_color="transparent")
-            actions.grid(row=0, column=2, rowspan=2, padx=16, pady=16, sticky="e")
+            actions.grid(row=0, column=2, rowspan=2, padx=16, pady=12, sticky="e")
 
             view_button = ctk.CTkButton(
                 actions,
                 text="Ver",
-                width=72,
+                width=90,
                 fg_color="transparent",
-                hover_color="#F3F4FF",
+                hover_color="#EEF2FF",
                 text_color=COLOR_ACCENT,
                 border_width=1,
                 border_color=COLOR_ACCENT,
@@ -468,10 +427,10 @@ class VaultView(BaseView):
             delete_button = ctk.CTkButton(
                 actions,
                 text="Eliminar",
-                width=72,
+                width=90,
                 fg_color=COLOR_ACCENT,
                 hover_color=COLOR_ACCENT_DARK,
-                text_color=COLOR_TEXT_LIGHT,
+                text_color=COLOR_WHITE,
                 command=lambda fid=int(cred["id"]): self.delete_action(fid),
                 font=self.fonts["button"],
             )
@@ -494,10 +453,16 @@ class VaultView(BaseView):
         return BADGE_FALLBACK_COLORS[index]
 
     def _show_empty_state(self, message: str):
-        if not self.scrollable_frame:
+        if not self.scrollable_frame or not self.scrollable_frame.winfo_exists() or not self.winfo_exists():
             return
-        label = ctk.CTkLabel(self.scrollable_frame, text=message, font=self.fonts["body"], text_color=COLOR_MUTED, justify="center")
-        label.grid(row=0, column=0, columnspan=2, padx=24, pady=40)
+        label = ctk.CTkLabel(
+            self.scrollable_frame,
+            text=message,
+            font=self.fonts["body"],
+            text_color=COLOR_TEXT_MUTED,
+            justify="center",
+        )
+        label.grid(row=0, column=0, padx=24, pady=36)
 
     # ------------------------------------------------------------------
     # Acciones principales
@@ -511,11 +476,11 @@ class VaultView(BaseView):
         password = self.password_entry.get().strip()  # type: ignore[union-attr]
 
         if not site or not username or not password:
-            self.show_status("Completa todos los campos para continuar.", "save", COLOR_ERROR)
+            self.show_status("Completa todos los campos para continuar.", "save", COLOR_DANGER)
             return
 
         self.save_button.configure(state="disabled", text="Guardando...")  # type: ignore[union-attr]
-        self.show_status("Guardando...", "save", COLOR_MUTED)
+        self.show_status("Guardando...", "save", COLOR_TEXT_MUTED)
 
         success = self.controller.handle_encrypt_and_save(site, username, password)
 
@@ -524,29 +489,29 @@ class VaultView(BaseView):
             self.refresh_password_list()
             self._close_add_modal()
         else:
-            self.show_status("Ocurrio un error al guardar. Intenta de nuevo.", "save", COLOR_ERROR)
+            self.show_status("Ocurrió un error al guardar. Intenta de nuevo.", "save", COLOR_DANGER)
 
         if self.save_button:
             self.save_button.configure(state="normal", text="Guardar")
 
     def delete_action(self, file_id: int):
         if self.controller.handle_delete_password(file_id):
-            self.show_temp_popup("Credencial eliminada correctamente.", "green")
+            self.show_temp_popup("Credencial eliminada correctamente.", COLOR_SUCCESS)
             self.refresh_password_list()
         else:
-            self.show_temp_popup("No fue posible eliminar la credencial.", COLOR_ERROR)
+            self.show_temp_popup("No fue posible eliminar la credencial.", COLOR_DANGER)
 
     def view_copy_action(self, file_id: int, site: str):
-        dialog = ctk.CTkInputDialog(text="Para desencriptar ingresa tu clave maestra:", title="Verificacion de seguridad")
+        dialog = ctk.CTkInputDialog(text="Para desencriptar ingresa tu clave maestra:", title="Verificación de seguridad")
         master_key = dialog.get_input()
 
         if master_key:
             decrypted = self.controller.handle_decrypt_password(file_id, site, master_key)
             if decrypted:
                 pyperclip.copy(decrypted)
-                self.show_temp_popup("Contrasena copiada al portapapeles.", COLOR_SUCCESS)
+                self.show_temp_popup("Contraseña copiada al portapapeles.", COLOR_SUCCESS)
             else:
-                self.show_temp_popup("Clave maestra incorrecta.", COLOR_ERROR)
+                self.show_temp_popup("Clave maestra incorrecta.", COLOR_DANGER)
 
     def logout_action(self, event=None):
         self.controller.handle_logout()
@@ -554,15 +519,12 @@ class VaultView(BaseView):
     def show_status(self, message: str, target: str, color):
         if target != "save" or not self.status_label_save:
             return
-        label = self.status_label_save  # keep a local strong reference so it's not treated as Optional in callbacks
+        label = self.status_label_save
         label.configure(text=message)
-        if isinstance(color, tuple):
-            label.configure(text_color=color[0])
-        else:
-            label.configure(text_color=color)
+        label.configure(text_color=color)
         label.after(4000, lambda lbl=label: lbl.configure(text=""))
 
-    def show_temp_popup(self, message: str, color: str = "green"):
+    def show_temp_popup(self, message: str, color: str = COLOR_SUCCESS):
         toplevel = self.winfo_toplevel()
         if not isinstance(toplevel, ctk.CTk):
             return
@@ -570,7 +532,7 @@ class VaultView(BaseView):
         popup.title("EncryptU")
         popup.geometry("360x140")
         popup.resizable(False, False)
-        popup.configure(fg_color=COLOR_WHITE)
+        popup.configure(fg_color=COLOR_CARD)
 
         label = ctk.CTkLabel(popup, text=message, font=self.fonts["card_title"], text_color=color, wraplength=320, justify="center")
         label.pack(expand=True, fill="both", padx=24, pady=32)
@@ -588,35 +550,31 @@ class VaultView(BaseView):
         modal = ctk.CTkToplevel(self)
         self.add_modal = modal
         modal.title("Nueva credencial")
-        modal.geometry("420x360")
+        modal.geometry("420x380")
         modal.resizable(False, False)
 
-        container = ctk.CTkFrame(modal, fg_color=COLOR_WHITE, corner_radius=18)
+        container = ctk.CTkFrame(modal, fg_color=COLOR_CARD, corner_radius=18, border_width=1, border_color=COLOR_BORDER)
         container.pack(expand=True, fill="both", padx=24, pady=24)
-        self._make_transparent(container)
 
-        title = ctk.CTkLabel(container, text="Guardar nueva credencial", font=self.fonts["section"], text_color=COLOR_TEXT_DARK)
+        title = ctk.CTkLabel(container, text="Guardar nueva credencial", font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY)
         title.pack(anchor="w", pady=(0, 12))
 
-        self.site_entry = ctk.CTkEntry(container, placeholder_text="Servicio (ej. Instagram)", fg_color=COLOR_BACKGROUND, border_width=0, font=self.fonts["body"])
+        self.site_entry = ctk.CTkEntry(container, placeholder_text="Servicio (ej. Instagram)", fg_color=COLOR_CARD_SOFT, border_width=0, font=self.fonts["body"])
         self.site_entry.pack(fill="x", pady=6)
-        self._make_transparent(self.site_entry)
 
-        self.username_entry_save = ctk.CTkEntry(container, placeholder_text="Usuario o correo", fg_color=COLOR_BACKGROUND, border_width=0, font=self.fonts["body"])
+        self.username_entry_save = ctk.CTkEntry(container, placeholder_text="Usuario o correo", fg_color=COLOR_CARD_SOFT, border_width=0, font=self.fonts["body"])
         self.username_entry_save.pack(fill="x", pady=6)
-        self._make_transparent(self.username_entry_save)
 
-        self.password_entry = ctk.CTkEntry(container, placeholder_text="Contrasena", show="*", fg_color=COLOR_BACKGROUND, border_width=0, font=self.fonts["body"])
+        self.password_entry = ctk.CTkEntry(container, placeholder_text="Contraseña", show="*", fg_color=COLOR_CARD_SOFT, border_width=0, font=self.fonts["body"])
         self.password_entry.pack(fill="x", pady=6)
-        self._make_transparent(self.password_entry)
 
         buttons = ctk.CTkFrame(container, fg_color="transparent")
         buttons.pack(fill="x", pady=(18, 0))
 
-        cancel = ctk.CTkButton(buttons, text="Cancelar", command=self._close_add_modal, fg_color="transparent", hover_color="#E5E7EB", text_color=COLOR_MUTED, font=self.fonts["button"])
+        cancel = ctk.CTkButton(buttons, text="Cancelar", command=self._close_add_modal, fg_color="transparent", hover_color="#E5E7EB", text_color=COLOR_TEXT_MUTED, font=self.fonts["button"])
         cancel.pack(side="left")
 
-        self.save_button = ctk.CTkButton(buttons, text="Guardar", command=self.save_action, fg_color=COLOR_ACCENT, hover_color=COLOR_ACCENT_DARK, text_color=COLOR_TEXT_LIGHT, font=self.fonts["button"])
+        self.save_button = ctk.CTkButton(buttons, text="Guardar", command=self.save_action, fg_color=COLOR_ACCENT, hover_color=COLOR_ACCENT_DARK, text_color=COLOR_WHITE, font=self.fonts["button"])
         self.save_button.pack(side="right")
 
         modal.protocol("WM_DELETE_WINDOW", self._close_add_modal)
@@ -630,44 +588,14 @@ class VaultView(BaseView):
         self.password_entry = None
         self.save_button = None
 
+    # ------------------------------------------------------------------
+    # Helpers de navegación y eventos
+    # ------------------------------------------------------------------
     def _go_home(self):
         self.controller.show_main_view(self.username)
 
     def _go_profile(self):
         self.controller.show_profile_view(self.username)
 
-    # ------------------------------------------------------------------
-    # Eventos y helpers
-    # ------------------------------------------------------------------
-    def _on_resize(self, event):
-        if event.widget is self:
-            width = max(event.width, 800)
-            if width != self._hero_bg_width and self.hero_bg_label and self.hero_bg_source:
-                self._hero_bg_width = width
-                resized = self.hero_bg_source.resize((width, HERO_HEIGHT))
-                self.hero_bg_image = ctk.CTkImage(resized, size=(width, HERO_HEIGHT))
-                self.hero_bg_label.configure(image=self.hero_bg_image)
-                # store a reference to the image to prevent it from being garbage collected
-                # use setattr to avoid static type checker errors about unknown attributes
-                setattr(self.hero_bg_label, "image", self.hero_bg_image)
-
     def _on_search_change(self, *_):
         self._filter_credentials()
-
-    def _on_search_submit(self):
-        self._filter_credentials()
-
-    def _format_username(self, value: str) -> str:
-        if "@" in value:
-            value = value.split("@", 1)[0]
-        return value.title()
-
-    def _get_initials(self, value: str) -> str:
-        if not value:
-            return "EU"
-        if "@" in value:
-            value = value.split("@", 1)[0]
-        parts = [part for part in value.replace("_", " ").replace(".", " ").split() if part]
-        if len(parts) >= 2:
-            return (parts[0][0] + parts[1][0]).upper()
-        return value[:2].upper()

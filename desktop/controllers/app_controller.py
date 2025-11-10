@@ -17,17 +17,13 @@ class AppController:
     """
     def __init__(self, root):
         self.root = root
-        # Configurar tamaño mínimo de la ventana principal
-        self.root.geometry("1024x768")  # Tamaño inicial
-        self.root.resizable(True, True)  # Permitir redimensionar
-        
-        def ensure_min_size():
-            w, h = self.root.winfo_width(), self.root.winfo_height()
-            if w < 1024 or h < 768:
-                self.root.geometry(f"{max(w, 1024)}x{max(h, 768)}")
-            self.root.after(100, ensure_min_size)
-        
-        self.root.after(100, ensure_min_size)
+        self.root.geometry("1024x640")
+        self.root.resizable(True, True)
+        try:
+            self.root.minsize(1024, 600)
+            self.root.maxsize(1200, 720)
+        except Exception:
+            pass
         
         self.current_view = None
         self.api_client = APIClient(base_url="https://encryptu.onrender.com") 

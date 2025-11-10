@@ -2,19 +2,9 @@ import customtkinter as ctk
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from PIL import Image, ImageDraw
-
-try:
-    import pywinstyles  # type: ignore
-except ImportError:
-    pywinstyles = None  # type: ignore
+from PIL import Image
 
 COLOR_BACKGROUND = "#F4F6FB"
-COLOR_HERO = "#FFFFFF"
-COLOR_TOP_TEXT_PRIMARY = "#0F172A"
-COLOR_TOP_TEXT_MUTED = "#64748B"
-COLOR_HERO_TEXT_PRIMARY = "#FFFFFF"
-COLOR_HERO_TEXT_MUTED = "#B6B6B6"
 COLOR_BOTTOM_CARD = "#FFFFFF"
 COLOR_BOTTOM_CARD_SOFT = "#FBFCFF"
 COLOR_BOTTOM_BORDER = "#E2E8F0"
@@ -32,12 +22,11 @@ COLOR_CLIENT = "#FFF0F3"
 COLOR_CLIENT_TEXT = "#9F1239"
 
 SUPPORT_REASONS = ["Soporte", "Consulta"]
-GRADIENT_PATH = "desktop/controllers/img/bannerEncryptU.png"
-HERO_HEIGHT = 130
 TICKETS_REFRESH_MS = 15_000
 MESSAGES_REFRESH_MS = 5_000
 TAB_PENDING = "pending"
 TAB_RESOLVED = "resolved"
+BLACK_LOGO_PATH = "desktop/controllers/img/Blacklogo.png"
 
 STATUS_LABELS = {
     "open": "Abierto",
@@ -71,12 +60,8 @@ class SupportView(BaseView):
         self.username = username or "Usuario"
 
         self.fonts = self._build_fonts()
-        self.transparent_color = "#000001"
-        self._transparent_widgets = []
-        self.hero_source = self._load_gradient()
-        self.hero_image: Optional[ctk.CTkImage] = None
-        self.hero_label: Optional[ctk.CTkLabel] = None
-        self._hero_image_ref: Optional[ctk.CTkImage] = None
+        self.back_button: Optional[ctk.CTkButton] = None
+        self.logo_image = self._load_logo_image()
 
         self.support_tickets: List[Dict[str, Any]] = []
         self.pending_tickets: List[Dict[str, Any]] = []
@@ -113,9 +98,7 @@ class SupportView(BaseView):
         self._build_layout()
         self.filter_var.trace_add("write", lambda *_: self._render_ticket_list())
         self.tab_var.trace_add("write", lambda *_: self._handle_tab_change())
-        self.bind("<Configure>", self._handle_resize)
         self.after(200, self.refresh_tickets)
-        self.after(100, self._apply_transparencies)
 
     # ------------------------------------------------------------------
     # Construccion
@@ -130,150 +113,84 @@ class SupportView(BaseView):
             "body": ctk.CTkFont(size=14),
             "small": ctk.CTkFont(size=13),
             "button": ctk.CTkFont(size=15, weight="bold"),
+            "icon": ctk.CTkFont(size=20, weight="bold"),
         }
 
-    def _make_transparent(self, widget):
-        if pywinstyles is None or widget is None:
-            return
-
-        # Avoid forcing Windows color-key transparency on widgets that render
-        # text directly, otherwise ClearType is lost and the font looks jagged.
+    def _load_logo_image(self) -> ctk.CTkImage:
         try:
-            if isinstance(widget, ctk.CTkButton):
-                return
-            if isinstance(widget, ctk.CTkLabel):
-                has_text = bool(widget.cget("text"))
-                has_image = bool(widget.cget("image"))
-                if has_text and not has_image:
-                    return
+            logo = Image.open(BLACK_LOGO_PATH)
+            target_height = 168 
+            aspect_ratio = logo.width / logo.height if logo.height else 1
+            size = (int(target_height * aspect_ratio), target_height)
+            return ctk.CTkImage(light_image=logo, dark_image=logo, size=size)
         except Exception:
-            return
+            fallback = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+            return ctk.CTkImage(light_image=fallback, dark_image=fallback, size=(1, 1))
 
-        if hasattr(widget, "configure") and hasattr(widget, "winfo_id"):
-            try:
-                widget.configure(bg_color=self.transparent_color)
-                self._transparent_widgets.append(widget)
-            except Exception:
-                pass
-
-    def _apply_transparencies(self):
-        if pywinstyles is None:
-            return
-        for widget in self._transparent_widgets:
-            if hasattr(widget, "winfo_id"):
-                try:
-                    pywinstyles.set_opacity(widget.winfo_id(), color=self.transparent_color)
-                except Exception as exc:
-                    print(f"Error al aplicar transparencia: {exc}")
-
-    def _load_gradient(self) -> Image.Image:
-        width = 1600
-        height = HERO_HEIGHT
-        try:
-            base = Image.open(GRADIENT_PATH).convert("RGBA")
-            base = base.resize((width, height))
-        except Exception:
-            base = Image.new("RGBA", (width, height), "#FFFFFF")
-
-        overlay = Image.new("RGBA", (width, height), (255, 255, 255, 0))
-        draw = ImageDraw.Draw(overlay)
-        draw.ellipse(
-            (-220, -180, 420, height + 220),
-            fill=(242, 138, 162, 90),
-        )
-        draw.ellipse(
-            (width - 520, -200, width + 80, height + 240),
-            fill=(184, 215, 255, 110),
-        )
-        draw.rectangle((0, height - 40, width, height), fill=(255, 255, 255, 180))
-        combined = Image.alpha_composite(base, overlay)
-        return combined.convert("RGB")
+ 
 
     def _build_layout(self):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
-        self._build_hero()
+        self._build_header()
         self._build_body()
 
-    def _build_hero(self):
-        hero = ctk.CTkFrame(self, fg_color=COLOR_HERO)
-        hero.grid(row=0, column=0, sticky="nsew")
-        hero.grid_propagate(False)
-        hero.configure(height=HERO_HEIGHT)
-        hero.grid_columnconfigure(0, weight=1)
-        self._make_transparent(hero)
+    def _build_header(self):
+        header = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
+        header.grid(row=0, column=0, sticky="ew", padx=28, pady=(20, 12))
+        header.grid_columnconfigure(1, weight=1)
+        header.grid_columnconfigure(2, weight=0)
 
-        self.hero_image = ctk.CTkImage(self.hero_source, size=(self.hero_source.width, HERO_HEIGHT))
-        self.hero_label = ctk.CTkLabel(hero, text="", image=self.hero_image)
-        self.hero_label.place(relx=0.5, rely=0.5, anchor="center", relwidth=1, relheight=1)
-        self._make_transparent(self.hero_label)
-
-        content = ctk.CTkFrame(hero, fg_color="transparent")
-        content.pack(expand=True, fill="both", padx=36, pady=18)
-        content.grid_columnconfigure(0, weight=1)
-        self._make_transparent(content)
-
-        header_row = ctk.CTkFrame(content, fg_color="transparent")
-        header_row.grid(row=0, column=0, sticky="ew")
-        header_row.grid_columnconfigure(0, weight=1)
-        self._make_transparent(header_row)
-
-        brand = ctk.CTkFrame(header_row, fg_color="transparent")
-        brand.grid(row=0, column=0, sticky="w")
-        brand_label = ctk.CTkLabel(brand, text="Encrypt", font=self.fonts["logo"], text_color=COLOR_HERO_TEXT_PRIMARY)
-        brand_label.pack(side="left")
-        brand_accent = ctk.CTkLabel(brand, text="U", font=self.fonts["logo"], text_color=COLOR_PRIMARY)
-        brand_accent.pack(side="left", padx=(2, 0))
-        self._make_transparent(brand)
-        self._make_transparent(brand_label)
-        self._make_transparent(brand_accent)
-
-        back_button = ctk.CTkButton(
-            header_row,
-            text="Volver al inicio",
+        self.back_button = ctk.CTkButton(
+            header,
+            text="<",
             command=lambda: self.controller.show_main_view(self.username),
-            fg_color="#FFFFFF",
-            hover_color="#FFE6EC",
+            fg_color="transparent",
+            hover_color="#E2E8F0",
             text_color=COLOR_PRIMARY,
-            font=self.fonts["button"],
-            corner_radius=18,
+            font=self.fonts["icon"],
+            width=44,
+            height=44,
+            corner_radius=16,
             border_width=1,
             border_color=COLOR_PRIMARY,
-            height=38,
-            width=150,
         )
-        back_button.grid(row=0, column=1, sticky="e")
-        self._make_transparent(back_button)
+        self.back_button.grid(row=0, column=0, rowspan=2, sticky="w")
+
+        title_block = ctk.CTkFrame(header, fg_color="transparent")
+        title_block.grid(row=0, column=1, sticky="w", padx=(16, 0))
+        title_block.grid_columnconfigure(0, weight=1)
 
         badge = ctk.CTkLabel(
-            header_row,
-            text="Soporte · Desktop",
+            title_block,
+            text="Soporte - Desktop",
             font=self.fonts["small"],
-            text_color=COLOR_HERO_TEXT_MUTED,
+            text_color=COLOR_TEXT_MUTED,
         )
-        badge.grid(row=1, column=0, sticky="w", pady=(4, 0))
-        self._make_transparent(badge)
+        badge.grid(row=0, column=0, sticky="w")
 
         title = ctk.CTkLabel(
-            content,
+            title_block,
             text="Centro de soporte",
             font=self.fonts["hero_title"],
-            text_color=COLOR_HERO_TEXT_PRIMARY,
+            text_color=COLOR_TEXT_PRIMARY,
         )
-        title.grid(row=1, column=0, sticky="w", pady=(4, 2))
-        self._make_transparent(title)
+        title.grid(row=1, column=0, sticky="w")
 
         subtitle = ctk.CTkLabel(
-            content,
+            header,
             text="Consulta tus tickets, conversa con el equipo y crea nuevas solicitudes.",
             font=self.fonts["hero_sub"],
-            text_color=COLOR_HERO_TEXT_MUTED,
+            text_color=COLOR_TEXT_MUTED,
         )
-        subtitle.grid(row=2, column=0, sticky="w")
-        self._make_transparent(subtitle)
+        subtitle.grid(row=1, column=1, sticky="w", padx=(16, 0))
 
-        divider = ctk.CTkFrame(hero, fg_color=COLOR_BOTTOM_BORDER, height=1)
-        divider.pack(fill="x", side="bottom")
+        logo_label = ctk.CTkLabel(
+            header,
+            text="",
+            image=self.logo_image,
+        )
+        logo_label.grid(row=0, column=2, rowspan=2, sticky="e", padx=(16, 0))
 
     def _build_body(self):
         wrapper = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
@@ -1255,13 +1172,3 @@ class SupportView(BaseView):
         self._cancel_refresh_jobs()
         super().destroy()
 
-    def _handle_resize(self, event):
-        if event.widget is self and self.hero_label and self.hero_source:
-            width = max(event.width, 900)
-            resized = self.hero_source.resize((width, HERO_HEIGHT))
-            self.hero_image = ctk.CTkImage(resized, size=(width, HERO_HEIGHT))
-            self.hero_label.configure(image=self.hero_image)
-            # keep a strong reference to the image on the view to avoid GC and
-            # avoid assigning to a non-existent 'image' attribute on CTkLabel.
-            self._hero_image_ref = self.hero_image
-            
