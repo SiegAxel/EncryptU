@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 /* Tipos */
 type Ticket = {
@@ -27,6 +27,43 @@ export default function TicketsPageClient({ tickets = [] as Ticket[] }) {
     const [sendingId, setSendingId] = useState<number | null>(null);
     const [draftById, setDraftById] = useState<Record<number, string>>({});
     const [filter, setFilter] = useState("");
+
+    useEffect(() => {
+  if (!openId) return;
+
+  let cancelled = false;
+  let timer: number | undefined;
+  let etag: string | undefined;
+
+  const poll = async () => {
+    try {
+      const res = await fetch(`/api/userTicket?ticketId=${openId}`, {
+        cache: "no-store",
+        headers: etag ? { "If-None-Match": etag } : {},
+      });
+      if (res.status === 200) {
+        etag = res.headers.get("ETag") || undefined;
+        const json = await res.json();
+        if (!cancelled && json?.ok) {
+          setMessagesById(prev => ({ ...prev, [openId]: json.messages as Message[] }));
+        }
+      }
+      // 304 => sin cambios
+    } catch {
+      // ignorar y reintentar en el próximo tick
+    } finally {
+      if (!cancelled) {
+        timer = window.setTimeout(poll, 4000) as unknown as number;
+      }
+    }
+  };
+
+  poll();
+  return () => {
+    cancelled = true;
+    if (timer) window.clearTimeout(timer);
+  };
+}, [openId]);
 
     /* Helpers de formato */
     const fmtDT = (iso: string) =>

@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyToken, type TokenPayload } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import crypto from "crypto";
+
 
 export const runtime = "nodejs";
 
-// GET /api/userTicket?ticketId=123  -> mensajes (ya lo tenías)
+// GET /api/userTicket?ticketId=123  -> mensajes
 export async function GET(req: Request) {
   const token = (await cookies()).get("auth")?.value;
   if (!token) return NextResponse.json({ ok: false, error: "No autenticado" }, { status: 401 });
@@ -30,9 +32,20 @@ export async function GET(req: Request) {
     select: { id: true, author: true, name: true, body: true, createdAt: true },
   });
 
-  return NextResponse.json({ ok: true, messages });
-}
+  // 👇 NUEVO: ETag + no-cache (para polling eficiente)
+  const etag = '"' + crypto.createHash("sha1")
+    .update(JSON.stringify(messages.map(m => m.id)))
+    .digest("hex") + '"';
 
+  const ifNoneMatch = req.headers.get("if-none-match");
+  const headers = { "Cache-Control": "no-cache", "ETag": etag };
+
+  if (ifNoneMatch === etag) {
+    return new NextResponse(null, { status: 304, headers });
+  }
+
+  return NextResponse.json({ ok: true, messages }, { headers });
+}
 // POST /api/userTicket   body: { ticketId:number, body:string }
 export async function POST(req: Request) {
   const token = (await cookies()).get("auth")?.value;
