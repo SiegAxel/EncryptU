@@ -27,7 +27,8 @@ class App(ctk.CTk):
         self.title("EncryptU Desktop")
         self.geometry("1024x768")  # Tamaño inicial ajustado
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
-        
+        self._drag_data = {}
+
         # Mejorar la calidad del texto en Windows
         if sys.platform.startswith('win'):
             try:
@@ -38,6 +39,49 @@ class App(ctk.CTk):
 
         self.controller = AppController(self)
         self.controller.start_app() # <--- Cambio Clave
+
+    def register_drag_handle(self, widget, *, window=None, direct_only=False):
+        target = window or self
+        if not isinstance(target, (ctk.CTk, ctk.CTkToplevel)):
+            return
+        widget.bind(
+            "<ButtonPress-1>",
+            lambda event, win=target, src=widget, direct=direct_only: self._start_window_drag(event, win, src, direct),
+            add="+",
+        )
+        widget.bind("<B1-Motion>", lambda event, win=target: self._perform_window_drag(event, win), add="+")
+        widget.bind("<ButtonRelease-1>", lambda _event, win=target: self._stop_window_drag(win), add="+")
+
+    def _start_window_drag(self, event, window, source, direct_only):
+        if direct_only and event.widget is not source:
+            return
+        offset_x = event.x_root - window.winfo_x()
+        offset_y = event.y_root - window.winfo_y()
+        self._drag_data[window] = (offset_x, offset_y)
+
+    def _perform_window_drag(self, event, window):
+        offset = self._drag_data.get(window)
+        if not offset:
+            return
+        try:
+            if hasattr(window, "state") and callable(window.state):
+                if window.state() == "zoomed":
+                    return
+        except Exception:
+            pass
+        x = event.x_root - offset[0]
+        y = event.y_root - offset[1]
+        window.geometry(f"+{x}+{y}")
+
+    def _stop_window_drag(self, window):
+        self._drag_data.pop(window, None)
+
+    def make_child_borderless(self, window: ctk.CTkToplevel):
+        # En esta configuración devolvemos los bordes por defecto del sistema operativo.
+        try:
+            window.overrideredirect(False)
+        except Exception:
+            pass
 
     def on_closing(self):
         self.controller.on_closing()
