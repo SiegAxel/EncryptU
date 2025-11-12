@@ -110,6 +110,7 @@ class SupportView(BaseView):
             "logo": ctk.CTkFont(family="Arial", size=28, weight="bold"),
             "section": ctk.CTkFont(size=20, weight="bold"),
             "badge": ctk.CTkFont(size=13, weight="bold"),
+            "form_label": ctk.CTkFont(size=14, weight="bold"),
             "body": ctk.CTkFont(size=14),
             "small": ctk.CTkFont(size=13),
             "button": ctk.CTkFont(size=15, weight="bold"),
@@ -191,6 +192,7 @@ class SupportView(BaseView):
             image=self.logo_image,
         )
         logo_label.grid(row=0, column=2, rowspan=2, sticky="e", padx=(16, 0))
+        self.register_drag_handle(header)
 
     def _build_body(self):
         wrapper = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
@@ -912,54 +914,130 @@ class SupportView(BaseView):
         self.send_button.configure(state="normal")
 
     def _open_new_ticket_modal(self):
-        modal = ctk.CTkToplevel(self)
-        modal.title("Nuevo ticket de soporte")
-        modal.geometry("520x520")
-        modal.resizable(False, False)
+        modal, body = self.build_modal_shell(
+            title="Nuevo ticket de soporte",
+            subtitle="Describe tu solicitud para que el equipo pueda ayudarte en minutos.",
+            badge="Centro de soporte",
+            width=640,
+            height=720,
+        )
 
-        form = ctk.CTkFrame(modal, fg_color=COLOR_BOTTOM_CARD, corner_radius=20)
-        form.pack(expand=True, fill="both", padx=18, pady=18)
-        form.grid_columnconfigure(0, weight=1)
+        info_card = ctk.CTkFrame(body, fg_color=COLOR_CLIENT, corner_radius=18)
+        info_card.pack(fill="x", pady=(0, 18))
+        ctk.CTkLabel(
+            info_card,
+            text="Tus mensajes quedan registrados en el historial del equipo. Recibiras una notificacion cuando respondan.",
+            font=self.fonts["body"],
+            text_color=COLOR_CLIENT_TEXT,
+            wraplength=520,
+            justify="left",
+        ).pack(anchor="w", padx=20, pady=18)
 
-        ctk.CTkLabel(form, text="Crear ticket", font=self.fonts["section"], text_color=COLOR_TEXT_PRIMARY).grid(row=0, column=0, sticky="w", pady=(12, 4))
-        ctk.CTkLabel(form, text="Cuentanos en que podemos ayudarte.", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED).grid(row=1, column=0, sticky="w", pady=(0, 12))
+        form = ctk.CTkFrame(body, fg_color="transparent")
+        form.pack(fill="both", expand=True)
 
-        first_name_entry = ctk.CTkEntry(form, placeholder_text="Nombre", fg_color=COLOR_BOTTOM_CARD, border_width=0)
-        first_name_entry.grid(row=2, column=0, sticky="ew", pady=6)
+        def add_entry(parent, *, label_text: str, placeholder: str, **entry_kwargs) -> ctk.CTkEntry:
+            ctk.CTkLabel(parent, text=label_text, font=self.fonts["form_label"], text_color=COLOR_TEXT_PRIMARY).pack(
+                anchor="w", pady=(0, 4)
+            )
+            entry = ctk.CTkEntry(
+                parent,
+                placeholder_text=placeholder,
+                fg_color=COLOR_BOTTOM_CARD_SOFT,
+                text_color=COLOR_TEXT_PRIMARY,
+                border_color=COLOR_BOTTOM_BORDER,
+                border_width=1,
+                corner_radius=14,
+                height=44,
+                font=self.fonts["body"],
+                **entry_kwargs,
+            )
+            entry.pack(fill="x")
+            return entry
 
-        last_name_entry = ctk.CTkEntry(form, placeholder_text="Apellido", fg_color=COLOR_BOTTOM_CARD, border_width=0)
-        last_name_entry.grid(row=3, column=0, sticky="ew", pady=6)
+        names_row = ctk.CTkFrame(form, fg_color="transparent")
+        names_row.pack(fill="x", pady=(0, 14))
 
-        email_entry = ctk.CTkEntry(form, placeholder_text="Correo", fg_color=COLOR_BOTTOM_CARD, border_width=0)
-        email_entry.grid(row=4, column=0, sticky="ew", pady=6)
+        first_slot = ctk.CTkFrame(names_row, fg_color="transparent")
+        first_slot.pack(side="left", expand=True, fill="x", padx=(0, 6))
+        first_name_entry = add_entry(first_slot, label_text="Nombre", placeholder="Felipe")
+
+        last_slot = ctk.CTkFrame(names_row, fg_color="transparent")
+        last_slot.pack(side="left", expand=True, fill="x", padx=(6, 0))
+        last_name_entry = add_entry(last_slot, label_text="Apellido", placeholder="Torres")
+
+        email_block = ctk.CTkFrame(form, fg_color="transparent")
+        email_block.pack(fill="x", pady=(0, 14))
+        email_entry = add_entry(email_block, label_text="Correo de contacto", placeholder="correo@encryptu.app")
+        email_entry.delete(0, "end")
         email_entry.insert(0, self.username)
 
-        phone_entry = ctk.CTkEntry(form, placeholder_text="Telefono (9 digitos)", fg_color=COLOR_BOTTOM_CARD, border_width=0)
-        phone_entry.grid(row=5, column=0, sticky="ew", pady=6)
+        phone_reason_row = ctk.CTkFrame(form, fg_color="transparent")
+        phone_reason_row.pack(fill="x", pady=(0, 14))
 
-        reason_option = ctk.CTkOptionMenu(form, values=SUPPORT_REASONS, fg_color=COLOR_BOTTOM_CARD, button_color=COLOR_PRIMARY, button_hover_color=COLOR_PRIMARY_DARK)
-        reason_option.grid(row=6, column=0, sticky="ew", pady=6)
+        phone_slot = ctk.CTkFrame(phone_reason_row, fg_color="transparent")
+        phone_slot.pack(side="left", expand=True, fill="x", padx=(0, 6))
+        phone_entry = add_entry(phone_slot, label_text="Telefono (9 digitos)", placeholder="912345678")
 
-        description_box = ctk.CTkTextbox(form, height=120, fg_color=COLOR_BOTTOM_CARD, border_width=0)
-        description_box.grid(row=7, column=0, sticky="ew", pady=12)
+        reason_slot = ctk.CTkFrame(phone_reason_row, fg_color="transparent")
+        reason_slot.pack(side="left", expand=True, fill="x", padx=(6, 0))
+        ctk.CTkLabel(reason_slot, text="Motivo", font=self.fonts["form_label"], text_color=COLOR_TEXT_PRIMARY).pack(
+            anchor="w", pady=(0, 4)
+        )
+        reason_option = ctk.CTkOptionMenu(
+            reason_slot,
+            values=SUPPORT_REASONS,
+            fg_color=COLOR_BOTTOM_CARD_SOFT,
+            button_color=COLOR_PRIMARY,
+            button_hover_color=COLOR_PRIMARY_DARK,
+            text_color=COLOR_TEXT_PRIMARY,
+            dropdown_fg_color="#FFFFFF",
+            dropdown_text_color=COLOR_TEXT_PRIMARY,
+            font=self.fonts["body"],
+        )
+        reason_option.pack(fill="x")
+
+        description_block = ctk.CTkFrame(form, fg_color="transparent")
+        description_block.pack(fill="both", expand=True, pady=(0, 14))
+        ctk.CTkLabel(
+            description_block,
+            text="Descripcion",
+            font=self.fonts["form_label"],
+            text_color=COLOR_TEXT_PRIMARY,
+        ).pack(anchor="w", pady=(0, 4))
+        description_box = ctk.CTkTextbox(
+            description_block,
+            height=160,
+            fg_color=COLOR_BOTTOM_CARD_SOFT,
+            text_color=COLOR_TEXT_PRIMARY,
+            border_color=COLOR_BOTTOM_BORDER,
+            border_width=1,
+            corner_radius=16,
+            font=self.fonts["body"],
+            wrap="word",
+        )
+        description_box.pack(fill="both", expand=True)
 
         status_label = ctk.CTkLabel(form, text="", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
-        status_label.grid(row=8, column=0, sticky="w", pady=(0, 8))
+        status_label.pack(anchor="w", pady=(4, 0))
 
-        button_row = ctk.CTkFrame(form, fg_color="transparent")
-        button_row.grid(row=9, column=0, sticky="ew", pady=(0, 12))
-        button_row.grid_columnconfigure(0, weight=1)
+        button_row = ctk.CTkFrame(body, fg_color="transparent")
+        button_row.pack(fill="x", pady=(12, 0))
 
         cancel_button = ctk.CTkButton(
             button_row,
             text="Cancelar",
             command=modal.destroy,
-            fg_color="transparent",
-            hover_color="#F3F4F6",
+            fg_color="#FFFFFF",
+            hover_color="#F8FAFC",
+            border_width=1,
+            border_color=COLOR_BOTTOM_BORDER,
             text_color=COLOR_TEXT_MUTED,
+            corner_radius=22,
+            height=46,
             font=self.fonts["button"],
         )
-        cancel_button.grid(row=0, column=0, sticky="w")
+        cancel_button.pack(side="left", padx=(0, 8), expand=True, fill="x")
 
         def submit():
             first_name = first_name_entry.get().strip()
@@ -1016,11 +1094,11 @@ class SupportView(BaseView):
             fg_color=COLOR_ACCENT,
             hover_color=COLOR_ACCENT_DARK,
             text_color="#F8FAFC",
+            corner_radius=22,
+            height=46,
             font=self.fonts["button"],
         )
-        submit_button.grid(row=0, column=1, sticky="e")
-
-        modal.grab_set()
+        submit_button.pack(side="right", padx=(8, 0), expand=True, fill="x")
 
     # ------------------------------------------------------------------
     # Utilidades

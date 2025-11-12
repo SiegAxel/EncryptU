@@ -145,8 +145,7 @@ class AppController:
     def get_saved_passwords(self):
         passwords = self.api_client.list_files()
         if passwords is None:
-            print("Token invalido al listar archivos. Forzando logout.")
-            self.handle_logout()
+            print("No se pudieron obtener las credenciales desde la API. La sesión continúa activa.")
             return None
         return passwords
 
@@ -179,10 +178,9 @@ class AppController:
             combined_filename = f"{site} | {username}"
             encrypted_data = encriptar_contraseña(password, site, self.master_key.encode('utf-8'))
             result = self.api_client.upload_password_data(filename=combined_filename, content=encrypted_data)
-            
-            if result is None: 
-                self.handle_logout()
-            
+
+            if result is None:
+                print("La API rechazó la subida de la credencial, pero no se cerrará la sesión del usuario.")
             return result is not None
         except Exception as e:
             print(f"Error durante la encriptacion o subida: {e}")
@@ -191,7 +189,6 @@ class AppController:
 
     def handle_delete_password(self, file_id: int) -> bool:
         success = self.api_client.delete_file(file_id)
-        if not success: self.handle_logout()
         return success
 
     def handle_decrypt_password(self, file_id: int, site: str, user_provided_master_key: str) -> str | None:
@@ -201,9 +198,10 @@ class AppController:
                 return desencriptar_contraseña(encrypted_content, site, user_provided_master_key.encode('utf-8'))
             except Exception:
                 return None
-        else:
-            self.handle_logout()
         return None
+
+    def handle_get_encrypted_password(self, file_id: int) -> bytes | None:
+        return self.api_client.download_password_data(file_id)
 
     # --- Metodos de soporte ---
     def get_support_tickets(self, force_refresh: bool = False) -> Optional[List[Dict[str, Any]]]:
@@ -212,7 +210,6 @@ class AppController:
 
         tickets = self.api_client.list_support_tickets()
         if tickets is None:
-            self.handle_logout()
             return None
 
         self.support_tickets_cache = tickets
@@ -224,7 +221,6 @@ class AppController:
 
         messages = self.api_client.get_support_ticket_messages(ticket_id)
         if messages is None:
-            self.handle_logout()
             return None
 
         self.support_messages_cache[ticket_id] = messages
@@ -237,7 +233,6 @@ class AppController:
 
         result = self.api_client.send_support_message(ticket_id, body)
         if result is None:
-            self.handle_logout()
             return False
         if isinstance(result, dict) and result.get("ok") is False:
             print(f"No se pudo enviar el mensaje de soporte: {result.get('error')}")
@@ -255,8 +250,7 @@ class AppController:
 
         response = self.api_client.create_support_ticket(cleaned_payload)
         if response is None:
-            self.handle_logout()
-            return False, None, "Tu sesion ha expirado. Inicia sesion nuevamente."
+            return False, None, "No pudimos contactar al servidor. Intenta nuevamente."
 
         if isinstance(response, dict):
             if response.get("ok") is False:

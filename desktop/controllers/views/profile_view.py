@@ -153,6 +153,7 @@ class ProfileView(BaseView):
 
         logo_label = ctk.CTkLabel(header, text="", image=self.logo_image)
         logo_label.grid(row=0, column=2, rowspan=2, sticky="e")
+        self.register_drag_handle(header)
 
     def _build_body(self):
         wrapper = ctk.CTkFrame(self, fg_color=COLOR_BACKGROUND)
