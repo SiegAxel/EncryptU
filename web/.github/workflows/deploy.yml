@@ -1,0 +1,48 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: web/package-lock.json
+    
+    - name: Install dependencies
+      run: |
+        cd web
+        npm ci
+    
+    - name: Build application
+      run: |
+        cd web
+        npm run build
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+    
+    - name: Verify installer file exists
+      run: |
+        cd web
+        ls -la public/downloads/
+        if [ ! -f "public/downloads/EncryptU-Setup-v1.0.0.exe" ]; then
+          echo "Warning: Installer file not found!"
+          exit 1
+        fi
+    
+    - name: Deploy to Render
+      run: |
+        echo "Build completed successfully!"
+        echo "Installer file is ready for deployment"
+        echo "Render will automatically deploy the updated build"

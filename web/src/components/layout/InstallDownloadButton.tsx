@@ -12,9 +12,9 @@ interface InstallDownloadButtonProps {
 }
 
 export default function InstallDownloadButton({
-  installerUrl = "/downloads/EncryptU-Setup.exe",
-  fileName = "EncryptU-Setup.exe",
-  size = "42.5 MB",
+  installerUrl = "/api/download-installer",
+  fileName = "EncryptU-Setup-v1.0.0.exe",
+  size = "45.2 MB",
   version = "v1.0.0",
   className = ""
 }: InstallDownloadButtonProps) {
@@ -24,16 +24,29 @@ export default function InstallDownloadButton({
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      // Simular descarga
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Hacer fetch directo al endpoint API
+      const response = await fetch(installerUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      // Crear blob del archivo
+      const blob = await response.blob();
+      
+      // Crear URL del blob
+      const blobUrl = window.URL.createObjectURL(blob);
       
       // Crear enlace de descarga
       const link = document.createElement('a');
-      link.href = installerUrl;
+      link.href = blobUrl;
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
+      
+      // Limpiar
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
       
       setDownloaded(true);
       setDownloading(false);
@@ -42,6 +55,15 @@ export default function InstallDownloadButton({
       setTimeout(() => setDownloaded(false), 3000);
     } catch (error) {
       console.error("Error downloading installer:", error);
+      // Fallback: intentar descarga directa
+      const link = document.createElement('a');
+      link.href = installerUrl;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
       setDownloading(false);
     }
   };
