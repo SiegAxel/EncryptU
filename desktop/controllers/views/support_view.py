@@ -49,7 +49,7 @@ REASON_BADGE_COLORS = {
 
  
 
-from .base_view import BaseView
+from desktop.controllers.views.base_view import BaseView
 
 class SupportView(BaseView):
     """Vista dedicada para la gestion de soporte y tickets de EncryptU."""

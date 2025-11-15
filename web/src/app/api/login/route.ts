@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signToken } from "@/lib/auth";
+import { verifyPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,8 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
       select: { id: true, name: true, email: true, passwordHash: true, role: true },
     });
 
-    if (!user || user.passwordHash !== password) {
+    // Verify password using Argon2
+    if (!user || !(await verifyPassword(user.passwordHash, password))) {
       return NextResponse.json<ApiResponse>(
         { ok: false, error: "Credenciales inválidas." },
         { status: 401 }

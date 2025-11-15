@@ -1,8 +1,9 @@
 import customtkinter as ctk
 from PIL import Image
 import os
+from desktop.config import resource_path
 
-from .base_view import BaseView
+from desktop.controllers.views.base_view import BaseView
 
 class LoginView(BaseView):
     """
@@ -18,15 +19,7 @@ class LoginView(BaseView):
         self.original_bg_image = None
         self.image_path = "" # Para depuración
         try:
-            # 1. Encontrar la carpeta raíz 'desktop'.
-            current_dir = os.path.dirname(__file__) # Directorio actual: .../app/views
-            desktop_dir = os.path.abspath(os.path.join(current_dir, '..', '..')) # Subimos dos niveles a .../desktop
-
-            # 2. Construimos la ruta correcta hacia tu carpeta de imágenes.
-            #    Ahora busca en desktop/controllers/img/bg.png
-            self.image_path = os.path.join(desktop_dir, "controllers", "img", "bg.png")
-            
-            # Guardamos la imagen original de PIL para redimensionarla después
+            self.image_path = resource_path(os.path.join("controllers", "img", "bg.png"))
             self.original_bg_image = Image.open(self.image_path)
             
             # Creamos la etiqueta que contendrá la imagen

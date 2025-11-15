@@ -1,12 +1,12 @@
-from .views.login_view import LoginView
-from .views.main_view import MainView
-from .views.profile_view import ProfileView
-from .views.support_view import SupportView
-from .views.vault_view import VaultView
-from .views.register_view import RegisterView
-from .api.api_client import APIClient
-from .models.encryption_model import encriptar_contraseña, desencriptar_contraseña
-from .models.session_manager import SessionManager
+from desktop.controllers.views.login_view import LoginView
+from desktop.controllers.views.main_view import MainView
+from desktop.controllers.views.profile_view import ProfileView
+from desktop.controllers.views.support_view import SupportView
+from desktop.controllers.views.vault_view import VaultView
+from desktop.controllers.views.register_view import RegisterView
+from desktop.controllers.api.api_client import APIClient
+from desktop.controllers.models.encryption_model import encriptar_contraseña, desencriptar_contraseña
+from desktop.controllers.models.session_manager import SessionManager
 import sys
 import customtkinter as ctk
 from typing import Any, Dict, List, Optional

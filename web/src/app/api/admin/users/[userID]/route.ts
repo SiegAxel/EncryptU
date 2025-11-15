@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/app/api/admin/requireAdmin";
+import { hashPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
@@ -38,8 +39,8 @@ export async function PATCH(
     if (body.password.length < 8) {
       return NextResponse.json({ ok: false, error: "Contraseña muy corta" }, { status: 400 });
     }
-    // ⚠️ Tú decidiste no re-hashear aquí porque llega protegida desde fuera
-    data.passwordHash = body.password;
+    // Hash the password using Argon2 before storing
+    data.passwordHash = await hashPassword(body.password);
   }
 
   if (typeof body.name === "string" && body.name.trim().length >= 2) {

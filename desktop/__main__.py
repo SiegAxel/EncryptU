@@ -1,6 +1,6 @@
 import customtkinter as ctk
-from .controllers.app_controller import AppController
-from .config import configure_appearance
+from desktop.controllers.app_controller import AppController
+from desktop.config import configure_appearance
 import sys
 from ctypes import windll
 import ctypes

@@ -1,8 +1,9 @@
 import customtkinter as ctk
 from PIL import Image
 from typing import Callable, Optional, Union
+from desktop.config import resource_path
 
-LOGO_PATH = "desktop/controllers/img/Blacklogo.png"
+LOGO_PATH = None
 
 COLOR_BACKGROUND = "#F4F6FB"
 COLOR_ACCENT = "#EE5A72"
@@ -45,7 +46,8 @@ class BaseView(ctk.CTkFrame):
 
     def _load_logo_image(self) -> ctk.CTkImage:
         try:
-            logo = Image.open(LOGO_PATH)
+            path = resource_path("controllers/img/Blacklogo.png")
+            logo = Image.open(path)
             target_height = 110
             aspect_ratio = logo.width / logo.height if logo.height else 1
             size = (int(target_height * aspect_ratio), target_height)

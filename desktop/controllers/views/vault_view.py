@@ -6,7 +6,8 @@ from typing import Callable, Dict, List, Optional
 import pyperclip
 from PIL import Image, ImageDraw
 
-from .base_view import BaseView
+from desktop.controllers.views.base_view import BaseView
+from desktop.config import resource_path
 
 # ----------------------------------------------------------------------
 # Paleta compartida con la vista de soporte
@@ -23,7 +24,7 @@ COLOR_SUCCESS = "#16A34A"
 COLOR_DANGER = "#DC2626"
 COLOR_WHITE = "#FFFFFF"
 
-BLACK_LOGO_PATH = "desktop/controllers/img/Blacklogo.png"
+BLACK_LOGO_PATH = None
 
 BADGE_COLOR_MAP = {
     "instagram": "#F472B6",
@@ -167,7 +168,8 @@ class VaultView(BaseView):
 
     def _load_logo_image(self) -> ctk.CTkImage:
         try:
-            logo = Image.open(BLACK_LOGO_PATH)
+            path = resource_path("controllers/img/Blacklogo.png")
+            logo = Image.open(path)
             target_height = 168
             aspect_ratio = logo.width / logo.height if logo.height else 1
             size = (int(target_height * aspect_ratio), target_height)

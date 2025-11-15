@@ -4,7 +4,7 @@ from typing import Dict, List
 
 from PIL import Image
 
-from .base_view import BaseView
+from desktop.controllers.views.base_view import BaseView
 
 # ----------------------------------------------------------------------
 # Paleta alineada con SupportView / VaultView

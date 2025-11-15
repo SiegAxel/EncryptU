@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Dict
 
-from .base_view import BaseView, COLOR_BACKGROUND
+from desktop.controllers.views.base_view import BaseView, COLOR_BACKGROUND
 
 COLOR_CARD = "#FFFFFF"
 COLOR_CARD_SOFT = "#FBFCFF"

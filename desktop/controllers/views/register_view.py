@@ -3,7 +3,7 @@ from PIL import Image
 import os
 import secrets # Importamos la librería para generar claves seguras
 
-from .base_view import BaseView
+from desktop.controllers.views.base_view import BaseView
 
 class RegisterView(BaseView):
     """

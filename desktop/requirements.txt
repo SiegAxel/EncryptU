@@ -1,0 +1,6 @@
+customtkinter==5.2.2
+darkdetect==0.8.0
+pillow==11.3.0
+requests==2.32.5
+cryptography==46.0.2
+pyperclip==1.11.0
