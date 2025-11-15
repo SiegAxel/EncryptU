@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 import { hashPassword } from "@/lib/password";
+import { assignFreePlanToUser } from "@/lib/subscription";
 
 export const runtime = "nodejs";
 
@@ -37,8 +38,11 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
     
     const user = await prisma.user.create({
       data: { name: name.trim(), email: normalizedEmail, passwordHash: hashedPassword },
-      select: { id: true },
+      select: { id: true, name: true, email: true },
     });
+
+    // Automatically assign free plan to new user
+    await assignFreePlanToUser(user.id);
 
     return NextResponse.json({ ok: true, id: user.id }, { status: 201 });
   } catch (err: unknown) {

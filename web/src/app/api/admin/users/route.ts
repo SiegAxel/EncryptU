@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/app/api/admin/requireAdmin";
 import { hashPassword } from "@/lib/password";
+import { assignFreePlanToUser } from "@/lib/subscription";
 
 export const runtime = "nodejs";
 
@@ -86,6 +87,9 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
       },
       select: { id: true, name: true, email: true, role: true },
     });
+
+    // Automatically assign free plan to new user
+    await assignFreePlanToUser(user.id);
 
     return NextResponse.json({ ok: true, user }, { status: 201 });
   } catch (err) {

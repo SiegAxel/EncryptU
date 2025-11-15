@@ -3,6 +3,7 @@ import io
 import secrets
 import datetime
 import re
+import requests
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Optional, List, Dict, Any
@@ -319,6 +320,21 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    # Automatically assign free plan to new user via web server API
+    try:
+        web_api_url = os.getenv("WEB_API_URL", "http://localhost:3000")
+        subscription_response = requests.post(
+            f"{web_api_url}/api/subscriptions/create-free",
+            json={"userId": new_user.id},
+            timeout=5
+        )
+        if subscription_response.status_code != 200:
+            print(f"⚠️ Warning: Could not assign free plan to user {new_user.id}")
+        else:
+            print(f"✅ Free plan assigned to user {new_user.id}")
+    except Exception as e:
+        print(f"⚠️ Warning: Error assigning free plan to user {new_user.id}: {e}")
     
     return new_user
 
