@@ -166,20 +166,20 @@ export class PDFReportGenerator {
     this.yPosition -= 10;
   }
 
-  async generateUsersReport(users: UserReportData[], title = 'Users Report') {
+  async generateUsersReport(users: UserReportData[], title = 'Reporte de Usuarios') {
     await this.initialize();
-    await this.addHeader(title, `Total Users: ${users.length}`);
+    await this.addHeader(title, `Total Usuarios: ${users.length}`);
 
-    const headers = ['ID', 'Email', 'Name', 'Role', 'Status', 'Created', 'Last Login', 'Subscription'];
+    const headers = ['ID', 'Email', 'Nombre', 'Rol', 'Estado', 'Creado', 'Último Acceso', 'Suscripción'];
     const data = users.map(user => [
       user.id, // Add ID field
       user.email,
       user.name,
       user.role,
-      user.isActive ? 'Active' : 'Inactive',
+      user.isActive ? 'Activo' : 'Inactivo',
       user.createdAt.toLocaleDateString(),
-      user.lastLogin?.toLocaleDateString() || 'Never',
-      user.subscription?.plan || 'Free'
+      user.lastLogin?.toLocaleDateString() || 'Nunca',
+      user.subscription?.plan || 'Gratuito'
     ]);
 
     const columnWidths = [40, 120, 100, 80, 70, 80, 80, 80]; // Added ID column width
@@ -220,19 +220,19 @@ export class ExcelReportGenerator {
   }
 
   async generateUsersReport(users: UserReportData[]) {
-    const worksheet = this.workbook.addWorksheet('Users Report');
+    const worksheet = this.workbook.addWorksheet('Reporte de Usuarios');
 
     // Headers
     worksheet.columns = [
       { header: 'ID', key: 'id', width: 10 },
       { header: 'Email', key: 'email', width: 30 },
-      { header: 'Name', key: 'name', width: 20 },
-      { header: 'Role', key: 'role', width: 15 },
-      { header: 'Status', key: 'status', width: 12 },
-      { header: 'Created Date', key: 'createdAt', width: 15 },
-      { header: 'Last Login', key: 'lastLogin', width: 15 },
-      { header: 'Subscription Plan', key: 'subscription', width: 20 },
-      { header: 'Subscription Status', key: 'subscriptionStatus', width: 20 }
+      { header: 'Nombre', key: 'name', width: 20 },
+      { header: 'Rol', key: 'role', width: 15 },
+      { header: 'Estado', key: 'status', width: 12 },
+      { header: 'Fecha de Creación', key: 'createdAt', width: 15 },
+      { header: 'Último Acceso', key: 'lastLogin', width: 15 },
+      { header: 'Plan de Suscripción', key: 'subscription', width: 20 },
+      { header: 'Estado de Suscripción', key: 'subscriptionStatus', width: 20 }
     ];
 
     // Style headers
@@ -250,10 +250,10 @@ export class ExcelReportGenerator {
         email: user.email,
         name: user.name,
         role: user.role,
-        status: user.isActive ? 'Active' : 'Inactive',
+        status: user.isActive ? 'Activo' : 'Inactivo',
         createdAt: user.createdAt.toLocaleDateString(),
-        lastLogin: user.lastLogin?.toLocaleDateString() || 'Never',
-        subscription: user.subscription?.plan || 'Free',
+        lastLogin: user.lastLogin?.toLocaleDateString() || 'Nunca',
+        subscription: user.subscription?.plan || 'Gratuito',
         subscriptionStatus: user.subscription?.status || 'N/A'
       });
     });

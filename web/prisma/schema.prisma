@@ -101,7 +101,7 @@ model ContactTicket {
   assignedTo User?         @relation("UserContactTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
   messages   TicketMessage[]
 
-  @@map("contact_ticket")
+  @@map("ContactTicket")
 }
 
 model TicketMessage {
@@ -116,7 +116,7 @@ model TicketMessage {
   // Relations
   ticket ContactTicket @relation(fields: [ticketId], references: [id], onUpdate: Cascade, onDelete: Restrict)
 
-  @@map("ticket_message")
+  @@map("TicketMessage")
 }
 
 model SubscriptionPlan {
@@ -133,7 +133,7 @@ model SubscriptionPlan {
   // Relations
   subscriptions UserSubscription[]
 
-  @@map("subscription_plan")
+  @@map("SubscriptionPlan")
 }
 
 model UserSubscription {
@@ -157,7 +157,7 @@ model UserSubscription {
   user User @relation(fields: [userId], references: [id], onUpdate: Cascade, onDelete: Cascade)
   plan SubscriptionPlan @relation(fields: [planId], references: [id], onUpdate: Cascade, onDelete: Restrict)
 
-  @@map("user_subscription")
+  @@map("UserSubscription")
 }
 
 model File {
