@@ -19,7 +19,7 @@ TEST_USER = {
 
 def test_registration():
     """Test user registration with Argon2 hashing"""
-    print("🔐 Testing user registration...")
+    print(" Testing user registration...")
     
     try:
         response = requests.post(
@@ -34,18 +34,18 @@ def test_registration():
         
         if response.status_code == 201:
             data = response.json()
-            print(f"✅ Registration successful! User ID: {data.get('id')}")
+            print(f" Registration successful! User ID: {data.get('id')}")
             return True
         else:
-            print(f"❌ Registration failed: {response.status_code} - {response.text}")
+            print(f" Registration failed: {response.status_code} - {response.text}")
             return False
     except Exception as e:
-        print(f"❌ Registration error: {e}")
+        print(f" Registration error: {e}")
         return False
 
 def test_login():
     """Test user login with Argon2 verification"""
-    print("🔑 Testing user login...")
+    print(" Testing user login...")
     
     try:
         response = requests.post(
@@ -59,26 +59,26 @@ def test_login():
         
         if response.status_code == 200:
             data = response.json()
-            print(f"✅ Login successful! Role: {data.get('role')}, Redirect: {data.get('redirect')}")
+            print(f" Login successful! Role: {data.get('role')}, Redirect: {data.get('redirect')}")
             
             # Check if we got a session token
             cookies = response.cookies
             if 'auth' in cookies:
-                print("✅ Session token received")
+                print(" Session token received")
                 return True
             else:
-                print("⚠️ No session token found in cookies")
+                print(" No session token found in cookies")
                 return False
         else:
-            print(f"❌ Login failed: {response.status_code} - {response.text}")
+            print(f" Login failed: {response.status_code} - {response.text}")
             return False
     except Exception as e:
-        print(f"❌ Login error: {e}")
+        print(f" Login error: {e}")
         return False
 
 def test_wrong_password():
     """Test login with wrong password to ensure security"""
-    print("🛡️ Testing wrong password rejection...")
+    print(" Testing wrong password rejection...")
     
     try:
         response = requests.post(
@@ -91,18 +91,18 @@ def test_wrong_password():
         )
         
         if response.status_code == 401:
-            print("✅ Wrong password correctly rejected")
+            print(" Wrong password correctly rejected")
             return True
         else:
-            print(f"❌ Wrong password accepted: {response.status_code} - {response.text}")
+            print(f" Wrong password accepted: {response.status_code} - {response.text}")
             return False
     except Exception as e:
-        print(f"❌ Wrong password test error: {e}")
+        print(f" Wrong password test error: {e}")
         return False
 
 def main():
     """Run all tests"""
-    print("🚀 Starting Argon2 Authentication Tests\n")
+    print(" Starting Argon2 Authentication Tests\n")
     
     # Test results
     results = {
@@ -123,13 +123,13 @@ def main():
         print()
     
     # Summary
-    print("📊 Test Results Summary:")
-    print(f"Registration: {'✅ PASS' if results['registration'] else '❌ FAIL'}")
-    print(f"Login: {'✅ PASS' if results['login'] else '❌ FAIL'}")
-    print(f"Wrong Password Rejection: {'✅ PASS' if results['wrong_password'] else '❌ FAIL'}")
+    print(" Test Results Summary:")
+    print(f"Registration: {' PASS' if results['registration'] else ' FAIL'}")
+    print(f"Login: {' PASS' if results['login'] else ' FAIL'}")
+    print(f"Wrong Password Rejection: {' PASS' if results['wrong_password'] else ' FAIL'}")
     
     all_passed = all(results.values())
-    print(f"\n{'🎉 All tests passed!' if all_passed else '⚠️ Some tests failed!'}")
+    print(f"\n{' All tests passed!' if all_passed else ' Some tests failed!'}")
     
     return all_passed
 

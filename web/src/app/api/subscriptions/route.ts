@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { requireAdmin } from "@/app/api/admin/requireAdmin";
 
 export const runtime = "nodejs";

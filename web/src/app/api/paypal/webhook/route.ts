@@ -65,7 +65,7 @@ export async function POST(req: Request) {
   }
 }
 
-async function handleSubscriptionCreated(resource: any) {
+async function handleSubscriptionCreated(resource: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
   // Find user by PayPal customer email
   const user = await prisma.user.findUnique({
     where: { email: resource.subscriber.email_address.toLowerCase() }
@@ -100,7 +100,7 @@ async function handleSubscriptionCreated(resource: any) {
   });
 }
 
-async function handleSubscriptionActivated(resource: any) {
+async function handleSubscriptionActivated(resource: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
   await prisma.userSubscription.updateMany({
     where: { paypalSubscriptionId: resource.id },
     data: {
@@ -111,7 +111,7 @@ async function handleSubscriptionActivated(resource: any) {
   });
 }
 
-async function handleSubscriptionCancelled(resource: any) {
+async function handleSubscriptionCancelled(resource: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
   await prisma.userSubscription.updateMany({
     where: { paypalSubscriptionId: resource.id },
     data: {
@@ -122,7 +122,7 @@ async function handleSubscriptionCancelled(resource: any) {
   });
 }
 
-async function handleSubscriptionSuspended(resource: any) {
+async function handleSubscriptionSuspended(resource: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
   await prisma.userSubscription.updateMany({
     where: { paypalSubscriptionId: resource.id },
     data: {
@@ -132,7 +132,7 @@ async function handleSubscriptionSuspended(resource: any) {
   });
 }
 
-async function handleSubscriptionExpired(resource: any) {
+async function handleSubscriptionExpired(resource: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
   await prisma.userSubscription.updateMany({
     where: { paypalSubscriptionId: resource.id },
     data: {
@@ -143,7 +143,7 @@ async function handleSubscriptionExpired(resource: any) {
   });
 }
 
-async function handlePaymentCompleted(resource: any) {
+async function handlePaymentCompleted(resource: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
   await prisma.userSubscription.updateMany({
     where: { paypalSubscriptionId: resource.billing_agreement_id },
     data: {

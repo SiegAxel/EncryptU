@@ -23,8 +23,8 @@ export async function GET(req: Request) {
 
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: Record<string, any> = {};
+    // Build where clause - eslint disabled for dynamic query building
+    const where: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
     
     if (status && status !== "all") {
       where.status = status;
@@ -58,13 +58,13 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      subscriptions: subscriptions.map((sub: any) => ({
+      subscriptions: subscriptions.map((sub: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
         id: sub.id,
         status: sub.status,
         startDate: sub.startDate,
         endDate: sub.endDate,
         nextBillingDate: sub.nextBillingDate,
-        amountPaid: sub.amountPaid,
+        amountPaid: sub.amountPaid.toString(),
         currency: sub.currency,
         paypalSubscriptionId: sub.paypalSubscriptionId,
         user: sub.user,
@@ -82,52 +82,6 @@ export async function GET(req: Request) {
 
   } catch (error) {
     console.error("Admin subscriptions error:", error);
-    return NextResponse.json(
-      { ok: false, error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH /api/admin/subscriptions/:id - Update subscription status
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  try {
-    const me = await requireAdmin();
-    if (!me) {
-      return NextResponse.json(
-        { ok: false, error: "Forbidden" },
-        { status: 403 }
-      );
-    }
-
-    const { id } = params;
-    const body = await req.json();
-    const { status, endDate, nextBillingDate } = body;
-
-    const subscription = await prisma.userSubscription.update({
-      where: { id: parseInt(id) },
-      data: {
-        status,
-        endDate: endDate ? new Date(endDate) : undefined,
-        nextBillingDate: nextBillingDate ? new Date(nextBillingDate) : undefined,
-        updatedAt: new Date()
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true }
-        },
-        plan: true
-      }
-    });
-
-    return NextResponse.json({
-      ok: true,
-      subscription,
-      message: "Subscription updated successfully"
-    });
-
-  } catch (error) {
-    console.error("Admin subscription update error:", error);
     return NextResponse.json(
       { ok: false, error: "Internal server error" },
       { status: 500 }
