@@ -319,14 +319,11 @@ export default function ContactPage() {
           <Card className="inline-block">
             <div className="flex flex-col items-center space-y-4">
               <img
-                src="/blanquito.png"
+                src="/negrito.png"
                 alt="EncryptU Logo"
                 className="h-16 w-auto"
               />
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  EncryptU
-                </h3>
                 <p className="text-sm text-gray-600">
                   Gestión de contraseñas segura
                 </p>
