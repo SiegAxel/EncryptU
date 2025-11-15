@@ -11,8 +11,6 @@ type User = {
   createdAt?: string;
 };
 
-type ApiError = { ok: false; error: string };
-type ApiSuccess = { ok: true; user: { id: number; name: string; email: string; role: Role } };
 
 interface CreateUserModalProps {
   isOpen: boolean;
