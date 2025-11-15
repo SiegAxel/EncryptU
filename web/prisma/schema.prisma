@@ -52,4 +52,63 @@ model User {
 
   // lado opuesto con el MISMO nombre de relación
   ticketsAssigned ContactTicket[] @relation("UserToTicket")
+  userSubscription UserSubscription[]
+  files File[]
+}
+
+// File model for password vault storage
+model File {
+  id        Int      @id @default(autoincrement())
+  ownerId   Int
+  filename  String   @db.VarChar
+  content   Bytes    @db.ByteA
+  createdAt DateTime @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@map("files")
+  @@index([id])
+}
+
+// Subscription plans model
+model SubscriptionPlan {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  paypalPlanId String   @unique
+  price        Decimal  @db.Decimal(10, 2)
+  billingCycle String   @default("monthly")
+  isActive     Boolean  @default(true)
+  features     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userSubscriptions UserSubscription[]
+}
+
+// User subscription tracking model
+model UserSubscription {
+  id                    Int       @id @default(autoincrement())
+  userId                Int
+  planId                Int
+  paypalSubscriptionId  String?
+  paypalCustomerId      String?
+  status                String    @default("active") // active, cancelled, expired, pending
+  startDate             DateTime  @default(now())
+  endDate               DateTime?
+  nextBillingDate       DateTime?
+  lastPaymentDate       DateTime?
+  amountPaid            Decimal   @default(0) @db.Decimal(10, 2)
+  currency              String    @default("USD")
+  metadata              Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@map("UserSubscription")
+  @@index([userId])
+  @@index([status])
+  @@index([paypalSubscriptionId])
+  @@index([nextBillingDate])
 }

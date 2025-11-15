@@ -11,6 +11,8 @@ interface Props {
   plan_id: string;
   isPopular?: boolean;
   detail: string;
+  isFree?: boolean;
+  downloadUrl?: string;
 }
 
 const PricingCard = ({
@@ -21,14 +23,23 @@ const PricingCard = ({
   plan_id,
   isPopular = false,
   detail,
+  isFree = false,
+  downloadUrl = "/marketing/instalacion",
 
 }: Props) => {
-  const accentColor = "red"; // Definimos el color de acento principal aquí
   const lightAccent = "red-50";
   const darkAccent = "red-900";
   const mainAccent = "red-600";
   const hoverAccent = "red-700";
   const ringAccent = "red-500";
+
+  const handlePlanClick = () => {
+    if (isFree) {
+      window.location.href = downloadUrl;
+    } else {
+      // PayPal integration will be handled by the hidden ButtonPaypal component
+    }
+  };
 
   return (
     <div
@@ -109,6 +120,7 @@ const PricingCard = ({
       {/* --- Botón de Acción (CTA) --- */}
       <div className="mt-auto">
         <div
+          onClick={handlePlanClick}
           className={`group relative flex h-12 w-full cursor-pointer items-center justify-center rounded-lg ${
             isPopular
               ? `bg-${mainAccent} text-white shadow-lg hover:bg-${hoverAccent}`
@@ -116,13 +128,15 @@ const PricingCard = ({
           }`}
         >
           <span className="text-lg font-semibold">
-            {isPopular ? "Empezar ahora" : "Elegir plan"}
+            {isFree ? "Descargar Gratis" : isPopular ? "Empezar ahora" : "Elegir plan"}
           </span>
-          <div className="absolute inset-0 opacity-0">
-            <PayPalProvider>
-              <ButtonPaypal planId={plan_id} />
-            </PayPalProvider>
-          </div>
+          {!isFree && (
+            <div className="absolute inset-0 opacity-0">
+              <PayPalProvider>
+                <ButtonPaypal planId={plan_id} />
+              </PayPalProvider>
+            </div>
+          )}
         </div>
       </div>
       <div className="mt-4">
