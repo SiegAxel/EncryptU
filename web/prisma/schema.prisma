@@ -29,7 +29,7 @@ model User {
   subscriptions    UserSubscription[]
   contactTickets   ContactTicket[] @relation("UserContactTickets")
 
-  @@map("users")
+  @@map("User")
 }
 
 model PasswordEntry {
