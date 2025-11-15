@@ -1,8 +1,9 @@
 "use client";
 import { useMemo, useState } from "react";
+import CreateUserModal from "@/components/admin/CreateUserModal";
 
 type Role = "usuario" | "soporte" | "admin";
-type User = { id: number; name: string; email: string; role: Role; createdAt: string };
+type User = { id: number; name: string; email: string; role: Role; createdAt?: string };
 
 const roles: Role[] = ["usuario", "soporte", "admin"];
 
@@ -11,6 +12,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
   const [activeRole, setActiveRole] = useState<Role>("usuario");
   const [q, setQ] = useState("");
   const [loadingId, setLoadingId] = useState<number | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const filtered = useMemo(() => {
     const subset = users.filter((u) => u.role === activeRole);
@@ -81,6 +83,17 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
+
+        {/* Create User Button */}
+        <div className="mt-4">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="w-full bg-green-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+            title="Crear nuevo usuario"
+          >
+            + Crear Usuario
+          </button>
+        </div>
       </aside>
 
       {/* LISTA / TABLA */}
@@ -126,7 +139,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
                     disabled={loadingId === u.id}
                   />
                   <p className="mt-1 text-xs text-slate-500">
-                    Creado: {new Date(u.createdAt).toLocaleDateString()}
+                    Creado: {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
                   </p>
                 </div>
 
@@ -167,6 +180,15 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
           </ul>
         )}
       </div>
+
+      {/* Create User Modal */}
+      <CreateUserModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onUserCreated={(newUser) => {
+          setUsers((list) => [...list, newUser]);
+        }}
+      />
     </div>
   );
 }
