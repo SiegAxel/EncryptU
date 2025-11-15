@@ -98,7 +98,7 @@ export default function InstalacionPage() {
             <Card>
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                  📋 Proceso de Instalación
+                   Proceso de Instalación
                 </h2>
 
                 <div className="space-y-6">
