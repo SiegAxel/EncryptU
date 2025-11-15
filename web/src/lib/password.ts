@@ -16,7 +16,7 @@ export class PasswordHasher {
    * Hash a password using Argon2id
    */
   static async hashPassword(password: string, options?: HashOptions): Promise<string> {
-    const hashOptions: any = {
+    const hashOptions: argon2.Options = {
       type: argon2.argon2id,
       memoryCost: options?.memoryCost || 65536, // 64 MB
       timeCost: options?.timeCost || 3,         // 3 iterations
