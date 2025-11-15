@@ -7,108 +7,71 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model ContactTicket {
-  id          Int      @id @default(autoincrement())
-  firstName   String
-  lastName    String
-  email       String
-  reason      String
-  phone       String
-  description String
-  createdAt   DateTime @default(now())
-
-  // NUEVO
-  status       String @default("open")
-  assignedToId Int?
-  assignedTo   User?  @relation("UserToTicket", fields: [assignedToId], references: [id])
-
-  messages TicketMessage[]
-}
-
-model TicketMessage {
-  id       Int           @id @default(autoincrement())
-  ticketId Int
-  ticket   ContactTicket @relation(fields: [ticketId], references: [id])
-  author    String // "user" | "agent"
-  name      String?
-  email     String?
-  body      String
-  createdAt DateTime @default(now())
-}
-
-enum Role {
-  admin
-  soporte
-  usuario
-}
-
 model User {
-  id           Int      @id @default(autoincrement())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role   @default(usuario)
-  createdAt    DateTime @default(now())
-
-  // lado opuesto con el MISMO nombre de relación
-  ticketsAssigned ContactTicket[] @relation("UserToTicket")
-  userSubscription UserSubscription[]
-  files File[]
-}
-
-// File model for password vault storage
-model File {
-  id        Int      @id @default(autoincrement())
-  ownerId   Int
-  filename  String   @db.VarChar
-  content   Bytes    @db.ByteA
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  // Relations
+  passwordEntries PasswordEntry[]
+  categories      Category[]
+  sharedLinks     ShareLink[]
 
-  @@map("files")
-  @@index([id])
+  @@map("users")
 }
 
-// Subscription plans model
-model SubscriptionPlan {
-  id           Int      @id @default(autoincrement())
-  name         String   @unique
-  paypalPlanId String   @unique
-  price        Decimal  @db.Decimal(10, 2)
-  billingCycle String   @default("monthly")
-  isActive     Boolean  @default(true)
-  features     Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model PasswordEntry {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  username    String?
+  password    String   // Encrypted password
+  url         String?
+  notes       String?
+  categoryId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  userSubscriptions UserSubscription[]
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@map("password_entries")
 }
 
-// User subscription tracking model
-model UserSubscription {
-  id                    Int       @id @default(autoincrement())
-  userId                Int
-  planId                Int
-  paypalSubscriptionId  String?
-  paypalCustomerId      String?
-  status                String    @default("active") // active, cancelled, expired, pending
-  startDate             DateTime  @default(now())
-  endDate               DateTime?
-  nextBillingDate       DateTime?
-  lastPaymentDate       DateTime?
-  amountPaid            Decimal   @default(0) @db.Decimal(10, 2)
-  currency              String    @default("USD")
-  metadata              Json?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+model Category {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  color       String   @default("#3b82f6") // Default blue color
+  icon        String?  // Icon identifier
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  // Relations
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  passwordEntries PasswordEntry[]
+
+  @@map("categories")
+}
+
+model ShareLink {
+  id            String   @id @default(uuid())
+  userId        String
+  passwordId    String
+  token         String   @unique
+  isActive      Boolean  @default(true)
+  expiresAt     DateTime?
+  accessCount   Int      @default(0)
+  maxAccess     Int?     // Maximum number of accesses allowed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
 
-  @@map("UserSubscription")
-  @@index([userId])
-  @@index([status])
-  @@index([paypalSubscriptionId])
-  @@index([nextBillingDate])
+  @@map("share_links")
 }

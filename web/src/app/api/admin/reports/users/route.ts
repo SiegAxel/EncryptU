@@ -1,0 +1,121 @@
+import { NextResponse, type NextRequest } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { requireAdmin } from '@/app/api/admin/requireAdmin';
+import { PDFReportGenerator, ExcelReportGenerator } from '@/lib/reports';
+
+export const runtime = "nodejs";
+
+// Adjust the interface to match the actual database schema
+interface UserReportData {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  createdAt: Date;
+  lastLogin?: Date;
+  isActive: boolean;
+  subscription?: {
+    plan: string;
+    status: string;
+    startDate: Date;
+    endDate?: Date;
+  };
+}
+
+// GET /api/admin/reports/users
+export async function GET(request: NextRequest) {
+  try {
+    const me = await requireAdmin();
+    if (!me) {
+      return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const format = searchParams.get('format') || 'pdf'; // pdf or excel
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const role = searchParams.get('role'); // admin, soporte, usuario
+
+    // Build where clause
+    const whereClause: any = {};
+    
+    if (startDate || endDate) {
+      whereClause.createdAt = {};
+      if (startDate) whereClause.createdAt.gte = new Date(startDate);
+      if (endDate) whereClause.createdAt.lte = new Date(endDate);
+    }
+
+    if (role && ['admin', 'soporte', 'usuario'].includes(role)) {
+      whereClause.role = role;
+    }
+
+    // Fetch users with subscription data
+    const users = await prisma.user.findMany({
+      where: whereClause,
+      include: {
+        userSubscription: {
+          include: {
+            plan: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 1 // Get only the latest subscription
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    // Transform data for reports - note all IDs are numbers, not strings
+    const reportData: UserReportData[] = users.map(user => ({
+      id: user.id.toString(),
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      createdAt: user.createdAt,
+      lastLogin: undefined, // Not available in current schema
+      isActive: true, // Not available in current schema, assume all users are active
+      subscription: user.userSubscription[0] ? {
+        plan: user.userSubscription[0].plan.name,
+        status: user.userSubscription[0].status,
+        startDate: user.userSubscription[0].startDate,
+        endDate: user.userSubscription[0].endDate || undefined
+      } : undefined
+    }));
+
+    if (format === 'excel') {
+      const excelGenerator = new ExcelReportGenerator();
+      const workbook = await excelGenerator.generateUsersReport(reportData);
+      
+      // Convert to buffer
+      const buffer = await workbook.xlsx.writeBuffer();
+      
+      return new NextResponse(buffer, {
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="users-report-${new Date().toISOString().split('T')[0]}.xlsx"`
+        }
+      });
+    } else {
+      // Default to PDF
+      const pdfGenerator = new PDFReportGenerator();
+      const pdfBytes = await pdfGenerator.generateUsersReport(reportData);
+      
+      return new NextResponse(pdfBytes, {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="users-report-${new Date().toISOString().split('T')[0]}.pdf"`
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('Error generating users report:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

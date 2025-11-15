@@ -2,6 +2,8 @@ import requests
 import os
 from typing import Optional, List, Dict, Any, cast
 import io
+from datetime import datetime
+import json
 
 class APIClient:
     """
@@ -216,3 +218,68 @@ class APIClient:
         except (requests.exceptions.RequestException, PermissionError) as e:
             print(f"Error al crear el ticket de soporte: {e}")
             return {"ok": False, "error": str(e)}
+
+    def export_passwords_data(self, credentials_data: List[Dict[str, Any]]) -> Optional[bytes]:
+        """
+        Exporta las credenciales como un archivo JSON para descarga.
+        """
+        try:
+            export_data = {
+                "export_timestamp": datetime.now().isoformat(),
+                "version": "1.0",
+                "credentials": credentials_data
+            }
+            return json.dumps(export_data, indent=2, ensure_ascii=False).encode('utf-8')
+        except Exception as e:
+            print(f"Error al exportar datos: {e}")
+            return None
+
+    def import_passwords_from_file(self, file_content: str) -> tuple[bool, List[str]]:
+        """
+        Importa credenciales desde un archivo JSON.
+        Retorna (success, error_messages)
+        """
+        try:
+            data = json.loads(file_content)
+            
+            if not isinstance(data, dict) or "credentials" not in data:
+                return False, ["Formato de archivo inválido"]
+            
+            credentials = data.get("credentials", [])
+            if not isinstance(credentials, list):
+                return False, ["Estructura de credenciales inválida"]
+            
+            success_count = 0
+            errors = []
+            
+            for i, cred in enumerate(credentials):
+                if not isinstance(cred, dict):
+                    errors.append(f"Credencial {i+1}: Formato inválido")
+                    continue
+                
+                required_fields = ["site", "username", "encrypted_content"]
+                missing_fields = [field for field in required_fields if field not in cred]
+                
+                if missing_fields:
+                    errors.append(f"Credencial {i+1}: Campos faltantes: {', '.join(missing_fields)}")
+                    continue
+                
+                try:
+                    # Upload each credential
+                    filename = f"{cred['site']} | {cred['username']}"
+                    encrypted_content = cred['encrypted_content'].encode('utf-8') if isinstance(cred['encrypted_content'], str) else cred['encrypted_content']
+                    
+                    result = self.upload_password_data(filename, encrypted_content)
+                    if result:
+                        success_count += 1
+                    else:
+                        errors.append(f"Credencial {i+1}: Error al subir al servidor")
+                except Exception as e:
+                    errors.append(f"Credencial {i+1}: {str(e)}")
+            
+            return success_count > 0, errors
+            
+        except json.JSONDecodeError:
+            return False, ["Archivo JSON inválido"]
+        except Exception as e:
+            return False, [f"Error general: {str(e)}"]

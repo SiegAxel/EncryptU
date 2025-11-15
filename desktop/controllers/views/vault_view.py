@@ -297,6 +297,7 @@ class VaultView(BaseView):
         actions.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 4))
         actions.grid_columnconfigure(0, weight=1)
         actions.grid_columnconfigure(1, weight=1)
+        actions.grid_columnconfigure(2, weight=1)
 
         refresh_btn = ctk.CTkButton(
             actions,
@@ -309,6 +310,17 @@ class VaultView(BaseView):
         )
         refresh_btn.grid(row=0, column=0, sticky="w")
 
+        export_btn = ctk.CTkButton(
+            actions,
+            text="Exportar",
+            command=self._export_passwords,
+            fg_color="transparent",
+            hover_color="#EEF2FF",
+            text_color=COLOR_SUCCESS,
+            font=self.fonts["button"],
+        )
+        export_btn.grid(row=0, column=1, sticky="e", padx=8)
+
         new_btn = ctk.CTkButton(
             actions,
             text="Nueva credencial",
@@ -318,7 +330,7 @@ class VaultView(BaseView):
             text_color=COLOR_WHITE,
             font=self.fonts["button"],
         )
-        new_btn.grid(row=0, column=1, sticky="e")
+        new_btn.grid(row=0, column=2, sticky="e")
 
         divider = ctk.CTkFrame(panel, fg_color=COLOR_BORDER, height=1)
         divider.grid(row=3, column=0, sticky="ew", padx=24, pady=(8, 4))
@@ -400,6 +412,21 @@ class VaultView(BaseView):
             font=self.fonts["button"],
         )
         logout_btn.grid(row=3, column=0, sticky="e", padx=24, pady=(0, 24))
+
+        # Botón flotante para importar
+        import_btn = ctk.CTkButton(
+            panel,
+            text="📥 Importar",
+            command=self._import_passwords,
+            fg_color=COLOR_SUCCESS,
+            hover_color="#15803D",
+            text_color=COLOR_WHITE,
+            font=self.fonts["button"],
+            corner_radius=25,
+            width=140,
+            height=50,
+        )
+        import_btn.place(relx=0.1, rely=0.95, anchor="center")
 
     # ------------------------------------------------------------------
     # Datos y renderizado
@@ -1009,3 +1036,146 @@ class VaultView(BaseView):
 
     def _on_search_change(self, *_):
         self._filter_credentials()
+
+    # ------------------------------------------------------------------
+    # Exportar/Importar credenciales
+    # ------------------------------------------------------------------
+    def _export_passwords(self):
+        """Exporta las credenciales a un archivo JSON."""
+        if not self.credentials:
+            self.show_temp_popup("No hay credenciales para exportar.", COLOR_DANGER)
+            return
+
+        try:
+            # Obtener datos encriptados para cada credencial
+            export_data = []
+            for cred in self.credentials:
+                file_id = cred.get("id")
+                if file_id:
+                    encrypted_content = self.controller.api_client.download_password_data(int(file_id))
+                    if encrypted_content:
+                        try:
+                            encrypted_text = encrypted_content.decode("utf-8").strip()
+                        except UnicodeDecodeError:
+                            encrypted_text = encrypted_content.decode("latin-1").strip()
+                        
+                        export_data.append({
+                            "site": cred.get("site", ""),
+                            "username": cred.get("username", ""),
+                            "encrypted_content": encrypted_text
+                        })
+
+            if not export_data:
+                self.show_temp_popup("Error al obtener datos encriptados.", COLOR_DANGER)
+                return
+
+            # Generar archivo JSON
+            from datetime import datetime
+            import json
+            
+            export_dict = {
+                "export_timestamp": datetime.now().isoformat(),
+                "version": "1.0",
+                "credentials": export_data
+            }
+            
+            json_content = json.dumps(export_dict, indent=2, ensure_ascii=False)
+            
+            # Guardar archivo usando diálogo de guardado
+            from tkinter import filedialog, messagebox
+            import tkinter as tk
+            
+            root = self.winfo_toplevel()
+            if hasattr(root, 'withdraw'):
+                root.withdraw()  # Hide main window temporarily
+            
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                title="Exportar credenciales",
+                initialfile=f"encryptu_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            
+            if filename:
+                try:
+                    with open(filename, 'w', encoding='utf-8') as f:
+                        f.write(json_content)
+                    self.show_temp_popup(f"Credenciales exportadas a {filename}", COLOR_SUCCESS)
+                except Exception as e:
+                    self.show_temp_popup(f"Error al guardar archivo: {str(e)}", COLOR_DANGER)
+            
+            if hasattr(root, 'deiconify'):
+                root.deiconify()  # Restore main window
+                
+        except Exception as e:
+            print(f"Error al exportar contraseñas: {e}")
+            self.show_temp_popup("Error durante la exportación.", COLOR_DANGER)
+
+    def _import_passwords(self):
+        """Importa credenciales desde un archivo JSON."""
+        try:
+            from tkinter import filedialog, messagebox
+            import tkinter as tk
+            import json
+            
+            root = self.winfo_toplevel()
+            if hasattr(root, 'withdraw'):
+                root.withdraw()  # Hide main window temporarily
+            
+            filename = filedialog.askopenfilename(
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+                title="Importar credenciales"
+            )
+            
+            if not filename:
+                if hasattr(root, 'deiconify'):
+                    root.deiconify()  # Restore main window
+                return
+            
+            # Leer archivo
+            try:
+                with open(filename, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+            except Exception as e:
+                if hasattr(root, 'deiconify'):
+                    root.deiconify()  # Restore main window
+                self.show_temp_popup(f"Error al leer archivo: {str(e)}", COLOR_DANGER)
+                return
+            
+            # Procesar importación
+            try:
+                data = json.loads(file_content)
+            except json.JSONDecodeError:
+                if hasattr(root, 'deiconify'):
+                    root.deiconify()  # Restore main window
+                self.show_temp_popup("Archivo JSON inválido.", COLOR_DANGER)
+                return
+            
+            if hasattr(root, 'deiconify'):
+                root.deiconify()  # Restore main window
+            
+            # Validar estructura
+            if not isinstance(data, dict) or "credentials" not in data:
+                self.show_temp_popup("Formato de archivo inválido.", COLOR_DANGER)
+                return
+            
+            credentials = data.get("credentials", [])
+            if not isinstance(credentials, list) or not credentials:
+                self.show_temp_popup("No se encontraron credenciales en el archivo.", COLOR_DANGER)
+                return
+            
+            # Importar credenciales
+            success, errors = self.controller.handle_import_passwords(file_content)
+            
+            if success:
+                self.show_temp_popup(f"Credenciales importadas exitosamente.", COLOR_SUCCESS)
+                self.refresh_password_list()
+            else:
+                error_msg = "\n".join(errors[:3])  # Show first 3 errors
+                if len(errors) > 3:
+                    error_msg += f"\n... y {len(errors) - 3} errores más."
+                self.show_temp_popup(f"Errores en la importación:\n{error_msg}", COLOR_DANGER)
+                
+        except Exception as e:
+            print(f"Error al importar contraseñas: {e}")
+            self.show_temp_popup("Error durante la importación.", COLOR_DANGER)

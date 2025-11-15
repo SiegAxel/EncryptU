@@ -272,6 +272,54 @@ class AppController:
         self.support_messages_cache.clear()
         return True, None, "Ticket creado correctamente."
 
+    # --- Metodos de exportacion/importacion ---
+    def handle_export_passwords(self, credentials_data: List[Dict[str, Any]]) -> Optional[bytes]:
+        """
+        Exporta las credenciales como un archivo JSON.
+        """
+        if not credentials_data:
+            return None
+        
+        try:
+            # Preparar datos para exportacion (incluir contenido encriptado)
+            export_data = []
+            for cred in credentials_data:
+                file_id = cred.get("id")
+                if file_id:
+                    encrypted_content = self.api_client.download_password_data(int(file_id))
+                    if encrypted_content:
+                        try:
+                            encrypted_text = encrypted_content.decode("utf-8").strip()
+                        except UnicodeDecodeError:
+                            encrypted_text = encrypted_content.decode("latin-1").strip()
+                        
+                        export_data.append({
+                            "site": cred.get("site", ""),
+                            "username": cred.get("username", ""),
+                            "encrypted_content": encrypted_text
+                        })
+            
+            return self.api_client.export_passwords_data(export_data)
+        except Exception as e:
+            print(f"Error al exportar contraseñas: {e}")
+            return None
+
+    def handle_import_passwords(self, file_content: str) -> tuple[bool, List[str]]:
+        """
+        Importa credenciales desde un archivo JSON.
+        Retorna (success, error_messages)
+        """
+        success, errors = self.api_client.import_passwords_from_file(file_content)
+        if success:
+            self.refresh_vault_data()
+        return success, errors
+
+    def refresh_vault_data(self):
+        """
+        Refresca los datos del vault en la vista actual si es un VaultView.
+        """
+        if isinstance(self.current_view, VaultView):
+            self.current_view.refresh_password_list()
 
     def on_closing(self):
         self.root.destroy()
