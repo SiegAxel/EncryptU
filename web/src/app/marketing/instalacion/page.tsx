@@ -33,9 +33,9 @@ export default function InstalacionPage() {
           {/* Download Button */}
           <div className="flex justify-center lg:justify-end">
             <InstallDownloadButton
-              installerUrl="/downloads/EncryptU-Setup-v1.0.0.exe"
+              installerUrl="https://github.com/SiegAxel/EncryptU/releases/download/pre-release/EncryptU-Setup-v1.0.0.exe"
               fileName="EncryptU-Setup-v1.0.0.exe"
-              size="45.2 MB"
+              size="39 MB"
               version="v1.0.0"
             />
           </div>
@@ -216,6 +216,8 @@ export default function InstalacionPage() {
                 <div className="text-sm text-amber-700 space-y-1">
                   <p>• El instalador puede generar una advertencia del antivirus (falso positivo)</p>
                   <p>• Se recomienda descargar únicamente desde este sitio oficial</p>
+                  <p>• <strong>Verificación de integridad:</strong> Hash SHA256: <code className="bg-amber-100 px-1 rounded text-xs">940a224d9f7b50b077a81781a10137a48c27fa993662ed3ad89d0e5e5890a086</code></p>
+                  <p>• Para verificar: <code className="bg-gray-100 px-1 rounded text-xs">certutil -hashfile EncryptU-Setup-v1.0.0.exe SHA256</code></p>
                   <p>• La primera ejecución puede tomar más tiempo debido a la inicialización</p>
                 </div>
               </div>

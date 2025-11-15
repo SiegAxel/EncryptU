@@ -12,7 +12,7 @@ interface InstallDownloadButtonProps {
 }
 
 export default function InstallDownloadButton({
-  installerUrl = "/downloads/EncryptU-Setup-v1.0.0.exe",
+  installerUrl = "https://github.com/SiegAxel/EncryptU/releases/download/pre-release/EncryptU-Setup-v1.0.0.exe",
   fileName = "EncryptU-Setup-v1.0.0.exe",
   size = "45.2 MB",
   version = "v1.0.0",
@@ -24,45 +24,19 @@ export default function InstallDownloadButton({
   const handleDownload = () => {
     setDownloading(true);
     
-    // Método más directo: usar fetch para obtener blob y forzar descarga
-    fetch(installerUrl)
-      .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        return response.blob();
-      })
-      .then(blob => {
-        // Crear URL del blob
-        const blobUrl = window.URL.createObjectURL(blob);
-        
-        // Crear enlace de descarga
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Limpiar URL del blob
-        window.URL.revokeObjectURL(blobUrl);
-        
-        setDownloaded(true);
-        setDownloading(false);
-        
-        // Reset después de 3 segundos
-        setTimeout(() => setDownloaded(false), 3000);
-      })
-      .catch(error => {
-        console.error('Error downloading installer:', error);
-        // Fallback: método simple
-        const link = document.createElement('a');
-        link.href = installerUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        setDownloading(false);
-      });
+    // Método ULTRA-DIRECTO: solo crear enlace y hacer clic
+    const link = document.createElement('a');
+    link.href = installerUrl;           // "/downloads/EncryptU-Setup-v1.0.0.exe"
+    link.download = fileName;           // "EncryptU-Setup-v1.0.0.exe"
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setDownloaded(true);
+    setDownloading(false);
+    
+    // Reset después de 3 segundos
+    setTimeout(() => setDownloaded(false), 3000);
   };
 
   return (
