@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     const assignedTo = searchParams.get('assignedTo'); // user ID or 'me'
 
     // Build where clause
-    const whereClause: any = {};
+    const whereClause: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
     
     if (startDate || endDate) {
       whereClause.createdAt = {};
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
       const pdfGenerator = new PDFReportGenerator();
       const pdfBytes = await pdfGenerator.generateTicketsReport(reportData);
       
-      return new NextResponse(pdfBytes, {
+      return new NextResponse(Buffer.from(pdfBytes), {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="tickets-report-${new Date().toISOString().split('T')[0]}.pdf"`

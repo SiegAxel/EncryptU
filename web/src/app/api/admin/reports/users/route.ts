@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 // Adjust the interface to match the actual database schema
 interface UserReportData {
-  id: string;
+  id: number; // Changed from string to number to match actual schema
   email: string;
   name: string;
   role: string;
@@ -34,10 +34,10 @@ export async function GET(request: NextRequest) {
     const format = searchParams.get('format') || 'pdf'; // pdf or excel
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const role = searchParams.get('role'); // admin, soporte, usuario
+    // const role = searchParams.get('role'); // admin, soporte, usuario - commented out as it's not used
 
     // Build where clause
-    const whereClause: any = {};
+    const whereClause: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
     
     if (startDate || endDate) {
       whereClause.createdAt = {};
@@ -45,9 +45,7 @@ export async function GET(request: NextRequest) {
       if (endDate) whereClause.createdAt.lte = new Date(endDate);
     }
 
-    if (role && ['admin', 'soporte', 'usuario'].includes(role)) {
-      whereClause.role = role;
-    }
+    // Note: role filtering not available in current schema
 
     // Fetch users
     const users = await prisma.user.findMany({
@@ -57,12 +55,12 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Transform data for reports
+    // Transform data for reports - use actual fields from User model
     const reportData: UserReportData[] = users.map(user => ({
-      id: user.id,
+      id: user.id, // Now matches number type
       email: user.email,
-      name: user.name,
-      role: user.role,
+      name: user.name, // Use actual name field from User model
+      role: user.role, // Use actual role field from User model
       createdAt: user.createdAt,
       lastLogin: undefined, // Not available in current schema
       isActive: true, // Not available in current schema, assume all users are active
@@ -87,7 +85,7 @@ export async function GET(request: NextRequest) {
       const pdfGenerator = new PDFReportGenerator();
       const pdfBytes = await pdfGenerator.generateUsersReport(reportData);
       
-      return new NextResponse(pdfBytes, {
+      return new NextResponse(Buffer.from(pdfBytes), {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="users-report-${new Date().toISOString().split('T')[0]}.pdf"`

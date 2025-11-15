@@ -3,7 +3,7 @@ import * as ExcelJS from 'exceljs';
 
 // Types for reports
 export interface UserReportData {
-  id: string;
+  id: number; // Changed from string to match actual database schema
   email: string;
   name: string;
   role: string;
@@ -170,8 +170,9 @@ export class PDFReportGenerator {
     await this.initialize();
     await this.addHeader(title, `Total Users: ${users.length}`);
 
-    const headers = ['Email', 'Name', 'Role', 'Status', 'Created', 'Last Login', 'Subscription'];
+    const headers = ['ID', 'Email', 'Name', 'Role', 'Status', 'Created', 'Last Login', 'Subscription'];
     const data = users.map(user => [
+      user.id, // Add ID field
       user.email,
       user.name,
       user.role,
@@ -181,7 +182,7 @@ export class PDFReportGenerator {
       user.subscription?.plan || 'Free'
     ]);
 
-    const columnWidths = [120, 100, 80, 70, 80, 80, 80];
+    const columnWidths = [40, 120, 100, 80, 70, 80, 80, 80]; // Added ID column width
     await this.addTable(headers, data, columnWidths);
 
     const pdfBytes = await this.pdfDoc.save();
@@ -223,6 +224,7 @@ export class ExcelReportGenerator {
 
     // Headers
     worksheet.columns = [
+      { header: 'ID', key: 'id', width: 10 },
       { header: 'Email', key: 'email', width: 30 },
       { header: 'Name', key: 'name', width: 20 },
       { header: 'Role', key: 'role', width: 15 },
@@ -244,6 +246,7 @@ export class ExcelReportGenerator {
     // Add data
     users.forEach(user => {
       worksheet.addRow({
+        id: user.id, // Add ID field
         email: user.email,
         name: user.name,
         role: user.role,

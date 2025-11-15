@@ -7,33 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  admin
+  soporte
+  usuario
+}
+
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  role         Role     @default(usuario)
 
   // Relations
-  passwordEntries PasswordEntry[]
-  categories      Category[]
-  sharedLinks     ShareLink[]
+  passwordEntries  PasswordEntry[]
+  categories       Category[]
+  sharedLinks      ShareLink[]
+  files            File[]
+  subscriptions    UserSubscription[]
+  contactTickets   ContactTicket[] @relation("UserContactTickets")
 
   @@map("users")
 }
 
 model PasswordEntry {
-  id          String   @id @default(uuid())
-  userId      String
+  id          Int       @id @default(autoincrement())
+  userId      Int
   title       String
   username    String?
-  password    String   // Encrypted password
+  password    String    // Encrypted password
   url         String?
   notes       String?
-  categoryId  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  categoryId  Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -43,13 +52,13 @@ model PasswordEntry {
 }
 
 model Category {
-  id          String   @id @default(uuid())
-  userId      String
+  id          Int       @id @default(autoincrement())
+  userId      Int
   name        String
-  color       String   @default("#3b82f6") // Default blue color
-  icon        String?  // Icon identifier
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  color       String    @default("#3b82f6") // Default blue color
+  icon        String?   // Icon identifier
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -59,19 +68,107 @@ model Category {
 }
 
 model ShareLink {
-  id            String   @id @default(uuid())
-  userId        String
-  passwordId    String
-  token         String   @unique
-  isActive      Boolean  @default(true)
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  passwordId    Int
+  token         String    @unique
+  isActive      Boolean   @default(true)
   expiresAt     DateTime?
-  accessCount   Int      @default(0)
-  maxAccess     Int?     // Maximum number of accesses allowed
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  accessCount   Int       @default(0)
+  maxAccess     Int?      // Maximum number of accesses allowed
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("share_links")
+}
+
+model ContactTicket {
+  id           Int       @id @default(autoincrement())
+  email        String
+  createdAt    DateTime  @default(now())
+  assignedToId Int?
+  description  String
+  firstName    String
+  lastName     String
+  phone        String
+  reason       String
+  status       String    @default("open")
+
+  // Relations
+  assignedTo User?         @relation("UserContactTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages   TicketMessage[]
+
+  @@map("contact_ticket")
+}
+
+model TicketMessage {
+  id        Int       @id @default(autoincrement())
+  ticketId  Int
+  author    String
+  name      String?
+  email     String?
+  body      String
+  createdAt DateTime  @default(now())
+
+  // Relations
+  ticket ContactTicket @relation(fields: [ticketId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+
+  @@map("ticket_message")
+}
+
+model SubscriptionPlan {
+  id           Int       @id @default(autoincrement())
+  name         String    @unique
+  paypalPlanId String    @unique
+  price        Decimal   @db.Decimal(10, 2)
+  billingCycle String    @default("monthly")
+  isActive     Boolean   @default(true)
+  features     Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  subscriptions UserSubscription[]
+
+  @@map("subscription_plan")
+}
+
+model UserSubscription {
+  id                   Int       @id @default(autoincrement())
+  userId               Int
+  planId               Int
+  paypalSubscriptionId String?
+  paypalCustomerId     String?
+  status               String    @default("active")
+  startDate            DateTime  @default(now())
+  endDate              DateTime?
+  nextBillingDate      DateTime?
+  lastPaymentDate      DateTime?
+  amountPaid           Decimal   @db.Decimal(10, 2) @default(0)
+  currency             String    @default("USD")
+  metadata             Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onUpdate: Cascade, onDelete: Restrict)
+
+  @@map("user_subscription")
+}
+
+model File {
+  id        Int       @id @default(autoincrement())
+  ownerId   Int
+  filename  String
+  content   Bytes
+  createdAt DateTime  @default(now())
+
+  // Relations
+  owner User @relation(fields: [ownerId], references: [id])
+
+  @@map("files")
 }
