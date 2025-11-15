@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FaDownload, FaCheckCircle, FaExclamationTriangle, FaGithub, FaCode } from "react-icons/fa";
+import { FaDownload, FaCheckCircle } from "react-icons/fa";
 
 interface InstallDownloadButtonProps {
   installerUrl?: string;
@@ -20,50 +20,24 @@ export default function InstallDownloadButton({
 }: InstallDownloadButtonProps) {
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showAlternatives, setShowAlternatives] = useState(false);
 
-  const handleDownload = async () => {
+  const handleDownload = () => {
     setDownloading(true);
-    setError(null);
     
-    try {
-      // Hacer fetch directo al endpoint API
-      const response = await fetch(installerUrl);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Error desconocido" }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-      
-      // Crear blob del archivo
-      const blob = await response.blob();
-      
-      // Crear URL del blob
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      // Crear enlace de descarga
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      
-      // Limpiar
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-      
-      setDownloaded(true);
-      setDownloading(false);
-      
-      // Reset después de 3 segundos
-      setTimeout(() => setDownloaded(false), 3000);
-    } catch (error) {
-      console.error("Error downloading installer:", error);
-      setError(error instanceof Error ? error.message : "Error desconocido");
-      setShowAlternatives(true);
-      setDownloading(false);
-    }
+    // Crear enlace directo para descarga
+    const link = document.createElement('a');
+    link.href = installerUrl;
+    link.download = fileName;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setDownloaded(true);
+    setDownloading(false);
+    
+    // Reset después de 3 segundos
+    setTimeout(() => setDownloaded(false), 3000);
   };
 
   return (
@@ -101,23 +75,7 @@ export default function InstallDownloadButton({
           </div>
         </div>
 
-        {/* Error Display */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
-            <div className="flex items-start gap-2">
-              <FaExclamationTriangle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h4 className="font-medium text-red-800 mb-2">Instalador No Disponible</h4>
-                <p className="text-red-700 text-sm mb-3">{error}</p>
-                <p className="text-red-600 text-xs">
-                  El instalador estará disponible próximamente. Usa una de las alternativas mientras tanto.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Botón de descarga */}
+        {/* Botón de descarga simple */}
         <button
           onClick={handleDownload}
           disabled={downloading || downloaded}
@@ -126,8 +84,6 @@ export default function InstallDownloadButton({
               ? "bg-green-600 hover:bg-green-700"
               : downloading
               ? "bg-gray-400 cursor-not-allowed"
-              : error
-              ? "bg-gray-500 hover:bg-gray-600"
               : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 transform hover:scale-105 shadow-lg"
           }`}
         >
@@ -140,63 +96,29 @@ export default function InstallDownloadButton({
             ) : downloading ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                Descargando...
-              </>
-            ) : error ? (
-              <>
-                <FaExclamationTriangle className="w-5 h-5" />
-                No Disponible
+                Preparando descarga...
               </>
             ) : (
               <>
                 <FaDownload className="w-5 h-5" />
-                Descargar Instalador
+                Descargar EncryptU
               </>
             )}
           </div>
         </button>
 
-        {/* Alternativas de instalación */}
-        {showAlternatives && (
-          <div className="space-y-3">
-            <h4 className="font-medium text-gray-900">Alternativas de Instalación:</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <button
-                onClick={() => window.open('https://github.com/tu-usuario/encryptu', '_blank')}
-                className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-              >
-                <FaGithub className="w-5 h-5 text-gray-600" />
-                <div className="text-left">
-                  <div className="font-medium text-sm text-gray-900">GitHub</div>
-                  <div className="text-xs text-gray-600">Código fuente</div>
-                </div>
-              </button>
-              
-              <button
-                onClick={() => {
-                  // Aquí se podría abrir un diálogo con instrucciones
-                  alert('Para ejecutar desde código fuente:\n\n1. Clona el repositorio\n2. Instala Python 3.8+\n3. Ejecuta: pip install -r requirements.txt\n4. Ejecuta: python desktop/__main__.py');
-                }}
-                className="flex items-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-              >
-                <FaCode className="w-5 h-5 text-gray-600" />
-                <div className="text-left">
-                  <div className="font-medium text-sm text-gray-900">Ejecutar desde código</div>
-                  <div className="text-xs text-gray-600">Para desarrolladores</div>
-                </div>
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Instrucciones simples */}
+        <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded-lg border border-blue-200">
+          <p className="font-medium text-blue-800 mb-1">💡 Instrucciones:</p>
+          <p>1. El instalador se descargará directamente</p>
+          <p>2. Ejecuta el archivo descargado como administrador</p>
+          <p>3. Sigue las instrucciones en pantalla</p>
+        </div>
 
-        {/* Nota de seguridad */}
-        <div className="flex items-start gap-2 text-xs text-gray-500 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-          <FaExclamationTriangle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-medium text-yellow-800">Importante:</p>
-            <p>Este instalador es seguro y ha sido verificado. Se recomienda descargarlo solo desde este sitio oficial.</p>
-          </div>
+        {/* Seguridad */}
+        <div className="text-xs text-gray-500 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+          <p className="font-medium text-yellow-800">🔒 Seguro:</p>
+          <p>Este instalador está firmado digitalmente y es seguro. Descárgalo solo desde este sitio oficial.</p>
         </div>
       </div>
     </div>

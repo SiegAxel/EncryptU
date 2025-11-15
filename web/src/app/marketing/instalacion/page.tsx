@@ -32,8 +32,8 @@ export default function InstalacionPage() {
         <div className="grid gap-8 lg:grid-cols-2 mb-12">
           {/* Download Button */}
           <div className="flex justify-center lg:justify-end">
-            <InstallDownloadButton 
-              installerUrl="/downloads/EncryptU-Setup-v1.0.0.exe"
+            <InstallDownloadButton
+              installerUrl="/api/download-installer"
               fileName="EncryptU-Setup-v1.0.0.exe"
               size="45.2 MB"
               version="v1.0.0"
