@@ -1,6 +1,5 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, PDFPage } from 'pdf-lib';
 import * as ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
 
 // Types for reports
 export interface UserReportData {
@@ -35,12 +34,12 @@ export interface TicketReportData {
 
 // PDF Generation Utilities
 export class PDFReportGenerator {
-  private pdfDoc: PDFDocument;
-  private page: any;
-  private yPosition: number;
-  private pageHeight: number;
-  private pageWidth: number;
-  private margin: number;
+  private pdfDoc!: PDFDocument;
+  private page!: PDFPage;
+  private yPosition!: number;
+  private pageHeight!: number;
+  private pageWidth!: number;
+  private margin: number = 50;
 
   constructor() {
     this.margin = 50;
@@ -101,7 +100,7 @@ export class PDFReportGenerator {
     this.yPosition -= 20;
   }
 
-  private async addTable(headers: string[], data: any[][], columnWidths: number[]) {
+  private async addTable(headers: string[], data: (string | number | boolean | null | undefined)[][] , columnWidths: number[]) {
     const font = await this.pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await this.pdfDoc.embedFont(StandardFonts.HelveticaBold);
 

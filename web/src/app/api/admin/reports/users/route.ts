@@ -49,40 +49,24 @@ export async function GET(request: NextRequest) {
       whereClause.role = role;
     }
 
-    // Fetch users with subscription data
+    // Fetch users
     const users = await prisma.user.findMany({
       where: whereClause,
-      include: {
-        userSubscription: {
-          include: {
-            plan: true
-          },
-          orderBy: {
-            createdAt: 'desc'
-          },
-          take: 1 // Get only the latest subscription
-        }
-      },
       orderBy: {
         createdAt: 'desc'
       }
     });
 
-    // Transform data for reports - note all IDs are numbers, not strings
+    // Transform data for reports
     const reportData: UserReportData[] = users.map(user => ({
-      id: user.id.toString(),
+      id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
       createdAt: user.createdAt,
       lastLogin: undefined, // Not available in current schema
       isActive: true, // Not available in current schema, assume all users are active
-      subscription: user.userSubscription[0] ? {
-        plan: user.userSubscription[0].plan.name,
-        status: user.userSubscription[0].status,
-        startDate: user.userSubscription[0].startDate,
-        endDate: user.userSubscription[0].endDate || undefined
-      } : undefined
+      subscription: undefined // Subscription data not available in current schema
     }));
 
     if (format === 'excel') {
