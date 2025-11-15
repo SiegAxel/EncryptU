@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 
 export const runtime = "nodejs";
@@ -9,6 +9,27 @@ export async function GET() {
   try {
     // Path to the installer file in public folder
     const filePath = join(process.cwd(), "public", "downloads", "EncryptU-Setup-v1.0.0.exe");
+    
+    // Check if file exists first
+    if (!existsSync(filePath)) {
+      return NextResponse.json(
+        {
+          error: "Installer file not found",
+          message: "El archivo de instalación no está disponible actualmente.",
+          instructions: "Por favor, contacta al soporte técnico o intenta más tarde.",
+          alternative: "Si eres desarrollador, puedes ejecutar la aplicación desde el código fuente en el directorio 'desktop'.",
+          version: "v1.0.0",
+          status: "unavailable"
+        },
+        {
+          status: 404,
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache"
+          }
+        }
+      );
+    }
     
     // Read the file
     const fileBuffer = readFileSync(filePath);
@@ -27,8 +48,18 @@ export async function GET() {
   } catch (error) {
     console.error("Error serving installer:", error);
     return NextResponse.json(
-      { error: "Installer file not found" },
-      { status: 404 }
+      {
+        error: "Error serving installer",
+        message: "Error interno del servidor al procesar la descarga.",
+        instructions: "Por favor, contacta al soporte técnico.",
+        status: "error"
+      },
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json"
+        }
+      }
     );
   }
 }
