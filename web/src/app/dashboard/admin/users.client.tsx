@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import CreateUserModal from "@/components/admin/CreateUserModal";
 
 type Role = "usuario" | "soporte" | "admin";
 type User = {
@@ -11,13 +12,11 @@ type User = {
 };
 
 type ApiError = { error?: string };
-type ApiOk = { ok: true };
 
 function shallowUserEqual(a: User, b: User) {
   return a.name === b.name && a.email === b.email && a.role === b.role;
 }
 
-// ---------- helpers sin any ----------
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   try {
@@ -34,13 +33,13 @@ async function safeJson<T>(res: Response): Promise<T | null> {
     return null;
   }
 }
-// -------------------------------------
 
 export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[] }) {
   const [original, setOriginal] = useState<User[]>(initialUsers);
   const [draft, setDraft] = useState<User[]>(initialUsers);
   const [busyIds, setBusyIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const dirtyMap = useMemo(() => {
     const map = new Map<number, boolean>();
@@ -109,7 +108,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
     setSaving(true);
     try {
       const changes = draft.filter((u) => {
-        const o = original.find((x) => x.id === u.id);
+        const o = original.find((x) => x.id !== u.id);
         return o && !shallowUserEqual(o, u);
       });
 
@@ -135,23 +134,37 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
     }
   };
 
+  const handleUserCreated = (newUser: User) => {
+    setOriginal((list) => [...list, newUser]);
+    setDraft((list) => [...list, newUser]);
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Usuarios</h2>
-        <button
-          onClick={saveAll}
-          disabled={dirtyCount === 0 || saving}
-          className={[
-            "rounded-md px-4 py-2 text-sm font-medium transition",
-            dirtyCount > 0 && !saving
-              ? "bg-amber-500 text-white hover:bg-amber-600"
-              : "bg-slate-300 text-slate-600 cursor-not-allowed",
-          ].join(" ")}
-          title={dirtyCount > 0 ? "Guardar cambios" : "Sin cambios"}
-        >
-          {saving ? "Guardando…" : `Actualizar${dirtyCount ? ` (${dirtyCount})` : ""}`}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
+            title="Crear nuevo usuario"
+          >
+            + Crear Usuario
+          </button>
+          <button
+            onClick={saveAll}
+            disabled={dirtyCount === 0 || saving}
+            className={[
+              "rounded-md px-4 py-2 text-sm font-medium transition",
+              dirtyCount > 0 && !saving
+                ? "bg-amber-500 text-white hover:bg-amber-600"
+                : "bg-slate-300 text-slate-600 cursor-not-allowed",
+            ].join(" ")}
+            title={dirtyCount > 0 ? "Guardar cambios" : "Sin cambios"}
+          >
+            {saving ? "Guardando…" : `Actualizar${dirtyCount ? ` (${dirtyCount})` : ""}`}
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -219,6 +232,13 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
           );
         })}
       </div>
+
+      {/* Create User Modal */}
+      <CreateUserModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onUserCreated={handleUserCreated}
+      />
     </div>
   );
 }
