@@ -159,7 +159,7 @@ export default function InstalacionPage() {
             <Card>
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  💻 Requisitos del Sistema
+                   Requisitos del Sistema
                 </h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-2">
@@ -185,7 +185,7 @@ export default function InstalacionPage() {
             <Card>
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  🛡️ Seguridad
+                   Seguridad
                 </h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-start gap-2">
