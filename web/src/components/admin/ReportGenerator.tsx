@@ -79,7 +79,8 @@ export default function ReportGenerator({ type, title, description }: ReportGene
       
       // Set filename based on format and date
       const date = new Date().toISOString().split('T')[0];
-      const filename = `${type}-report-${date}.${filters.format}`;
+      const fileExtension = filters.format === 'excel' ? 'xlsx' : 'pdf';
+      const filename = `${type}-report-${date}.${fileExtension}`;
       a.download = filename;
       
       document.body.appendChild(a);
@@ -124,7 +125,7 @@ export default function ReportGenerator({ type, title, description }: ReportGene
           className="flex items-center space-x-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
         >
           <FiFilter className="h-4 w-4" />
-          <span>Filters</span>
+          <span>Filtros</span>
         </button>
       </div>
 
@@ -134,7 +135,7 @@ export default function ReportGenerator({ type, title, description }: ReportGene
             {/* Date Range */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Start Date
+                Fecha de Inicio
               </label>
               <input
                 type="date"
@@ -146,7 +147,7 @@ export default function ReportGenerator({ type, title, description }: ReportGene
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                End Date
+                Fecha de Fin
               </label>
               <input
                 type="date"
@@ -159,7 +160,7 @@ export default function ReportGenerator({ type, title, description }: ReportGene
             {/* Format Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Format
+                Formato
               </label>
               <select
                 value={filters.format}
@@ -175,17 +176,17 @@ export default function ReportGenerator({ type, title, description }: ReportGene
             {type === 'users' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Role
+                  Rol
                 </label>
                 <select
                   value={filters.role}
                   onChange={(e) => setFilters({ ...filters, role: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">All Roles</option>
-                  <option value="admin">Admin</option>
-                  <option value="soporte">Support</option>
-                  <option value="usuario">User</option>
+                  <option value="">Todos los Roles</option>
+                  <option value="admin">Administrador</option>
+                  <option value="soporte">Soporte</option>
+                  <option value="usuario">Usuario</option>
                 </select>
               </div>
             )}
@@ -194,49 +195,49 @@ export default function ReportGenerator({ type, title, description }: ReportGene
               <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Status
+                    Estado
                   </label>
                   <select
                     value={filters.status}
                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">All Status</option>
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="closed">Closed</option>
+                    <option value="">Todos los Estados</option>
+                    <option value="open">Abierto</option>
+                    <option value="in_progress">En Progreso</option>
+                    <option value="closed">Cerrado</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Priority
+                    Prioridad
                   </label>
                   <select
                     value={filters.priority}
                     onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">All Priorities</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
+                    <option value="">Todas las Prioridades</option>
+                    <option value="low">Baja</option>
+                    <option value="medium">Media</option>
+                    <option value="high">Alta</option>
+                    <option value="urgent">Urgente</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Assigned To
+                    Asignado a
                   </label>
                   <select
                     value={filters.assignedTo}
                     onChange={(e) => setFilters({ ...filters, assignedTo: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">All Agents</option>
-                    <option value="me">Assigned to Me</option>
-                    <option value="unassigned">Unassigned</option>
+                    <option value="">Todos los Agentes</option>
+                    <option value="me">Asignado a Mí</option>
+                    <option value="unassigned">Sin Asignar</option>
                   </select>
                 </div>
               </>
@@ -248,7 +249,7 @@ export default function ReportGenerator({ type, title, description }: ReportGene
               onClick={resetFilters}
               className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
             >
-              Reset Filters
+              Limpiar Filtros
             </button>
           </div>
         </div>
@@ -263,7 +264,7 @@ export default function ReportGenerator({ type, title, description }: ReportGene
               <FiTable className="h-5 w-5 text-green-600" />
             )}
             <span className="text-sm text-gray-600">
-              Format: {filters.format.toUpperCase()}
+              Formato: {filters.format.toUpperCase()}
             </span>
           </div>
           
@@ -272,10 +273,10 @@ export default function ReportGenerator({ type, title, description }: ReportGene
               <FiCalendar className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-600">
                 {filters.startDate && filters.endDate
-                  ? `${filters.startDate} to ${filters.endDate}`
+                  ? `${filters.startDate} a ${filters.endDate}`
                   : filters.startDate
-                  ? `From ${filters.startDate}`
-                  : `Until ${filters.endDate}`}
+                  ? `Desde ${filters.startDate}`
+                  : `Hasta ${filters.endDate}`}
               </span>
             </div>
           )}
@@ -291,7 +292,7 @@ export default function ReportGenerator({ type, title, description }: ReportGene
           ) : (
             <FiDownload className="h-4 w-4" />
           )}
-          <span>{isGenerating ? 'Generating...' : 'Generate Report'}</span>
+          <span>{isGenerating ? 'Generando...' : 'Generar Reporte'}</span>
         </button>
       </div>
     </div>

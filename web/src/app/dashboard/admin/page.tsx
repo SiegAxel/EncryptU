@@ -33,8 +33,8 @@ export default async function AdminPage() {
         {/* Report Generator */}
         <ReportGenerator
           type="users"
-          title="Users Report"
-          description="Generate comprehensive reports of all users with filtering options"
+          title="Reporte de Usuarios"
+          description="Generar informes completos de todos los usuarios con opciones de filtrado"
         />
         
         <AdminUsersPanel initialUsers={users} />

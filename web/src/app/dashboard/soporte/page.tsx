@@ -160,8 +160,8 @@ export default function SoportePage() {
       {/* Report Generator */}
       <ReportGenerator
         type="tickets"
-        title="Support Tickets Report"
-        description="Generate comprehensive reports of support tickets with filtering options"
+        title="Reporte de Tickets de Soporte"
+        description="Generar informes completos de tickets de soporte con opciones de filtrado"
       />
        
       <section className="grid grid-cols-1 gap-6 md:grid-cols-[320px_1fr]">
