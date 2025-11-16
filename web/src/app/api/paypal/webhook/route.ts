@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 interface PayPalWebhookEvent {
   event_type: string;
-  resource: any;
+  resource: Record<string, any>;
   id: string;
   create_time: string;
 }
@@ -49,35 +49,48 @@ export async function POST(req: Request) {
     
     switch (event.event_type) {
       case "BILLING.SUBSCRIPTION.CREATED":
-        await handleSubscriptionCreated(event.resource as PayPalSubscriptionResource);
+        if ('subscriber' in event.resource) {
+          await handleSubscriptionCreated(event.resource as PayPalSubscriptionResource);
+        }
         break;
       
       case "BILLING.SUBSCRIPTION.ACTIVATED":
-        await handleSubscriptionActivated(event.resource as PayPalSubscriptionResource);
+        if ('subscriber' in event.resource) {
+          await handleSubscriptionActivated(event.resource as PayPalSubscriptionResource);
+        }
         break;
       
       case "BILLING.SUBSCRIPTION.CANCELLED":
-        await handleSubscriptionCancelled(event.resource as PayPalSubscriptionResource);
+        if ('subscriber' in event.resource) {
+          await handleSubscriptionCancelled(event.resource as PayPalSubscriptionResource);
+        }
         break;
       
       case "BILLING.SUBSCRIPTION.SUSPENDED":
-        await handleSubscriptionSuspended(event.resource as PayPalSubscriptionResource);
+        if ('subscriber' in event.resource) {
+          await handleSubscriptionSuspended(event.resource as PayPalSubscriptionResource);
+        }
         break;
       
       case "BILLING.SUBSCRIPTION.EXPIRED":
-        await handleSubscriptionExpired(event.resource as PayPalSubscriptionResource);
+        if ('subscriber' in event.resource) {
+          await handleSubscriptionExpired(event.resource as PayPalSubscriptionResource);
+        }
         break;
       
       case "PAYMENT.SALE.COMPLETED":
-        await handlePaymentCompleted(event.resource as PayPalPaymentSaleResource);
+        if ('billing_agreement_id' in event.resource) {
+          await handlePaymentCompleted(event.resource as PayPalPaymentSaleResource);
+        }
         break;
       
       case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         console.log("Payment failed for subscription:", event.resource?.id);
-        // You can add handling for failed payments here
         break;
       
       default:
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         console.log(`Unhandled PayPal event: ${event.event_type}`, event.resource);
     }
 
@@ -202,7 +215,7 @@ async function handleSubscriptionActivated(resource: PayPalSubscriptionResource)
   }
 }
 
-async function handleSubscriptionCancelled(resource: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+async function handleSubscriptionCancelled(resource: PayPalSubscriptionResource) {
   await prisma.userSubscription.updateMany({
     where: { paypalSubscriptionId: resource.id },
     data: {
@@ -213,7 +226,7 @@ async function handleSubscriptionCancelled(resource: any) { // eslint-disable-li
   });
 }
 
-async function handleSubscriptionSuspended(resource: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+async function handleSubscriptionSuspended(resource: PayPalSubscriptionResource) {
   await prisma.userSubscription.updateMany({
     where: { paypalSubscriptionId: resource.id },
     data: {
@@ -223,7 +236,7 @@ async function handleSubscriptionSuspended(resource: any) { // eslint-disable-li
   });
 }
 
-async function handleSubscriptionExpired(resource: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+async function handleSubscriptionExpired(resource: PayPalSubscriptionResource) {
   await prisma.userSubscription.updateMany({
     where: { paypalSubscriptionId: resource.id },
     data: {
