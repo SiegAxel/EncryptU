@@ -1,6 +1,6 @@
 ﻿import customtkinter as ctk
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional, Any
 
 from desktop.controllers.views.base_view import BaseView, COLOR_BACKGROUND
 
@@ -26,6 +26,11 @@ class MainView(BaseView):
         self.display_name = self._format_username(self.username)
         self.last_login = datetime.now().strftime("%d/%m/%Y")
         self.fonts = self._build_fonts()
+        
+        # Obtener datos reales de la API
+        self.subscription_info = self._get_subscription_info()
+        self.ticket_stats = self._get_ticket_stats()
+        
         self._build_layout()
 
     # ------------------------------------------------------------------
@@ -130,9 +135,13 @@ class MainView(BaseView):
         stats_row.grid(row=2, column=0, sticky="ew", padx=24, pady=(0, 24))
         stats_row.grid_columnconfigure((0, 1, 2), weight=1, uniform="stats")
 
-        self._build_stat_tile(stats_row, 0, "Estado", "Activo")
+        # Mostrar información real de suscripción
+        plan_name = self.subscription_info.get("plan_name", "Gratuito") if self.subscription_info else "Gratuito"
+        status = self.subscription_info.get("status", "Activa") if self.subscription_info else "Activa"
+        
+        self._build_stat_tile(stats_row, 0, "Estado", status)
         self._build_stat_tile(stats_row, 1, "Ultimo acceso", self.last_login)
-        self._build_stat_tile(stats_row, 2, "Rol", "Suscripcion estandar")
+        self._build_stat_tile(stats_row, 2, "Plan", plan_name)
         return row_index + 1
 
     def _build_stat_tile(self, parent: ctk.CTkFrame, column: int, label: str, value: str):
@@ -259,6 +268,13 @@ class MainView(BaseView):
         self._status_chip(status_row, 0, "Tickets abiertos", "2", COLOR_ACCENT)
         self._status_chip(status_row, 1, "Resueltos esta semana", "4", COLOR_SUCCESS)
 
+        # Mostrar estadísticas reales de tickets
+        open_count = self.ticket_stats.get("open", 0) if self.ticket_stats else 0
+        resolved_count = self.ticket_stats.get("resolved", 0) if self.ticket_stats else 0
+        
+        self._status_chip(status_row, 0, "Tickets abiertos", str(open_count), COLOR_ACCENT)
+        self._status_chip(status_row, 1, "Resueltos", str(resolved_count), COLOR_SUCCESS)
+
         ctk.CTkButton(
             card,
             text="Ir a soporte",
@@ -292,6 +308,27 @@ class MainView(BaseView):
 
     def _open_support(self):
         self.controller.show_support_view(self.username)
+
+    # ------------------------------------------------------------------
+    # API Integration
+    # ------------------------------------------------------------------
+    def _get_subscription_info(self) -> Optional[Dict[str, Any]]:
+        """Obtiene información de suscripción desde la API."""
+        try:
+            if hasattr(self.controller, 'api_client') and self.controller.api_client:
+                return self.controller.api_client.get_subscription()
+        except Exception as e:
+            print(f"Error obteniendo suscripción: {e}")
+        return None
+
+    def _get_ticket_stats(self) -> Optional[Dict[str, int]]:
+        """Obtiene estadísticas de tickets desde la API."""
+        try:
+            if hasattr(self.controller, 'api_client') and self.controller.api_client:
+                return self.controller.api_client.get_user_ticket_stats()
+        except Exception as e:
+            print(f"Error obteniendo estadísticas de tickets: {e}")
+        return {"open": 0, "resolved": 0}
 
     # ------------------------------------------------------------------
     # Helpers

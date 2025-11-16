@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from datetime import datetime
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
 
 from PIL import Image
 
@@ -38,6 +38,9 @@ class ProfileView(BaseView):
         self.fonts = self._build_fonts()
         self.logo_image = self._load_logo_image()
 
+        # Obtener información real de suscripción
+        self.subscription_info = self._get_subscription_info()
+        
         self.profile_stats = self._build_profile_stats()
         self.security_items = self._build_security_items()
         self.security_checklist = self._build_security_checklist()
@@ -316,9 +319,48 @@ class ProfileView(BaseView):
         card = self._create_card(parent, "Suscripción y plan", row=0)
         card.grid_columnconfigure(0, weight=1)
 
-        badge = ctk.CTkFrame(card, fg_color=COLOR_BADGE_BG, corner_radius=14, border_width=1, border_color=COLOR_ACCENT)
+        # Mostrar información real de suscripción
+        plan_name = self.subscription_info.get("plan_name", "Gratuito") if self.subscription_info else "Gratuito"
+        plan_price = self.subscription_info.get("price", 0) if self.subscription_info else 0
+        currency = self.subscription_info.get("currency", "USD") if self.subscription_info else "USD"
+        status = self.subscription_info.get("status", "Activa") if self.subscription_info else "Activa"
+        
+        # Determinar color del badge según el estado
+        badge_color = COLOR_ACCENT if status.lower() == "activa" else COLOR_TEXT_MUTED
+        badge_bg = COLOR_BADGE_BG if status.lower() == "activa" else "#FEE2E2"
+        
+        badge = ctk.CTkFrame(card, fg_color=badge_bg, corner_radius=14, border_width=1, border_color=badge_color)
         badge.grid(row=1, column=0, sticky="w", padx=24, pady=(0, 16))
-        ctk.CTkLabel(badge, text="Suscripción activa", font=self.fonts["badge"], text_color=COLOR_ACCENT).pack(padx=14, pady=6)
+        ctk.CTkLabel(badge, text=f"Suscripción {status}", font=self.fonts["badge"], text_color=badge_color).pack(padx=14, pady=6)
+
+        # Plan name and pricing
+        plan_frame = ctk.CTkFrame(card, fg_color="transparent")
+        plan_frame.grid(row=2, column=0, sticky="w", padx=24, pady=(0, 16))
+        
+        plan_name_label = ctk.CTkLabel(
+            plan_frame,
+            text=plan_name,
+            font=self.fonts["card_title"],
+            text_color=COLOR_TEXT_PRIMARY
+        )
+        plan_name_label.grid(row=0, column=0, sticky="w")
+        
+        if plan_price > 0:
+            price_label = ctk.CTkLabel(
+                plan_frame,
+                text=f"${plan_price}/{currency.lower()}",
+                font=self.fonts["body"],
+                text_color=COLOR_TEXT_MUTED
+            )
+            price_label.grid(row=1, column=0, sticky="w", pady=(4, 0))
+        else:
+            free_label = ctk.CTkLabel(
+                plan_frame,
+                text="Gratis",
+                font=self.fonts["body"],
+                text_color=COLOR_SUCCESS
+            )
+            free_label.grid(row=1, column=0, sticky="w", pady=(4, 0))
 
         description = ctk.CTkLabel(
             card,
@@ -331,13 +373,13 @@ class ProfileView(BaseView):
             wraplength=340,
             justify="left",
         )
-        description.grid(row=2, column=0, sticky="w", padx=24)
+        description.grid(row=3, column=0, sticky="w", padx=24)
 
         progress_label = ctk.CTkLabel(card, text="Uso estimado de bóveda", font=self.fonts["muted"], text_color=COLOR_TEXT_MUTED)
-        progress_label.grid(row=3, column=0, sticky="w", padx=24, pady=(20, 6))
+        progress_label.grid(row=4, column=0, sticky="w", padx=24, pady=(20, 6))
 
         progress = ctk.CTkProgressBar(card, fg_color=COLOR_CARD_SOFT, progress_color=COLOR_ACCENT, corner_radius=10, height=14)
-        progress.grid(row=4, column=0, sticky="ew", padx=24)
+        progress.grid(row=5, column=0, sticky="ew", padx=24)
         progress.set(0.65)
 
         progress_hint = ctk.CTkLabel(
@@ -346,19 +388,19 @@ class ProfileView(BaseView):
             font=self.fonts["stat_hint"],
             text_color=COLOR_TEXT_MUTED,
         )
-        progress_hint.grid(row=5, column=0, sticky="w", padx=24, pady=(6, 20))
+        progress_hint.grid(row=6, column=0, sticky="w", padx=24, pady=(6, 20))
 
         manage_button = ctk.CTkButton(
             card,
             text="Actualizar plan",
-            command=lambda: self._show_notification("Gestiona cambios de plan escribiendo a soporte o desde el portal web."),
+            command=self._open_subscription_web,
             fg_color=COLOR_ACCENT,
             hover_color=COLOR_ACCENT_DARK,
             text_color=COLOR_CARD,
             font=self.fonts["button"],
             corner_radius=20,
         )
-        manage_button.grid(row=6, column=0, sticky="ew", padx=24, pady=(0, 24))
+        manage_button.grid(row=7, column=0, sticky="ew", padx=24, pady=(0, 24))
 
     def _build_quick_actions_card(self, parent: ctk.CTkFrame):
         card = self._create_card(parent, "Accesos rápidos", row=1, pady=(24, 0))
@@ -489,3 +531,23 @@ class ProfileView(BaseView):
         if len(parts) >= 2:
             return (parts[0][0] + parts[1][0]).upper()
         return username[:2].upper()
+
+    def _open_subscription_web(self):
+        """Abre la página web de suscripciones en el navegador."""
+        try:
+            import webbrowser
+            # URL de la página de planes/suscripciones
+            subscription_url = "https://encryptu-web.onrender.com/marketing/planes"
+            webbrowser.open(subscription_url)
+            self._show_notification("Abriendo página de suscripciones en tu navegador...")
+        except Exception as e:
+            self._show_notification(f"No se pudo abrir la página web: {str(e)}")
+
+    def _get_subscription_info(self) -> Optional[Dict[str, Any]]:
+        """Obtiene información de suscripción desde la API."""
+        try:
+            if hasattr(self.controller, 'api_client') and self.controller.api_client:
+                return self.controller.api_client.get_subscription()
+        except Exception as e:
+            print(f"Error obteniendo suscripción: {e}")
+        return None

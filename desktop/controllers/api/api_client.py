@@ -199,8 +199,9 @@ class APIClient:
     def create_support_ticket(self, ticket_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         try:
             headers = self._get_auth_headers()
+            # Fix: Use the correct endpoint /contactoapi instead of /support/tickets
             response = self.session.post(
-                f"{self.base_url}/support/tickets",
+                f"{self.base_url}/contactoapi",
                 headers=headers,
                 json=ticket_data,
                 timeout=20,
@@ -283,3 +284,61 @@ class APIClient:
             return False, ["Archivo JSON inválido"]
         except Exception as e:
             return False, [f"Error general: {str(e)}"]
+
+    # --- ENDPOINTS DE SUSCRIPCIONES ---
+    def get_subscription(self) -> Optional[Dict[str, Any]]:
+        """Obtiene la información de suscripción del usuario actual."""
+        try:
+            headers = self._get_auth_headers()
+            response = self.session.get(f"{self.base_url}/subscriptions", headers=headers, timeout=20)
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, dict):
+                return data.get("subscription") if data.get("ok") else None
+            return None
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al obtener suscripción: {e}")
+            return None
+
+    def create_free_subscription(self) -> Optional[Dict[str, Any]]:
+        """Crea una suscripción gratuita para el usuario."""
+        try:
+            headers = self._get_auth_headers()
+            response = self.session.post(f"{self.base_url}/subscriptions/create-free", headers=headers, timeout=20)
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            return data
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al crear suscripción gratuita: {e}")
+            return None
+
+    def get_user_ticket_stats(self) -> Optional[Dict[str, int]]:
+        """Obtiene estadísticas de tickets del usuario."""
+        try:
+            headers = self._get_auth_headers()
+            response = self.session.get(f"{self.base_url}/support/tickets", headers=headers, timeout=20)
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            
+            if isinstance(data, dict) and data.get("ok") and "tickets" in data:
+                tickets = data.get("tickets", [])
+                
+                # Contar tickets por estado
+                open_count = len([t for t in tickets if t.get("status") != "closed"])
+                resolved_count = len([t for t in tickets if t.get("status") == "closed"])
+                
+                return {
+                    "open": open_count,
+                    "resolved": resolved_count,
+                    "total": len(tickets)
+                }
+            return {"open": 0, "resolved": 0, "total": 0}
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al obtener estadísticas de tickets: {e}")
+            return {"open": 0, "resolved": 0, "total": 0}
