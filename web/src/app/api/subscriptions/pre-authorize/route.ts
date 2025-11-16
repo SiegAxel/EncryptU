@@ -62,31 +62,31 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user already has a pending subscription for this plan
-    const existingPendingSubscription = await prisma.userSubscription.findFirst({
-      where: {
-        userId: user.id,
-        planId: plan.id,
-        status: "pending_payment"
-      }
+    // Find the user's existing subscription (they can only have one due to unique constraint)
+    const existingSubscription = await prisma.userSubscription.findFirst({
+      where: { userId: user.id }
     });
 
     let pendingSubscription;
-    if (existingPendingSubscription) {
-      // Update existing pending subscription
+    if (existingSubscription) {
+      // Update existing subscription to new plan (upgrade/downgrade)
       pendingSubscription = await prisma.userSubscription.update({
-        where: { id: existingPendingSubscription.id },
+        where: { id: existingSubscription.id },
         data: {
+          planId: plan.id,
+          status: "pending_payment", // Will be activated by PayPal webhook
           updatedAt: new Date(),
           metadata: {
             session_created_at: new Date().toISOString(),
             paypal_plan_id: plan.paypalPlanId,
-            user_email: user.email
+            user_email: user.email,
+            previous_plan: existingSubscription.planId
           }
         }
       });
+      console.log(`🔄 Updated existing subscription ${existingSubscription.id} to plan ${plan.name}`);
     } else {
-      // Create new pending subscription
+      // Create first subscription if none exists
       pendingSubscription = await prisma.userSubscription.create({
         data: {
           userId: user.id,
@@ -101,6 +101,7 @@ export async function POST(req: Request) {
           }
         }
       });
+      console.log(`✅ Created new subscription for user ${user.email}`);
     }
 
     console.log(`✅ Pre-authorized subscription ${pendingSubscription.id} for user ${user.email}`);
