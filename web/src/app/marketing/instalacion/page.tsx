@@ -6,9 +6,43 @@ import Container from "@/components/layout/ui/Container";
 import Card from "@/components/layout/ui/Card";
 import ButtonLink from "@/components/layout/ui/ButtonLink";
 import InstallDownloadButton from "@/components/layout/InstallDownloadButton";
-import { FaDownload, FaShieldAlt, FaCog, FaCheckCircle, FaExclamationTriangle, FaGithub, FaFacebook, FaLinkedin, FaInstagram } from "react-icons/fa";
+import { useLatestRelease } from "@/hooks/useLatestRelease";
+import { FaDownload, FaShieldAlt, FaCog, FaCheckCircle, FaExclamationTriangle, FaGithub, FaFacebook, FaLinkedin, FaInstagram, FaSpinner } from "react-icons/fa";
 
 export default function InstalacionPage() {
+  const { data: latestRelease, loading, error } = useLatestRelease();
+
+  if (loading) {
+    return (
+      <Section>
+        <Container>
+          <div className="flex justify-center items-center min-h-[400px]">
+            <div className="text-center">
+              <FaSpinner className="w-8 h-8 animate-spin text-red-600 mx-auto mb-4" />
+              <p className="text-gray-600">Cargando información de la última versión...</p>
+            </div>
+          </div>
+        </Container>
+      </Section>
+    );
+  }
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
   return (
     <Section>
       <Container>
@@ -26,6 +60,24 @@ export default function InstalacionPage() {
             La aplicación completa de gestión de contraseñas segura para Windows. 
             Protege tus datos con la mejor tecnología de cifrado.
           </p>
+          {latestRelease && (
+            <div className="mt-4 flex justify-center gap-4 text-sm text-gray-500">
+              <span>Versión: <strong className="text-red-600">{latestRelease.version}</strong></span>
+              <span>•</span>
+              <span>Publicado: {formatDate(latestRelease.published_at)}</span>
+              {latestRelease.download_count > 0 && (
+                <>
+                  <span>•</span>
+                  <span>{latestRelease.download_count.toLocaleString()} descargas</span>
+                </>
+              )}
+            </div>
+          )}
+          {error && (
+            <div className="mt-4 p-3 bg-amber-100 border border-amber-300 rounded-lg text-amber-700 text-sm">
+              ⚠️ {error} - Usando versión de respaldo
+            </div>
+          )}
         </div>
 
         {/* Main Download Section */}
@@ -33,10 +85,18 @@ export default function InstalacionPage() {
           {/* Download Button */}
           <div className="flex justify-center lg:justify-end">
             <InstallDownloadButton
-              installerUrl="https://github.com/SiegAxel/EncryptU/releases/download/pre-release/EncryptU-Setup-v1.0.0.exe"
-              fileName="EncryptU-Setup-v1.0.0.exe"
-              size="39 MB"
-              version="v1.0.0"
+              installerUrl={latestRelease?.download_url || "#"}
+              fileName={latestRelease?.file_name || "EncryptU-Setup.exe"}
+              size={latestRelease?.file_size ? (
+                typeof latestRelease.file_size === 'string' && latestRelease.file_size.includes('MB')
+                  ? latestRelease.file_size
+                  : formatFileSize(
+                      typeof latestRelease.file_size === 'string'
+                        ? parseInt(latestRelease.file_size) || 40960000
+                        : latestRelease.file_size || 40960000
+                    )
+              ) : "39 MB"}
+              version={latestRelease?.version || "v1.0.0"}
             />
           </div>
 
@@ -121,7 +181,7 @@ export default function InstalacionPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-2">Ejecutar</h3>
                       <p className="text-gray-600 text-sm">
-                        Localiza el archivo descargado (EncryptU-Setup-v1.0.0.exe) y ejecútalo como administrador.
+                        Localiza el archivo descargado ({latestRelease?.file_name || "EncryptU-Setup.exe"}) y ejecútalo como administrador.
                       </p>
                     </div>
                   </div>
@@ -216,8 +276,8 @@ export default function InstalacionPage() {
                 <div className="text-sm text-amber-700 space-y-1">
                   <p>• El instalador puede generar una advertencia del antivirus (falso positivo)</p>
                   <p>• Se recomienda descargar únicamente desde este sitio oficial</p>
-                  <p>• <strong>Verificación de integridad:</strong> Hash SHA256: <code className="bg-amber-100 px-1 rounded text-xs">940a224d9f7b50b077a81781a10137a48c27fa993662ed3ad89d0e5e5890a086</code></p>
-                  <p>• Para verificar: <code className="bg-gray-100 px-1 rounded text-xs">certutil -hashfile EncryptU-Setup-v1.0.0.exe SHA256</code></p>
+                  <p>• <strong>Verificación de integridad:</strong> Hash SHA256 disponible en GitHub</p>
+                  <p>• <a href={latestRelease?.html_url || "https://github.com/SiegAxel/EncryptU/releases"} target="_blank" className="underline hover:no-underline">Ver en GitHub</a> para el hash más reciente</p>
                   <p>• La primera ejecución puede tomar más tiempo debido a la inicialización</p>
                 </div>
               </div>
@@ -272,6 +332,11 @@ export default function InstalacionPage() {
                 <Link href="https://github.com/SiegAxel/EncryptU" target="_blank" className="block text-sm text-red-600 hover:text-red-700 underline">
                   Código Fuente (GitHub)
                 </Link>
+                {latestRelease?.html_url && (
+                  <Link href={latestRelease.html_url} target="_blank" className="block text-sm text-red-600 hover:text-red-700 underline">
+                    Ver Última Release
+                  </Link>
+                )}
               </div>
             </div>
           </Card>
