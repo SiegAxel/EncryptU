@@ -62,17 +62,25 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check if user already has an active subscription
+    // Check if user already has an active subscription (excluding free plans)
     const existingSubscription = await prisma.userSubscription.findFirst({
-      where: { 
+      where: {
         userId: user.id,
-        status: "active"
+        status: "active",
+        NOT: {
+          plan: {
+            name: "Básico" // Exclude free plan, same logic as main check
+          }
+        }
+      },
+      include: {
+        plan: true
       }
     });
 
     if (existingSubscription) {
       return NextResponse.json(
-        { ok: false, error: "Ya tienes una suscripción activa" },
+        { ok: false, error: `Ya tienes una suscripción activa: ${existingSubscription.plan.name}` },
         { status: 400 }
       );
     }
