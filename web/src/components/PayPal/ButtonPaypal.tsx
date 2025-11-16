@@ -27,34 +27,35 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
   React.useEffect(() => {
     const preAuthorize = async () => {
       try {
-        const cookies = document.cookie;
-        const authToken = cookies.split('; ').find(row => row.startsWith('auth='))?.split('=')[1];
+        console.log(`🔍 Pre-authorizing subscription for plan: ${planName}`);
         
-        if (!authToken) {
-          setAuthError("Por favor inicia sesión para suscribirte");
-          return;
-        }
-
-        // Pre-authorize the subscription
+        // Pre-authorize the subscription using cookies automatically
         const response = await fetch('/api/subscriptions/pre-authorize', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
+            'Content-Type': 'application/json'
           },
+          credentials: 'include', // Include cookies automatically
           body: JSON.stringify({ planId: databasePlanId })
         });
 
+        console.log(`📡 Pre-auth response status: ${response.status}`);
         const result = await response.json();
+        console.log(`📋 Pre-auth response:`, result);
         
         if (result.ok) {
           setIsPreAuthorized(true);
-          console.log(` Pre-authorized: ${result.planName}`);
+          setAuthError(""); // Clear any auth errors on success
+          console.log(`✅ Pre-authorized: ${result.planName}`);
+        } else if (result.error?.includes("autenticado") || result.error?.includes("autenticado")) {
+          setAuthError("Por favor inicia sesión para suscribirte");
+          console.log("❌ Authentication error in pre-auth");
         } else {
           setAuthError(result.error || "Error al verificar autorización");
+          console.log("❌ Other pre-auth error:", result.error);
         }
       } catch (error) {
-        console.error("Pre-authorization error:", error);
+        console.error("❌ Pre-authorization error:", error);
         setAuthError("Error de conexión");
       }
     };

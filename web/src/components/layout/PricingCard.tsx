@@ -154,6 +154,19 @@ const PricingCard = ({
     currentSubscription: currentSubscription ? "exists" : "null"
   });
 
+  // Determine which UI to show
+  if (loading) {
+    console.log(`📱 ${name}: Showing LOADING state`);
+  } else if (error && !isFree) {
+    console.log(`📱 ${name}: Showing ERROR state - ${error}`);
+  } else if (isFree) {
+    console.log(`📱 ${name}: Showing FREE PLAN button`);
+  } else if (hasActiveSubscription) {
+    console.log(`📱 ${name}: Showing ACTIVE SUBSCRIPTION state`);
+  } else {
+    console.log(`📱 ${name}: Showing PAYPAL BUTTONS`);
+  }
+
   return (
     <div
       className={`relative flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-8 shadow-lg transition-all duration-300 hover:shadow-2xl ${
