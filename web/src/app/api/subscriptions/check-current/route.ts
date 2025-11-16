@@ -8,9 +8,14 @@ export const runtime = "nodejs";
 // Check current user's subscription status
 export async function GET(req: Request) {
   try {
-    const token = (await cookies()).get("auth")?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth")?.value;
+    
+    console.log("🔐 Auth check - Token found:", !!token);
+    console.log("🔐 Auth check - Token length:", token?.length || 0);
 
     if (!token) {
+      console.log("❌ No auth token found in cookies");
       return NextResponse.json(
         { ok: false, error: "Usuario no autenticado" },
         { status: 401 }
@@ -21,7 +26,9 @@ export async function GET(req: Request) {
     let tokenPayload: TokenPayload;
     try {
       tokenPayload = await verifyToken<TokenPayload>(token);
-    } catch {
+      console.log("✅ Token verified for user:", tokenPayload.email);
+    } catch (error) {
+      console.log("❌ Token verification failed:", error);
       return NextResponse.json(
         { ok: false, error: "Token inválido" },
         { status: 401 }
