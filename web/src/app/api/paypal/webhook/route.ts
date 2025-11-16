@@ -332,16 +332,74 @@ async function handleSubscriptionActivated(resource: PayPalSubscriptionResource)
   console.log(`Activating subscription ${resource.id} for plan ${resource.plan_id}`);
   
   try {
-    // Get the subscription to calculate proper billing cycle
-    const subscription = await prisma.userSubscription.findFirst({
+    let subscription = null;
+    
+    // Strategy 1: Try to find by PayPal subscription ID first
+    subscription = await prisma.userSubscription.findFirst({
       where: { paypalSubscriptionId: resource.id },
       include: { plan: true }
     });
     
+    // Strategy 2: If not found, search by user email and plan ID (more robust for fake payments)
+    if (!subscription && resource.subscriber?.email_address) {
+      console.log(`🔍 Strategy 2: Finding subscription by user email ${resource.subscriber.email_address}`);
+      
+      // Find the plan
+      const plan = await prisma.subscriptionPlan.findUnique({
+        where: { paypalPlanId: resource.plan_id }
+      });
+      
+      if (plan) {
+        // Find user by email
+        const user = await prisma.user.findUnique({
+          where: { email: resource.subscriber.email_address.toLowerCase() }
+        });
+        
+        if (user) {
+          // Look for pending subscription for this user and plan
+          subscription = await prisma.userSubscription.findFirst({
+            where: {
+              userId: user.id,
+              planId: plan.id,
+              status: { in: ["pending_payment", "pending"] }
+            },
+            orderBy: {
+              createdAt: 'desc'
+            },
+            include: { plan: true }
+          });
+        }
+      }
+    }
+    
+    // Strategy 3: If still not found, look for any pending subscription for this user
+    if (!subscription && resource.subscriber?.email_address) {
+      console.log(`🔍 Strategy 3: Finding any pending subscription for user`);
+      
+      const user = await prisma.user.findUnique({
+        where: { email: resource.subscriber.email_address.toLowerCase() }
+      });
+      
+      if (user) {
+        subscription = await prisma.userSubscription.findFirst({
+          where: {
+            userId: user.id,
+            status: { in: ["pending_payment", "pending"] }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          include: { plan: true }
+        });
+      }
+    }
+    
     if (!subscription) {
-      console.error(`Subscription ${resource.id} not found in database`);
+      console.error(`❌ No matching subscription found for activation ${resource.id} (${resource.subscriber?.email_address})`);
       return;
     }
+    
+    console.log(`✅ Found subscription to activate: ${subscription.id} (status: ${subscription.status})`);
     
     // Calculate next billing date for immediate monthly access
     const now = new Date();
@@ -365,20 +423,28 @@ async function handleSubscriptionActivated(resource: PayPalSubscriptionResource)
       }
     }
     
-    // Update subscription with immediate activation and proper billing cycle
-    await prisma.userSubscription.updateMany({
-      where: { paypalSubscriptionId: resource.id },
+    // Update subscription with PayPal details and activation
+    await prisma.userSubscription.update({
+      where: { id: subscription.id },
       data: {
+        paypalSubscriptionId: resource.id,
+        paypalCustomerId: resource.subscriber.payer_id,
         status: "active",
         startDate: now, // Immediate access from activation time
         nextBillingDate: nextBillingDate,
-        updatedAt: now
+        updatedAt: now,
+        metadata: {
+          ...(subscription.metadata as Record<string, unknown> || {}),
+          activated_at: now.toISOString(),
+          paypal_plan_id: resource.plan_id,
+          activation_webhook_received: true
+        }
       }
     });
     
-    console.log(`Successfully activated subscription ${resource.id} with immediate access. Next billing: ${nextBillingDate.toISOString()}`);
+    console.log(`🎉 Successfully activated subscription ${subscription.id} (PayPal ID: ${resource.id}) with immediate access. Next billing: ${nextBillingDate.toISOString()}`);
   } catch (error) {
-    console.error(`Failed to activate subscription ${resource.id}:`, error);
+    console.error(`❌ Failed to activate subscription ${resource.id}:`, error);
   }
 }
 
@@ -426,24 +492,67 @@ async function handlePaymentCompleted(resource: PayPalPaymentSaleResource) {
       return;
     }
     
-    const result = await prisma.userSubscription.updateMany({
+    // First, try to find and activate the subscription
+    const subscription = await prisma.userSubscription.findFirst({
       where: { paypalSubscriptionId: subscriptionId },
-      data: {
-        lastPaymentDate: new Date(resource.create_time),
-        amountPaid: parseFloat(resource.amount.total),
-        currency: resource.amount.currency || "USD",
-        nextBillingDate: resource.next_payment_date
-          ? new Date(resource.next_payment_date)
-          : undefined,
-        updatedAt: new Date()
-      }
+      include: { user: true }
     });
     
-    console.log(`Updated ${result.count} subscription(s) for payment ${resource.id}`);
-    
-    if (result.count === 0) {
-      console.warn(`No subscription found for PayPal subscription ID: ${subscriptionId}`);
+    if (subscription) {
+      console.log(`✅ Found subscription ${subscription.id} for payment ${resource.id}`);
+      
+      // Update payment details AND activate the subscription
+      const updatedSubscription = await prisma.userSubscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: "active", // Activate subscription immediately on payment
+          lastPaymentDate: new Date(resource.create_time),
+          amountPaid: parseFloat(resource.amount.total),
+          currency: resource.amount.currency || "USD",
+          startDate: new Date(), // Set start date to payment time for immediate access
+          nextBillingDate: resource.next_payment_date
+            ? new Date(resource.next_payment_date)
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default to 30 days from now
+          updatedAt: new Date(),
+          metadata: {
+            ...(subscription.metadata as Record<string, unknown> || {}),
+            payment_completed: true,
+            payment_completed_at: new Date().toISOString(),
+            paypal_sale_id: resource.id,
+            activated_via_payment: true
+          }
+        }
+      });
+      
+      console.log(`🎉 Activated subscription ${subscription.id} via payment ${resource.id}`);
+    } else {
+      console.warn(`⚠️ No subscription found for PayPal subscription ID: ${subscriptionId}`);
+      
+      // Fallback: Try to find pending subscription by user email or plan
+      // This handles cases where the subscription ID wasn't saved yet
+      console.log(`🔍 Attempting to find subscription by other criteria...`);
+      
+      // You could add additional search logic here if needed
+      // For example, by searching for recent pending subscriptions
+      const recentSubscriptions = await prisma.userSubscription.findMany({
+        where: {
+          status: { in: ["pending_payment", "pending"] },
+          createdAt: {
+            gte: new Date(Date.now() - 60 * 60 * 1000) // Last hour
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+      
+      if (recentSubscriptions.length > 0) {
+        console.log(`🔍 Found ${recentSubscriptions.length} recent pending subscription(s)`);
+        // You might want to add logic here to match the correct subscription
+        // For now, we'll just log it for debugging
+      }
     }
+    
   } catch (error) {
     console.error(`Failed to process payment completed for resource ${resource.id}:`, error);
   }
