@@ -4,7 +4,9 @@ import re
 from typing import Callable, Dict, List, Optional
 
 import pyperclip
-from PIL import Image, ImageDraw
+import requests
+import io
+from PIL import Image
 
 from desktop.controllers.views.base_view import BaseView
 from desktop.config import resource_path
@@ -37,82 +39,6 @@ BADGE_COLOR_MAP = {
 BADGE_FALLBACK_COLORS = ["#60A5FA", "#FBBF24", "#34D399", "#F472B6"]
 
 ICON_TARGET_SIZE = (52, 52)
-
-
-def _build_youtube_icon() -> Image.Image:
-    canvas = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(canvas)
-    draw.rounded_rectangle((12, 36, 116, 92), radius=30, fill="#FF0000")
-    draw.polygon([(58, 50), (58, 78), (90, 64)], fill="#FFFFFF")
-    return canvas
-
-
-def _build_instagram_icon() -> Image.Image:
-    canvas = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(canvas)
-    gradient_colors = ["#F58529", "#F56040", "#F77737", "#C13584", "#833AB4"]
-    for offset, color in enumerate(gradient_colors):
-        inset = 8 + offset * 3
-        draw.rounded_rectangle((inset, inset, 120 - inset, 120 - inset), radius=34, fill=color)
-    draw.rounded_rectangle((32, 32, 96, 96), radius=24, outline="#FFFFFF", width=6)
-    draw.ellipse((46, 46, 82, 82), outline="#FFFFFF", width=4)
-    draw.ellipse((82, 32, 98, 48), fill="#FFFFFF")
-    return canvas
-
-
-def _build_facebook_icon() -> Image.Image:
-    canvas = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(canvas)
-    draw.ellipse((8, 8, 120, 120), fill="#1877F2")
-    draw.rectangle((60, 36, 78, 88), fill="#FFFFFF")
-    draw.rectangle((48, 58, 90, 70), fill="#FFFFFF")
-    draw.rectangle((48, 70, 62, 118), fill="#FFFFFF")
-    return canvas
-
-
-def _build_twitter_icon() -> Image.Image:
-    canvas = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(canvas)
-    draw.ellipse((8, 8, 120, 120), fill="#1DA1F2")
-    bird = [(40, 84), (56, 80), (40, 64), (52, 64), (48, 48), (64, 58), (80, 44), (72, 62), (96, 54), (80, 72), (92, 88), (74, 82), (66, 94)]
-    draw.polygon(bird, fill="#FFFFFF")
-    return canvas
-
-
-def _build_gmail_icon() -> Image.Image:
-    canvas = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(canvas)
-    draw.rounded_rectangle((10, 34, 118, 94), radius=18, fill="#FFFFFF", outline="#E5E7EB", width=4)
-    draw.polygon([(10, 38), (64, 78), (118, 38), (118, 50), (64, 90), (10, 50)], fill="#EA4335")
-    draw.line([(10, 50), (10, 94)], fill="#34A853", width=8)
-    draw.line([(118, 50), (118, 94)], fill="#4285F4", width=8)
-    draw.rectangle((34, 34, 58, 58), fill=None)
-    return canvas
-
-
-def _build_linkedin_icon() -> Image.Image:
-    canvas = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(canvas)
-    draw.rounded_rectangle((12, 12, 116, 116), radius=24, fill="#0A66C2")
-    draw.rectangle((32, 48, 48, 96), fill="#FFFFFF")
-    draw.ellipse((32, 28, 52, 48), fill="#FFFFFF")
-    draw.rectangle((60, 60, 80, 96), fill="#FFFFFF")
-    draw.rectangle((80, 60, 96, 96), outline="#FFFFFF", width=4)
-    return canvas
-
-
-SITE_ICON_PATTERNS: List[tuple[str, Callable[[], Image.Image]]] = [
-    ("youtube", _build_youtube_icon),
-    ("youtu", _build_youtube_icon),
-    ("instagram", _build_instagram_icon),
-    ("facebook", _build_facebook_icon),
-    ("fb.com", _build_facebook_icon),
-    ("gmail", _build_gmail_icon),
-    ("google", _build_gmail_icon),
-    ("twitter", _build_twitter_icon),
-    ("x.com", _build_twitter_icon),
-    ("linkedin", _build_linkedin_icon),
-]
 
 
 class VaultView(BaseView):
@@ -380,7 +306,7 @@ class VaultView(BaseView):
         tips_title.grid(row=0, column=0, sticky="w", padx=20, pady=(16, 4))
 
         tips_text = (
-            "• Usa la clave maestra para desencriptar solo cuando la necesites.\n"
+            "• Las contraseñas se desencriptan automáticamente.\n"
             "• Copiamos tu contraseña al portapapeles por 1 uso.\n"
             "• Actualiza frecuentemente tus credenciales críticas."
         )
@@ -576,19 +502,51 @@ class VaultView(BaseView):
         return BADGE_FALLBACK_COLORS[index]
 
     def _get_site_icon(self, site: str) -> Optional[ctk.CTkImage]:
-        key = site.lower()
-        for pattern, builder in SITE_ICON_PATTERNS:
-            if pattern in key:
-                if pattern in self.icon_cache:
-                    return self.icon_cache[pattern]
-                try:
-                    pil_icon = builder()
-                    tk_icon = ctk.CTkImage(light_image=pil_icon, dark_image=pil_icon, size=ICON_TARGET_SIZE)
-                    self.icon_cache[pattern] = tk_icon
-                    return tk_icon
-                except Exception:
-                    self.icon_cache[pattern] = None
-                    return None
+        # Clean the site name to get a base domain
+        key = site.lower().strip()
+        key = re.sub(r"^https?://", "", key)
+        key = key.split("/")[0]
+        if key.startswith("www."):
+            key = key[4:]
+        if not key:
+            return None
+        
+        domain = key
+
+        # Check if icon is already cached
+        if domain in self.icon_cache:
+            return self.icon_cache[domain]
+
+        # If not cached, try to download it
+        try:
+            # Use Google service to get favicon in good resolution
+            url = f"https://www.google.com/s2/favicons?domain={domain}&sz=64"
+            
+            # Short timeout to not block UI
+            response = requests.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                # Open image from downloaded bytes
+                image_data = response.content
+                pil_icon = Image.open(io.BytesIO(image_data)).convert("RGBA")
+                
+                # Create CTkImage
+                tk_icon = ctk.CTkImage(
+                    light_image=pil_icon,
+                    dark_image=pil_icon,
+                    size=ICON_TARGET_SIZE
+                )
+                
+                # Cache and return
+                self.icon_cache[domain] = tk_icon
+                return tk_icon
+            
+        except Exception as e:
+            # If there's a network error or image processing error
+            print(f"Could not download favicon for {domain}: {e}")
+
+        # If it fails, cache None to avoid retrying
+        self.icon_cache[domain] = None
         return None
 
     def _normalize_site_input(self, raw_site: str) -> str:
@@ -767,22 +725,10 @@ class VaultView(BaseView):
 
         ctk.CTkLabel(
             decrypt_section,
-            text="Desencriptar clave",
+            text="Contraseña desencriptada",
             font=self.fonts["card_title"],
             text_color=COLOR_TEXT_PRIMARY,
         ).pack(anchor="w", pady=(0, 6))
-
-        master_entry = ctk.CTkEntry(
-            decrypt_section,
-            placeholder_text="Ingresa tu Clave Maestra",
-            show="*",
-            fg_color=COLOR_CARD_SOFT,
-            border_width=1,
-            border_color=COLOR_BORDER,
-            corner_radius=14,
-            font=self.fonts["body"],
-        )
-        master_entry.pack(fill="x", pady=(0, 12))
 
         plain_entry = ctk.CTkEntry(
             decrypt_section,
@@ -795,16 +741,13 @@ class VaultView(BaseView):
             font=self.fonts["body"],
             state="disabled",
         )
-        plain_entry.pack(fill="x")
+        plain_entry.pack(fill="x", pady=(0, 12))
 
-        action_row = ctk.CTkFrame(decrypt_section, fg_color="transparent")
-        action_row.pack(fill="x", pady=(12, 0))
-
-        status_label = ctk.CTkLabel(action_row, text="", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
-        status_label.pack(anchor="w")
+        status_label = ctk.CTkLabel(decrypt_section, text="Desencriptando...", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
+        status_label.pack(anchor="w", pady=(0, 12))
 
         controls_row = ctk.CTkFrame(decrypt_section, fg_color="transparent")
-        controls_row.pack(fill="x", pady=(12, 0))
+        controls_row.pack(fill="x")
 
         decrypted_value: dict[str, Optional[str]] = {"value": None}
         is_visible = {"value": False}
@@ -855,14 +798,9 @@ class VaultView(BaseView):
         )
         copy_plain_button.pack(side="left")
 
-        def decrypt_action():
-            master_key = master_entry.get().strip()
-            if not master_key:
-                status_label.configure(text="Ingresa tu Clave Maestra para continuar.", text_color=COLOR_DANGER)
-                return
-
-            status_label.configure(text="Desencriptando...", text_color=COLOR_TEXT_MUTED)
-            plaintext = self.controller.handle_decrypt_password(file_id, site, master_key)
+        def auto_decrypt():
+            # Automatically use master key from session - no user input required
+            plaintext = self.controller.handle_decrypt_password(file_id, site, self.controller.master_key)
             if plaintext:
                 decrypted_value["value"] = plaintext
                 is_visible["value"] = False
@@ -875,17 +813,10 @@ class VaultView(BaseView):
                 toggle_button.configure(state="disabled", text="Mostrar")
                 copy_plain_button.configure(state="disabled")
                 update_plain_entry("")
-                status_label.configure(text="Clave maestra incorrecta.", text_color=COLOR_DANGER)
+                status_label.configure(text="Error al desencriptar. Verifica tu sesión.", text_color=COLOR_DANGER)
 
-        ctk.CTkButton(
-            decrypt_section,
-            text="Desencriptar",
-            command=decrypt_action,
-            fg_color=COLOR_ACCENT,
-            hover_color=COLOR_ACCENT_DARK,
-            text_color=COLOR_WHITE,
-            font=self.fonts["button"],
-        ).pack(anchor="e", pady=(18, 0))
+        # Automatically decrypt when modal opens
+        auto_decrypt()
 
     def logout_action(self, event=None):
         self.controller.handle_logout()

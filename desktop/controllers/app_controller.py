@@ -150,42 +150,22 @@ class AppController:
         return passwords
 
     def handle_encrypt_and_save(self, site: str, username: str, password: str) -> bool:
-        # --- SECCIiN CORREGIDA ---
-        # 1. Verificar si la master_key no existe.
+        # Automatically use master key from login session - no user prompts
         if not self.master_key:
-            print("Error: No hay clave maestra en la sesion. Solicitando al usuario.")
-            
-            # 2. Solicitar la clave al usuario.
-            dialog = ctk.CTkInputDialog(text="Se requiere tu Clave Maestra para continuar:", title="Verificacion de Sesion")
-            key = dialog.get_input()
-            
-            # 3. Si el usuario la ingresa, la guardamos.
-            if key:
-                self.master_key = key
-            # 4. Si el usuario cancela, detenemos la operacion de forma segura.
-            else:
-                print("Operacion cancelada. No se proporciono la clave maestra.")
-                view = self.current_view
-                if view is not None and hasattr(view, "show_status"):
-                    try:
-                        view.show_status("Operacion cancelada. Se requiere la Clave Maestra.", "save", "red")
-                    except Exception:
-                        pass
-                return False
+            print("Error: No master key in session. This should not happen after login.")
+            return False
 
-        # 5. A este punto, self.master_key esta garantizado que es un string.
         try:
             combined_filename = f"{site} | {username}"
             encrypted_data = encriptar_contraseña(password, site, self.master_key.encode('utf-8'))
             result = self.api_client.upload_password_data(filename=combined_filename, content=encrypted_data)
 
             if result is None:
-                print("La API rechazó la subida de la credencial, pero no se cerrará la sesión del usuario.")
+                print("API rejected credential upload, but user session will remain active.")
             return result is not None
         except Exception as e:
-            print(f"Error durante la encriptacion o subida: {e}")
+            print(f"Error during encryption or upload: {e}")
             return False
-        # --- FIN DE LA SECCIiN CORREGIDA ---
 
     def handle_delete_password(self, file_id: int) -> bool:
         success = self.api_client.delete_file(file_id)
