@@ -103,20 +103,11 @@ export async function POST(req: Request) {
 }
 
 async function handleSubscriptionCreated(resource: PayPalSubscriptionResource) {
-  console.log(`Creating subscription for PayPal subscription ${resource.id}`);
+  console.log(` Handling subscription created: ${resource.id}`);
+  console.log(` PayPal email: ${resource.subscriber.email_address}`);
   
   try {
-    // Find user by PayPal customer email
-    const user = await prisma.user.findUnique({
-      where: { email: resource.subscriber.email_address.toLowerCase() }
-    });
-
-    if (!user) {
-      console.error("User not found for email:", resource.subscriber.email_address);
-      return;
-    }
-
-    // Find subscription plan by PayPal plan ID
+    // Find subscription plan
     const plan = await prisma.subscriptionPlan.findUnique({
       where: { paypalPlanId: resource.plan_id }
     });
@@ -126,36 +117,61 @@ async function handleSubscriptionCreated(resource: PayPalSubscriptionResource) {
       return;
     }
 
-    // Check if subscription already exists (idempotency)
-    const existingSubscription = await prisma.userSubscription.findFirst({
-      where: { paypalSubscriptionId: resource.id }
-    });
+    console.log(` Plan: ${plan.name} (${plan.price})`);
 
-    if (existingSubscription) {
-      console.log(`Subscription ${resource.id} already exists, skipping creation`);
-      return;
-    }
-
-    // Create user subscription
-    const subscription = await prisma.userSubscription.create({
-      data: {
-        userId: user.id,
+    // Look for recent pending subscriptions for this plan (user started the process)
+    const now = new Date();
+    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000); // 10 minutes ago
+    
+    const recentSubscription = await prisma.userSubscription.findFirst({
+      where: {
         planId: plan.id,
-        paypalSubscriptionId: resource.id,
-        paypalCustomerId: resource.subscriber.payer_id,
-        status: "pending",
-        startDate: new Date(resource.start_time),
-        metadata: {
-          paypal_plan_id: resource.plan_id,
-          subscriber_email: resource.subscriber.email_address
-        },
-        currency: resource.amount?.currency_code || "USD"
+        status: "pending_payment",
+        createdAt: {
+          gte: tenMinutesAgo
+        }
+      },
+      orderBy: {
+        createdAt: 'desc' // Most recent first
+      },
+      include: {
+        user: true
       }
     });
+
+    if (recentSubscription) {
+      console.log(` Found matching pending subscription: ${recentSubscription.id}`);
+      console.log(` User: ${recentSubscription.user.email}`);
+      
+      // Update the pending subscription with PayPal details
+      const updatedSubscription = await prisma.userSubscription.update({
+        where: { id: recentSubscription.id },
+        data: {
+          paypalSubscriptionId: resource.id,
+          paypalCustomerId: resource.subscriber.payer_id,
+          status: "pending",
+          metadata: {
+            ...(recentSubscription.metadata as Record<string, unknown> || {}),
+            paypal_subscription_created: true,
+            subscriber_email: resource.subscriber.email_address,
+            paypal_payer_id: resource.subscriber.payer_id,
+            updated_at: new Date().toISOString()
+          }
+        }
+      });
+
+      console.log(` Updated subscription ${updatedSubscription.id} with PayPal ID ${resource.id}`);
+    } else {
+      // No matching pending subscription found
+      console.log(" No matching pending subscription found");
+      console.log(" This could mean:");
+      console.log("   - User wasn't logged in when they clicked PayPal");
+      console.log("   - User already has active subscription");
+      console.log("   - Subscription was already processed");
+    }
     
-    console.log(`Created subscription ${subscription.id} for user ${user.id} (${user.email})`);
   } catch (error) {
-    console.error(`Failed to create subscription for resource ${resource.id}:`, error);
+    console.error(` Failed to handle subscription creation ${resource.id}:`, error);
   }
 }
 

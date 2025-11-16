@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import ButtonPaypal from "@/components/PayPal/ButtonPaypal";
 import PayPalProvider from "@/components/PayPal/PayPalProvider";
 
@@ -9,10 +10,29 @@ interface Props {
   features: string[];
   price: string;
   plan_id: string;
+  databasePlanId: number; // ID del plan en nuestra base de datos
   isPopular?: boolean;
   detail: string;
   isFree?: boolean;
   downloadUrl?: string;
+}
+
+interface SubscriptionCheck {
+  hasActiveSubscription: boolean;
+  currentSubscription: {
+    id: number;
+    planName: string;
+    planPrice: string;
+    status: string;
+    nextBillingDate: string;
+  } | null;
+  availablePlans: Array<{
+    id: number;
+    name: string;
+    price: string;
+    paypalPlanId: string;
+    isFree: boolean;
+  }>;
 }
 
 const PricingCard = ({
@@ -21,19 +41,100 @@ const PricingCard = ({
   features,
   price,
   plan_id,
+  databasePlanId,
   isPopular = false,
   detail,
   isFree = false,
   downloadUrl = "/marketing/instalacion",
 
 }: Props) => {
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionCheck | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
+
+  // Verificar estado de suscripción al cargar
+  useEffect(() => {
+    const checkSubscription = async () => {
+      try {
+        const cookies = document.cookie;
+        const authToken = cookies.split('; ').find(row => row.startsWith('auth='))?.split('=')[1];
+        
+        if (!authToken) {
+          setError("Debes iniciar sesión para suscribirte");
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch('/api/subscriptions/check-current', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+
+        const result = await response.json();
+        
+        if (result.ok) {
+          setSubscriptionStatus(result);
+        } else {
+          setError(result.error || "Error al verificar suscripción");
+        }
+      } catch (error) {
+        console.error("Error checking subscription:", error);
+        setError("Error de conexión");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (!isFree) {
+      checkSubscription();
+    } else {
+      setLoading(false);
+    }
+  }, [isFree]);
+
   const handlePlanClick = () => {
     if (isFree) {
       window.location.href = downloadUrl;
-    } else {
-      // PayPal integration will be handled by the hidden ButtonPaypal component
     }
   };
+
+  // Mostrar estado de carga
+  if (loading) {
+    return (
+      <div className={`relative flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-8 shadow-lg ${
+        isPopular ? "ring-2 ring-red-500 ring-offset-2" : ""
+      }`}>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Verificando suscripción...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar error de autenticación
+  if (error && !isFree) {
+    return (
+      <div className={`relative flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-8 shadow-lg ${
+        isPopular ? "ring-2 ring-red-500 ring-offset-2" : ""
+      }`}>
+        <div className="flex items-center justify-center h-64 flex-col">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.href = '/auth/login?next=/marketing/planes'}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Iniciar Sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Verificar si usuario ya tiene suscripción activa
+  const hasActiveSubscription = subscriptionStatus?.hasActiveSubscription;
+  const currentSubscription = subscriptionStatus?.currentSubscription;
 
   return (
     <div
@@ -105,25 +206,41 @@ const PricingCard = ({
 
       {/* --- Botón de Acción (CTA) --- */}
       <div className="mt-auto">
-        <div
-          onClick={handlePlanClick}
-          className={`group relative flex h-12 w-full cursor-pointer items-center justify-center rounded-lg transition-all duration-300 ${
-            isPopular
-              ? "bg-red-600 text-white shadow-lg hover:bg-red-700"
-              : "bg-white text-red-600 ring-1 ring-red-600 hover:bg-red-50"
-          }`}
-        >
-          <span className="text-lg font-semibold">
-            {isFree ? "Descargar Gratis" : isPopular ? "Empezar ahora" : "Elegir plan"}
-          </span>
-          {!isFree && (
-            <div className="absolute inset-0 opacity-0">
-              <PayPalProvider>
-                <ButtonPaypal planId={plan_id} />
-              </PayPalProvider>
+        {isFree ? (
+          <button
+            onClick={handlePlanClick}
+            className={`group relative flex h-12 w-full cursor-pointer items-center justify-center rounded-lg transition-all duration-300 ${
+              isPopular
+                ? "bg-red-600 text-white shadow-lg hover:bg-red-700"
+                : "bg-white text-red-600 ring-1 ring-red-600 hover:bg-red-50"
+            }`}
+          >
+            <span className="text-lg font-semibold">
+              Descargar Gratis
+            </span>
+          </button>
+        ) : hasActiveSubscription ? (
+          <div className="text-center">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-800 font-semibold">
+                Suscripción Activa: {currentSubscription?.planName}
+              </p>
+              <p className="text-green-600 text-sm">
+                Ya tienes una suscripción activa
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <PayPalProvider>
+              <ButtonPaypal
+                planId={plan_id}
+                planName={name}
+                databasePlanId={databasePlanId}
+              />
+            </PayPalProvider>
+          </div>
+        )}
       </div>
       <div className="mt-4">
         <p className="text-gray-700">{detail}</p>

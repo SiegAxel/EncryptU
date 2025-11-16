@@ -67,7 +67,7 @@ export async function GET(req: Request) {
         plan: {
           id: subscription.plan.id,
           name: subscription.plan.name,
-          price: subscription.plan.price,
+          price: subscription.plan.price.toString(),
           features: subscription.plan.features
         },
         nextBillingDate: subscription.nextBillingDate,

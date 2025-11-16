@@ -35,7 +35,8 @@ export default function PricingPage() {
             description="Para usuarios individuales"
             features={basicFeatures}
             price="Free"
-            plan_id="P-3PR04716U1599892MNDZ4RTA"
+            plan_id="FREE_PLAN"
+            databasePlanId={1}
             isFree={true}
             downloadUrl="/marketing/instalacion"
             detail="Comienza a gestionar tus contraseñas de forma segura"
@@ -46,6 +47,7 @@ export default function PricingPage() {
             features={standardFeatures}
             price="6"
             plan_id="P-3M132065FH7874447NDZ4R6Q"
+            databasePlanId={2}
             isPopular={true}
             detail="La opción más popular para equipos de trabajo"
           />
@@ -55,6 +57,7 @@ export default function PricingPage() {
             features={premiumFeatures}
             price="10"
             plan_id="P-5J269540BM416772TNDZ4SEA"
+            databasePlanId={3}
             detail="Solución completa para organizaciones grandes"
           />
         </div>
