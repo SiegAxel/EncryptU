@@ -41,12 +41,23 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
           try {
             // Extract customer information from the subscription data
             // Note: In real PayPal, you'd get this from subscription.get() API call
-            // For fake payments, we'll set reasonable defaults
-            customerId = "FAKE-CUSTOMER-" + Date.now().toString().slice(-8);
-            amountPaid = planName === 'Básico' ? 9.99 : planName === 'Premium' ? 19.99 : 29.99;
+            // For fake payments, we'll set realistic defaults based on actual plan prices
+            
+            // Generate realistic PayPal customer ID format (looks like real ones)
+            const randomNum = Math.floor(Math.random() * 99999999);
+            customerId = `FAKE-${randomNum.toString().padStart(8, '0')}-TEST`;
+            
+            // Use exact plan prices from planes page
+            const planPrices: { [key: number]: number } = {
+              1: 0.00,    // Básico (Free)
+              2: 6.00,    // Estándar
+              3: 10.00    // Premium
+            };
+            
+            amountPaid = planPrices[databasePlanId] || 6.00;
             paymentDate = new Date().toISOString();
             
-            console.log(`📊 Payment details: Customer: ${customerId}, Amount: $${amountPaid}`);
+            console.log(` Payment details: Customer: ${customerId}, Amount: $${amountPaid} (Plan: ${planName})`);
           } catch (detailsError) {
             console.warn('Could not get PayPal details, using defaults:', detailsError);
           }
@@ -69,14 +80,14 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
           const activationResult = await activationResponse.json();
           
           if (activationResult.ok) {
-            console.log(`✅ Subscription activated successfully: ${activationResult.subscriptionId}`);
+            console.log(` Subscription activated successfully: ${activationResult.subscriptionId}`);
             alert(`¡Suscripción activada exitosamente!\n\nPlan: ${planName}\nID de Suscripción: ${data.subscriptionID}\n\nTu suscripción está activa y lista para usar.`);
           } else {
-            console.warn(`⚠️ Direct activation failed, but subscription was created:`, activationResult.error);
+            console.warn(` Direct activation failed, but subscription was created:`, activationResult.error);
             alert(`¡Suscripción creada exitosamente!\n\nPlan: ${planName}\nID de Suscripción: ${data.subscriptionID}\n\nNota: La activación puede tardar unos minutos. Recibirás una confirmación por email.`);
           }
         } catch (activationError) {
-          console.error(`❌ Direct activation error:`, activationError);
+          console.error(` Direct activation error:`, activationError);
           alert(`¡Suscripción creada exitosamente!\n\nPlan: ${planName}\nID de Suscripción: ${data.subscriptionID}\n\nRecibirás una confirmación por email en los próximos minutos.`);
         }
         
@@ -97,11 +108,11 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
     data,
     actions
   ) => {
-    console.log(`🚀 Starting PayPal subscription for plan: ${planName} (ID: ${databasePlanId})`);
+    console.log(` Starting PayPal subscription for plan: ${planName} (ID: ${databasePlanId})`);
     
     try {
       // Pre-authorize right before creating the subscription
-      console.log(`🔍 Pre-authorizing subscription for plan: ${planName} (ID: ${databasePlanId})`);
+      console.log(` Pre-authorizing subscription for plan: ${planName} (ID: ${databasePlanId})`);
       
       const response = await fetch('/api/subscriptions/pre-authorize', {
         method: 'POST',
@@ -112,21 +123,21 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
         body: JSON.stringify({ planId: databasePlanId })
       });
 
-      console.log(`📡 Pre-auth response status: ${response.status}`);
+      console.log(` Pre-auth response status: ${response.status}`);
       const result = await response.json();
-      console.log(`📋 Pre-auth response:`, result);
+      console.log(` Pre-auth response:`, result);
       
       if (!result.ok) {
         throw new Error(result.error || "Error al pre-autorizar suscripción");
       }
 
-      console.log(`✅ Pre-authorized: ${result.planName} - Creating PayPal subscription`);
+      console.log(` Pre-authorized: ${result.planName} - Creating PayPal subscription`);
       
       return actions.subscription.create({
         plan_id: planId
       });
     } catch (error) {
-      console.error("❌ Pre-authorization or subscription creation failed:", error);
+      console.error(" Pre-authorization or subscription creation failed:", error);
       throw error;
     }
   };

@@ -20,17 +20,19 @@ export async function POST(req: Request) {
     
     const now = new Date();
     
-    // Update subscription with all missing fields
+    // Update subscription with realistic fake data
     const updatedSubscription = await prisma.userSubscription.update({
       where: { id: subscriptionId },
       data: {
-        paypalCustomerId: "TEST-CUSTOMER-" + subscriptionId,
+        // Generate realistic PayPal customer ID format
+        paypalCustomerId: `FAKE-${Math.floor(Math.random() * 99999999).toString().padStart(8, '0')}-TEST`,
         lastPaymentDate: now,
-        amountPaid: 19.99,
+        amountPaid: 6.00, // Standard plan price from planes page
         updatedAt: now,
         metadata: {
           test_completion: true,
-          completed_at: now.toISOString()
+          completed_at: now.toISOString(),
+          fake_customer_generated: true
         }
       }
     });

@@ -53,40 +53,40 @@ const PricingCard = ({
   const [error, setError] = useState<string>("");
 
   // Component mount debugging
-  console.log(`📦 PricingCard rendered: ${name}, isFree: ${isFree}`);
+  console.log(` PricingCard rendered: ${name}, isFree: ${isFree}`);
 
   // Verificar estado de suscripción al cargar
   useEffect(() => {
-    console.log(`🔄 useEffect triggered for: ${name}, isFree: ${isFree}`);
+    console.log(` useEffect triggered for: ${name}, isFree: ${isFree}`);
     
     const checkSubscription = async () => {
       try {
-        console.log("🔍 Starting subscription check...");
+        console.log(" Starting subscription check...");
         
         const response = await fetch('/api/subscriptions/check-current', {
           method: 'GET',
           credentials: 'include' // Include cookies in the request
         });
 
-        console.log("📡 API Response status:", response.status);
+        console.log(" API Response status:", response.status);
         
         const result = await response.json();
-        console.log("📋 API Response:", result);
+        console.log(" API Response:", result);
         
         if (result.ok) {
-          console.log("✅ Subscription check successful");
+          console.log(" Subscription check successful");
           setSubscriptionStatus(result);
           setError(""); // Clear any previous errors on success
         } else if (result.error?.includes("no autenticado") || result.error?.includes("autenticado")) {
-          console.log("❌ Authentication error:", result.error);
+          console.log(" Authentication error:", result.error);
           setError("Debes iniciar sesión para suscribirte");
           setSubscriptionStatus(null); // Clear subscription status on auth error
         } else {
-          console.log("❌ Other error:", result.error);
+          console.log(" Other error:", result.error);
           setError(result.error || "Error al verificar suscripción");
         }
       } catch (error) {
-        console.error("❌ Network error checking subscription:", error);
+        console.error(" Network error checking subscription:", error);
         setError("Error de conexión");
       } finally {
         setLoading(false);
@@ -94,10 +94,10 @@ const PricingCard = ({
     };
 
     if (!isFree) {
-      console.log(`💳 Non-free plan detected, checking subscription for: ${name}`);
+      console.log(` Non-free plan detected, checking subscription for: ${name}`);
       checkSubscription();
     } else {
-      console.log("🆓 Free plan - skipping subscription check");
+      console.log(" Free plan - skipping subscription check");
       setLoading(false);
     }
   }, [isFree, name]);
@@ -156,15 +156,15 @@ const PricingCard = ({
 
   // Determine which UI to show
   if (loading) {
-    console.log(`📱 ${name}: Showing LOADING state`);
+    console.log(` ${name}: Showing LOADING state`);
   } else if (error && !isFree) {
-    console.log(`📱 ${name}: Showing ERROR state - ${error}`);
+    console.log(` ${name}: Showing ERROR state - ${error}`);
   } else if (isFree) {
-    console.log(`📱 ${name}: Showing FREE PLAN button`);
+    console.log(` ${name}: Showing FREE PLAN button`);
   } else if (hasActiveSubscription) {
-    console.log(`📱 ${name}: Showing ACTIVE SUBSCRIPTION state`);
+    console.log(` ${name}: Showing ACTIVE SUBSCRIPTION state`);
   } else {
-    console.log(`📱 ${name}: Showing PAYPAL BUTTONS`);
+    console.log(` ${name}: Showing PAYPAL BUTTONS`);
   }
 
   return (
