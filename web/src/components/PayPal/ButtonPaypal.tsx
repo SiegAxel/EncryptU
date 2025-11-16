@@ -22,12 +22,17 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [authError, setAuthError] = useState<string>("");
   const [isPreAuthorized, setIsPreAuthorized] = useState(false);
+  const [preAuthInProgress, setPreAuthInProgress] = useState(false);
 
   // Pre-authorize subscription when component mounts
   React.useEffect(() => {
     const preAuthorize = async () => {
+      // Prevent multiple simultaneous pre-auth requests
+      if (preAuthInProgress) return;
+      
+      setPreAuthInProgress(true);
       try {
-        console.log(`🔍 Pre-authorizing subscription for plan: ${planName}`);
+        console.log(`🔍 Pre-authorizing subscription for plan: ${planName} (ID: ${databasePlanId})`);
         
         // Pre-authorize the subscription using cookies automatically
         const response = await fetch('/api/subscriptions/pre-authorize', {
@@ -57,11 +62,13 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
       } catch (error) {
         console.error("❌ Pre-authorization error:", error);
         setAuthError("Error de conexión");
+      } finally {
+        setPreAuthInProgress(false);
       }
     };
 
     preAuthorize();
-  }, [databasePlanId]);
+  }, [databasePlanId, planName, preAuthInProgress]);
 
   const onApprove: PayPalButtonOnApprove = async (data) => {
     setIsProcessing(true);

@@ -11,6 +11,7 @@ const PayPalProvider = ({ children }: PropsWithChildren) => {
         components: "buttons",
         currency: "USD",
         vault: true,
+        intent: "subscription", // This fixes the SDK error
       }}
     >
       {children}
