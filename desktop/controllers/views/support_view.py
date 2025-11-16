@@ -960,11 +960,11 @@ class SupportView(BaseView):
 
         first_slot = ctk.CTkFrame(names_row, fg_color="transparent")
         first_slot.pack(side="left", expand=True, fill="x", padx=(0, 6))
-        first_name_entry = add_entry(first_slot, label_text="Nombre", placeholder="Felipe")
+        first_name_entry = add_entry(first_slot, label_text="Nombre", placeholder="Nombre")
 
         last_slot = ctk.CTkFrame(names_row, fg_color="transparent")
         last_slot.pack(side="left", expand=True, fill="x", padx=(6, 0))
-        last_name_entry = add_entry(last_slot, label_text="Apellido", placeholder="Torres")
+        last_name_entry = add_entry(last_slot, label_text="Apellido", placeholder="Apellido")
 
         email_block = ctk.CTkFrame(form, fg_color="transparent")
         email_block.pack(fill="x", pady=(0, 14))
