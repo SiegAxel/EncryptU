@@ -44,69 +44,131 @@ interface PayPalPaymentSaleResource {
 
 export async function POST(req: Request) {
   try {
+    // Enhanced logging for debugging
+    const headers = Object.fromEntries(req.headers.entries());
+    console.log('📨 PayPal Webhook Headers:', {
+      'user-agent': headers['user-agent'],
+      'content-type': headers['content-type'],
+      'paypal-transmission-sig': headers['paypal-transmission-sig'] ? 'present' : 'missing',
+      'paypal-transmission-time': headers['paypal-transmission-time'] || 'missing',
+      'paypal-cert-url': headers['paypal-cert-url'] || 'missing',
+      'paypal-auth-algo': headers['paypal-auth-algo'] || 'missing'
+    });
+
     const event = await req.json() as PayPalWebhookEvent;
-    console.log(`Received PayPal webhook event: ${event.event_type}`, { eventId: event.id, createTime: event.create_time });
+    console.log(`🔔 Received PayPal webhook event: ${event.event_type}`, {
+      eventId: event.id,
+      createTime: event.create_time,
+      resourceType: typeof event.resource
+    });
+
+    // Verify webhook authenticity (PayPal recommends this for production)
+    const transmissionSig = headers['paypal-transmission-sig'];
+    const transmissionTime = headers['paypal-transmission-time'];
+    const certUrl = headers['paypal-cert-url'];
+    const authAlgo = headers['paypal-auth-algo'];
+
+    if (transmissionSig && transmissionTime && certUrl && authAlgo) {
+      console.log('✅ Webhook appears to be from PayPal (has verification headers)');
+      // In production, you should verify this signature with PayPal's webhook verification API
+    } else {
+      console.log('⚠️  Webhook verification headers missing - this should be fixed for production');
+    }
+    
+    let handled = false;
     
     switch (event.event_type) {
       case "BILLING.SUBSCRIPTION.CREATED":
+        console.log(' Handling BILLING.SUBSCRIPTION.CREATED');
         if ('subscriber' in event.resource) {
           await handleSubscriptionCreated(event.resource as PayPalSubscriptionResource);
+          handled = true;
         }
         break;
       
       case "BILLING.SUBSCRIPTION.ACTIVATED":
+        console.log(' Handling BILLING.SUBSCRIPTION.ACTIVATED');
         if ('subscriber' in event.resource) {
           await handleSubscriptionActivated(event.resource as PayPalSubscriptionResource);
+          handled = true;
         }
         break;
       
       case "BILLING.SUBSCRIPTION.CANCELLED":
+        console.log(' Handling BILLING.SUBSCRIPTION.CANCELLED');
         if ('subscriber' in event.resource) {
           await handleSubscriptionCancelled(event.resource as PayPalSubscriptionResource);
+          handled = true;
         }
         break;
       
       case "BILLING.SUBSCRIPTION.SUSPENDED":
+        console.log('⏸  Handling BILLING.SUBSCRIPTION.SUSPENDED');
         if ('subscriber' in event.resource) {
           await handleSubscriptionSuspended(event.resource as PayPalSubscriptionResource);
+          handled = true;
         }
         break;
       
       case "BILLING.SUBSCRIPTION.EXPIRED":
+        console.log('⏰ Handling BILLING.SUBSCRIPTION.EXPIRED');
         if ('subscriber' in event.resource) {
           await handleSubscriptionExpired(event.resource as PayPalSubscriptionResource);
+          handled = true;
         }
         break;
       
       case "PAYMENT.SALE.COMPLETED":
+        console.log('💳 Handling PAYMENT.SALE.COMPLETED');
         if ('billing_agreement_id' in event.resource) {
           await handlePaymentCompleted(event.resource as PayPalPaymentSaleResource);
+          handled = true;
         }
         break;
       
       case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
+        console.log('❌ Handling BILLING.SUBSCRIPTION.PAYMENT.FAILED');
         if ('subscriber' in event.resource) {
           await handleSubscriptionPaymentFailed(event.resource as PayPalSubscriptionResource);
+          handled = true;
         }
         break;
       
       default:
-        console.log(`Unhandled PayPal event: ${event.event_type}`, event.resource);
+        console.log(`❓ Unhandled PayPal event: ${event.event_type}`);
+        console.log('📋 Full event data:', JSON.stringify(event, null, 2));
     }
 
-    return NextResponse.json({ ok: true });
+    console.log(`🎯 Webhook processing ${handled ? 'completed successfully' : 'no action taken'}`);
+    
+    // Always return 200 OK to prevent PayPal from retrying
+    return NextResponse.json({
+      ok: true,
+      message: handled ? 'Event processed' : 'Event ignored',
+      eventType: event.event_type
+    });
+    
   } catch (error) {
-    console.error("PayPal webhook error:", error);
-    return NextResponse.json(
-      { error: "Webhook processing failed", message: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    console.error('💥 PayPal webhook error:', error);
+    console.error('📊 Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
+    // Return 200 anyway to prevent retries, but log the error
+    return NextResponse.json({
+      ok: false,
+      error: "Webhook processing failed",
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
   }
 }
 
 async function handleSubscriptionCreated(resource: PayPalSubscriptionResource) {
-  console.log(` Handling subscription created: ${resource.id}`);
-  console.log(` PayPal email: ${resource.subscriber.email_address}`);
+  console.log(`🔔 Handling subscription created: ${resource.id}`);
+  console.log(`📧 PayPal email: ${resource.subscriber.email_address}`);
   
   try {
     // Find subscription plan
@@ -115,22 +177,27 @@ async function handleSubscriptionCreated(resource: PayPalSubscriptionResource) {
     });
 
     if (!plan) {
-      console.error("Plan not found for PayPal plan ID:", resource.plan_id);
+      console.error(`❌ Plan not found for PayPal plan ID: ${resource.plan_id}`);
       return;
     }
 
-    console.log(` Plan: ${plan.name} (${plan.price})`);
+    console.log(`📋 Plan: ${plan.name} (${plan.price})`);
 
-    // Look for recent pending subscriptions for this plan (user started the process)
-    const now = new Date();
-    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000); // 10 minutes ago
+    // Enhanced search strategy - try multiple approaches
+    let subscription = null;
     
-    const recentSubscription = await prisma.userSubscription.findFirst({
+    // Strategy 1: Look for pending subscription by plan and recent timeframe
+    const now = new Date();
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour instead of 10 minutes
+    
+    console.log(`🔍 Searching for pending subscription (plan ${plan.id}, last hour)`);
+    
+    subscription = await prisma.userSubscription.findFirst({
       where: {
         planId: plan.id,
         status: "pending_payment",
         createdAt: {
-          gte: tenMinutesAgo
+          gte: oneHourAgo
         }
       },
       orderBy: {
@@ -141,19 +208,69 @@ async function handleSubscriptionCreated(resource: PayPalSubscriptionResource) {
       }
     });
 
-    if (recentSubscription) {
-      console.log(` Found matching pending subscription: ${recentSubscription.id}`);
-      console.log(` User: ${recentSubscription.user.email}`);
+    // Strategy 2: If not found, search by any pending subscription for this user
+    if (!subscription && resource.subscriber?.email_address) {
+      console.log(`🔍 Trying alternate search by user email`);
       
-      // Update the pending subscription with PayPal details
+      const user = await prisma.user.findUnique({
+        where: { email: resource.subscriber.email_address.toLowerCase() }
+      });
+      
+      if (user) {
+        subscription = await prisma.userSubscription.findFirst({
+          where: {
+            userId: user.id,
+            status: "pending_payment"
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          include: {
+            user: true
+          }
+        });
+      }
+    }
+
+    // Strategy 3: If still not found, look for any active subscription and update it
+    if (!subscription && resource.subscriber?.email_address) {
+      console.log(`🔍 Final attempt: searching for active subscription to upgrade`);
+      
+      const user = await prisma.user.findUnique({
+        where: { email: resource.subscriber.email_address.toLowerCase() }
+      });
+      
+      if (user) {
+        subscription = await prisma.userSubscription.findFirst({
+          where: {
+            userId: user.id,
+            status: "active"
+          },
+          include: {
+            user: true,
+            plan: true
+          }
+        });
+        
+        if (subscription) {
+          console.log(`📝 Found active subscription ${subscription.id} (${subscription.plan.name}) - will upgrade to ${plan.name}`);
+        }
+      }
+    }
+
+    if (subscription) {
+      console.log(`✅ Found matching subscription: ${subscription.id}`);
+      console.log(`👤 User: ${subscription.user.email}`);
+      
+      // Update the subscription with PayPal details
       const updatedSubscription = await prisma.userSubscription.update({
-        where: { id: recentSubscription.id },
+        where: { id: subscription.id },
         data: {
           paypalSubscriptionId: resource.id,
           paypalCustomerId: resource.subscriber.payer_id,
-          status: "pending",
+          status: "pending", // Will be activated by the ACTIVATED event
           metadata: {
-            ...(recentSubscription.metadata as Record<string, unknown> || {}),
+            ...(subscription.metadata as Record<string, unknown> || {}),
             paypal_subscription_created: true,
             subscriber_email: resource.subscriber.email_address,
             paypal_payer_id: resource.subscriber.payer_id,
@@ -162,18 +279,52 @@ async function handleSubscriptionCreated(resource: PayPalSubscriptionResource) {
         }
       });
 
-      console.log(` Updated subscription ${updatedSubscription.id} with PayPal ID ${resource.id}`);
+      console.log(`🔄 Updated subscription ${updatedSubscription.id} with PayPal ID ${resource.id}`);
     } else {
-      // No matching pending subscription found
-      console.log(" No matching pending subscription found");
-      console.log(" This could mean:");
-      console.log("   - User wasn't logged in when they clicked PayPal");
-      console.log("   - User already has active subscription");
-      console.log("   - Subscription was already processed");
+      console.log(`⚠️  No matching subscription found`);
+      console.log(`   Possible reasons:`);
+      console.log(`   - User wasn't logged in during pre-authorize`);
+      console.log(`   - Subscription already processed`);
+      console.log(`   - Timing issue (pre-authorize too long ago)`);
+      console.log(`   - Database cleanup removed the record`);
+      
+      // Create a new subscription record if we have user info
+      if (resource.subscriber?.email_address) {
+        const user = await prisma.user.findUnique({
+          where: { email: resource.subscriber.email_address.toLowerCase() }
+        });
+        
+        if (user) {
+          console.log(`➕ Creating new subscription record for user ${user.email}`);
+          
+          const newSubscription = await prisma.userSubscription.create({
+            data: {
+              userId: user.id,
+              planId: plan.id,
+              status: "pending",
+              startDate: new Date(),
+              paypalSubscriptionId: resource.id,
+              paypalCustomerId: resource.subscriber.payer_id,
+              currency: "USD",
+              metadata: {
+                paypal_subscription_created: true,
+                subscriber_email: resource.subscriber.email_address,
+                paypal_payer_id: resource.subscriber.payer_id,
+                created_via_webhook: true,
+                created_at: new Date().toISOString()
+              }
+            }
+          });
+          
+          console.log(`✅ Created new subscription ${newSubscription.id}`);
+        } else {
+          console.log(`❌ User not found in database: ${resource.subscriber.email_address}`);
+        }
+      }
     }
     
   } catch (error) {
-    console.error(` Failed to handle subscription creation ${resource.id}:`, error);
+    console.error(`❌ Failed to handle subscription creation ${resource.id}:`, error);
   }
 }
 
