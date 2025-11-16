@@ -33,6 +33,24 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
         console.log(`🔄 Activating subscription directly for fake payment...`);
         
         try {
+          // Try to get PayPal subscription details to extract customer info
+          let customerId = null;
+          let amountPaid = null;
+          let paymentDate = null;
+          
+          try {
+            // Extract customer information from the subscription data
+            // Note: In real PayPal, you'd get this from subscription.get() API call
+            // For fake payments, we'll set reasonable defaults
+            customerId = "FAKE-CUSTOMER-" + Date.now().toString().slice(-8);
+            amountPaid = planName === 'Básico' ? 9.99 : planName === 'Premium' ? 19.99 : 29.99;
+            paymentDate = new Date().toISOString();
+            
+            console.log(`📊 Payment details: Customer: ${customerId}, Amount: $${amountPaid}`);
+          } catch (detailsError) {
+            console.warn('Could not get PayPal details, using defaults:', detailsError);
+          }
+          
           const activationResponse = await fetch('/api/subscriptions/activate', {
             method: 'POST',
             headers: {
@@ -41,7 +59,10 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
             credentials: 'include',
             body: JSON.stringify({
               paypalSubscriptionId: data.subscriptionID,
-              planId: databasePlanId
+              planId: databasePlanId,
+              paypalCustomerId: customerId,
+              amountPaid: amountPaid,
+              paymentDate: paymentDate
             })
           });
 

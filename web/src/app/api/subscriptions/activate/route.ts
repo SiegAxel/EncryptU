@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { paypalSubscriptionId, planId } = body;
+    const { paypalSubscriptionId, planId, paypalCustomerId, amountPaid, paymentDate } = body;
 
     if (!paypalSubscriptionId || !planId) {
       return NextResponse.json(
@@ -75,13 +75,16 @@ export async function POST(req: Request) {
     nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
 
     if (existingSubscription) {
-      // Update existing subscription
+      // Update existing subscription with all PayPal payment details
       const updatedSubscription = await prisma.userSubscription.update({
         where: { id: existingSubscription.id },
         data: {
           planId: plan.id,
           status: "active",
           paypalSubscriptionId: paypalSubscriptionId,
+          paypalCustomerId: paypalCustomerId, // Add customer ID
+          lastPaymentDate: paymentDate ? new Date(paymentDate) : now, // Add last payment date
+          amountPaid: amountPaid || plan.price.toNumber(), // Add amount paid
           startDate: now,
           nextBillingDate: nextBillingDate,
           updatedAt: now,
@@ -90,7 +93,8 @@ export async function POST(req: Request) {
             client_activation: true,
             activated_at: now.toISOString(),
             paypal_plan_id: plan.paypalPlanId,
-            plan_changed_from: existingSubscription.plan.name
+            plan_changed_from: existingSubscription.plan.name,
+            payment_details_from_client: true
           }
         }
       });
@@ -105,20 +109,24 @@ export async function POST(req: Request) {
         nextBillingDate: updatedSubscription.nextBillingDate
       });
     } else {
-      // Create new subscription
+      // Create new subscription with all PayPal payment details
       const newSubscription = await prisma.userSubscription.create({
         data: {
           userId: user.id,
           planId: plan.id,
           status: "active",
           paypalSubscriptionId: paypalSubscriptionId,
+          paypalCustomerId: paypalCustomerId, // Add customer ID
+          lastPaymentDate: paymentDate ? new Date(paymentDate) : now, // Add last payment date
+          amountPaid: amountPaid || plan.price.toNumber(), // Add amount paid
           startDate: now,
           nextBillingDate: nextBillingDate,
           currency: "USD",
           metadata: {
             client_activation: true,
             activated_at: now.toISOString(),
-            paypal_plan_id: plan.paypalPlanId
+            paypal_plan_id: plan.paypalPlanId,
+            payment_details_from_client: true
           }
         }
       });
