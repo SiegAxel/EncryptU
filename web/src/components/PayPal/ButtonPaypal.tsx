@@ -21,54 +21,6 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
   const [{ isPending }] = usePayPalScriptReducer();
   const [isProcessing, setIsProcessing] = useState(false);
   const [authError, setAuthError] = useState<string>("");
-  const [isPreAuthorized, setIsPreAuthorized] = useState(false);
-  const [preAuthInProgress, setPreAuthInProgress] = useState(false);
-
-  // Pre-authorize subscription when component mounts
-  React.useEffect(() => {
-    const preAuthorize = async () => {
-      // Prevent multiple simultaneous pre-auth requests
-      if (preAuthInProgress) return;
-      
-      setPreAuthInProgress(true);
-      try {
-        console.log(`🔍 Pre-authorizing subscription for plan: ${planName} (ID: ${databasePlanId})`);
-        
-        // Pre-authorize the subscription using cookies automatically
-        const response = await fetch('/api/subscriptions/pre-authorize', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include', // Include cookies automatically
-          body: JSON.stringify({ planId: databasePlanId })
-        });
-
-        console.log(`📡 Pre-auth response status: ${response.status}`);
-        const result = await response.json();
-        console.log(`📋 Pre-auth response:`, result);
-        
-        if (result.ok) {
-          setIsPreAuthorized(true);
-          setAuthError(""); // Clear any auth errors on success
-          console.log(`✅ Pre-authorized: ${result.planName}`);
-        } else if (result.error?.includes("autenticado") || result.error?.includes("autenticado")) {
-          setAuthError("Por favor inicia sesión para suscribirte");
-          console.log("❌ Authentication error in pre-auth");
-        } else {
-          setAuthError(result.error || "Error al verificar autorización");
-          console.log("❌ Other pre-auth error:", result.error);
-        }
-      } catch (error) {
-        console.error("❌ Pre-authorization error:", error);
-        setAuthError("Error de conexión");
-      } finally {
-        setPreAuthInProgress(false);
-      }
-    };
-
-    preAuthorize();
-  }, [databasePlanId, planName, preAuthInProgress]);
 
   const onApprove: PayPalButtonOnApprove = async (data) => {
     setIsProcessing(true);
@@ -90,19 +42,42 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
     }
   };
 
-  const createSubscription: PayPalButtonCreateSubscription = (
+  const createSubscription: PayPalButtonCreateSubscription = async (
     data,
     actions
   ) => {
-    console.log(`Creating PayPal subscription for plan: ${planId}`);
+    console.log(`🚀 Starting PayPal subscription for plan: ${planName} (ID: ${databasePlanId})`);
     
-    if (!isPreAuthorized) {
-      throw new Error("Suscripción no pre-autorizada - por favor intenta de nuevo");
+    try {
+      // Pre-authorize right before creating the subscription
+      console.log(`🔍 Pre-authorizing subscription for plan: ${planName} (ID: ${databasePlanId})`);
+      
+      const response = await fetch('/api/subscriptions/pre-authorize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ planId: databasePlanId })
+      });
+
+      console.log(`📡 Pre-auth response status: ${response.status}`);
+      const result = await response.json();
+      console.log(`📋 Pre-auth response:`, result);
+      
+      if (!result.ok) {
+        throw new Error(result.error || "Error al pre-autorizar suscripción");
+      }
+
+      console.log(`✅ Pre-authorized: ${result.planName} - Creating PayPal subscription`);
+      
+      return actions.subscription.create({
+        plan_id: planId
+      });
+    } catch (error) {
+      console.error("❌ Pre-authorization or subscription creation failed:", error);
+      throw error;
     }
-    
-    return actions.subscription.create({
-      plan_id: planId
-    });
   };
 
   if (authError) {
@@ -119,14 +94,7 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
     );
   }
 
-  if (!isPreAuthorized) {
-    return (
-      <div className="flex items-center justify-center p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
-        <span className="text-blue-800">Verificando autorización...</span>
-      </div>
-    );
-  }
+  // No pre-authorization state needed - it's handled in createSubscription
 
   if (isProcessing) {
     return (

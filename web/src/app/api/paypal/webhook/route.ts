@@ -85,7 +85,9 @@ export async function POST(req: Request) {
         break;
       
       case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
-        console.log("Payment failed for subscription:", event.resource?.id || 'unknown');
+        if ('subscriber' in event.resource) {
+          await handleSubscriptionPaymentFailed(event.resource as PayPalSubscriptionResource);
+        }
         break;
       
       default:
@@ -293,5 +295,72 @@ async function handlePaymentCompleted(resource: PayPalPaymentSaleResource) {
     }
   } catch (error) {
     console.error(`Failed to process payment completed for resource ${resource.id}:`, error);
+  }
+}
+
+async function handleSubscriptionPaymentFailed(resource: PayPalSubscriptionResource) {
+  console.log(`Payment failed for subscription ${resource.id} - reverting to previous plan`);
+  
+  try {
+    // Find the subscription that failed
+    const subscription = await prisma.userSubscription.findFirst({
+      where: { paypalSubscriptionId: resource.id },
+      include: { plan: true }
+    });
+    
+    if (!subscription) {
+      console.error(`Subscription ${resource.id} not found for payment failure`);
+      return;
+    }
+    
+    // Get the previous plan from metadata
+    const metadata = subscription.metadata as Record<string, unknown> || {};
+    const previousPlanId = metadata.previous_plan;
+    
+    if (previousPlanId) {
+      // Revert to previous plan
+      const previousPlan = await prisma.subscriptionPlan.findUnique({
+        where: { id: previousPlanId as number }
+      });
+      
+      if (previousPlan) {
+        await prisma.userSubscription.update({
+          where: { id: subscription.id },
+          data: {
+            planId: previousPlanId as number,
+            status: "active", // Revert to active status
+            endDate: null, // Clear end date
+            updatedAt: new Date(),
+            metadata: {
+              ...metadata,
+              payment_failed: true,
+              reverted_to_plan: previousPlan.name,
+              failed_at: new Date().toISOString()
+            }
+          }
+        });
+        
+        console.log(`✅ Reverted subscription ${subscription.id} to previous plan: ${previousPlan.name}`);
+      } else {
+        console.error(`Previous plan ${previousPlanId} not found`);
+      }
+    } else {
+      console.log(`No previous plan found in metadata for subscription ${subscription.id}, keeping current plan`);
+      // If no previous plan, just mark as active again (shouldn't happen with proper flow)
+      await prisma.userSubscription.update({
+        where: { id: subscription.id },
+        data: {
+          status: "active",
+          updatedAt: new Date(),
+          metadata: {
+            ...metadata,
+            payment_failed: true,
+            failed_at: new Date().toISOString()
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.error(`Failed to handle payment failure for subscription ${resource.id}:`, error);
   }
 }
