@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken, type TokenPayload } from "@/lib/auth";
+import { cookies } from "next/headers";
 
 export const runtime = "nodejs";
 
 // Check current user's subscription status
 export async function GET(req: Request) {
   try {
-    const authHeader = req.headers.get("authorization");
-    const token = authHeader?.replace("Bearer ", "");
+    const token = (await cookies()).get("auth")?.value;
 
     if (!token) {
       return NextResponse.json(

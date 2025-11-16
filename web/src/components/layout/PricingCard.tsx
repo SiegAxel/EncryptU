@@ -56,25 +56,17 @@ const PricingCard = ({
   useEffect(() => {
     const checkSubscription = async () => {
       try {
-        const cookies = document.cookie;
-        const authToken = cookies.split('; ').find(row => row.startsWith('auth='))?.split('=')[1];
-        
-        if (!authToken) {
-          setError("Debes iniciar sesión para suscribirte");
-          setLoading(false);
-          return;
-        }
-
         const response = await fetch('/api/subscriptions/check-current', {
-          headers: {
-            'Authorization': `Bearer ${authToken}`
-          }
+          method: 'GET',
+          credentials: 'include' // Include cookies in the request
         });
 
         const result = await response.json();
         
         if (result.ok) {
           setSubscriptionStatus(result);
+        } else if (result.error?.includes("no autenticado")) {
+          setError("Debes iniciar sesión para suscribirte");
         } else {
           setError(result.error || "Error al verificar suscripción");
         }
