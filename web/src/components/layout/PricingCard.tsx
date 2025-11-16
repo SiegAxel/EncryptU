@@ -76,9 +76,11 @@ const PricingCard = ({
         if (result.ok) {
           console.log("✅ Subscription check successful");
           setSubscriptionStatus(result);
+          setError(""); // Clear any previous errors on success
         } else if (result.error?.includes("no autenticado") || result.error?.includes("autenticado")) {
           console.log("❌ Authentication error:", result.error);
           setError("Debes iniciar sesión para suscribirte");
+          setSubscriptionStatus(null); // Clear subscription status on auth error
         } else {
           console.log("❌ Other error:", result.error);
           setError(result.error || "Error al verificar suscripción");
@@ -142,6 +144,15 @@ const PricingCard = ({
   // Verificar si usuario ya tiene suscripción activa
   const hasActiveSubscription = subscriptionStatus?.hasActiveSubscription;
   const currentSubscription = subscriptionStatus?.currentSubscription;
+
+  // Debug the final decision logic
+  console.log(`🎯 Final decision for ${name}:`, {
+    loading,
+    error: error ? `"${error}"` : "none",
+    isFree,
+    hasActiveSubscription,
+    currentSubscription: currentSubscription ? "exists" : "null"
+  });
 
   return (
     <div
