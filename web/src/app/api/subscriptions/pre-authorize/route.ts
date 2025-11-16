@@ -62,12 +62,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Skip subscription check - allow all users to pre-authorize
-    // The actual subscription logic will be handled in the webhook
-    const existingSubscription = null;
-
-    // Clean up any existing pending subscriptions for this plan
-    await prisma.userSubscription.deleteMany({
+    // Check if user already has a pending subscription for this plan
+    const existingPendingSubscription = await prisma.userSubscription.findFirst({
       where: {
         userId: user.id,
         planId: plan.id,
@@ -75,23 +71,39 @@ export async function POST(req: Request) {
       }
     });
 
-    // Create pending subscription record
-    const pendingSubscription = await prisma.userSubscription.create({
-      data: {
-        userId: user.id,
-        planId: plan.id,
-        status: "pending_payment",
-        startDate: new Date(),
-        currency: "USD",
-        metadata: {
-          session_created_at: new Date().toISOString(),
-          paypal_plan_id: plan.paypalPlanId,
-          user_email: user.email
+    let pendingSubscription;
+    if (existingPendingSubscription) {
+      // Update existing pending subscription
+      pendingSubscription = await prisma.userSubscription.update({
+        where: { id: existingPendingSubscription.id },
+        data: {
+          updatedAt: new Date(),
+          metadata: {
+            session_created_at: new Date().toISOString(),
+            paypal_plan_id: plan.paypalPlanId,
+            user_email: user.email
+          }
         }
-      }
-    });
+      });
+    } else {
+      // Create new pending subscription
+      pendingSubscription = await prisma.userSubscription.create({
+        data: {
+          userId: user.id,
+          planId: plan.id,
+          status: "pending_payment",
+          startDate: new Date(),
+          currency: "USD",
+          metadata: {
+            session_created_at: new Date().toISOString(),
+            paypal_plan_id: plan.paypalPlanId,
+            user_email: user.email
+          }
+        }
+      });
+    }
 
-    console.log(` Pre-authorized subscription ${pendingSubscription.id} for user ${user.email}`);
+    console.log(`✅ Pre-authorized subscription ${pendingSubscription.id} for user ${user.email}`);
 
     return NextResponse.json({
       ok: true,
