@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 interface PayPalWebhookEvent {
   event_type: string;
-  resource: Record<string, any>;
+  resource: PayPalSubscriptionResource | PayPalPaymentSaleResource | Record<string, unknown>;
   id: string;
   create_time: string;
 }
@@ -85,12 +85,10 @@ export async function POST(req: Request) {
         break;
       
       case "BILLING.SUBSCRIPTION.PAYMENT.FAILED":
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        console.log("Payment failed for subscription:", event.resource?.id);
+        console.log("Payment failed for subscription:", event.resource?.id || 'unknown');
         break;
       
       default:
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         console.log(`Unhandled PayPal event: ${event.event_type}`, event.resource);
     }
 

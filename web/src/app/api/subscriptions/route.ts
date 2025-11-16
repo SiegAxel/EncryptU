@@ -23,13 +23,13 @@ export async function GET(req: Request) {
     let tokenPayload: TokenPayload;
     try {
       tokenPayload = await verifyToken<TokenPayload>(token);
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { ok: false, error: "Invalid token" },
         { status: 401 }
       );
     }
-     
+
     // Find user by email from token
     const user = await prisma.user.findUnique({
       where: { email: tokenPayload.email.toLowerCase() }
@@ -103,7 +103,7 @@ export async function PATCH(req: Request) {
     let tokenPayload: TokenPayload;
     try {
       tokenPayload = await verifyToken<TokenPayload>(token);
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { ok: false, error: "Invalid token" },
         { status: 401 }

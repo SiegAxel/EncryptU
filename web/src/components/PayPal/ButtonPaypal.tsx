@@ -10,18 +10,16 @@ import React, { useState } from "react";
 interface ButtonPaypalProps {
   planId: string;
   planName?: string;
-  planPrice?: string;
 }
 
 const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
   planId,
-  planName = "Plan",
-  planPrice = ""
+  planName = "Plan"
 }) => {
   const [{ isPending }] = usePayPalScriptReducer();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const onApprove: PayPalButtonOnApprove = async (data, actions) => {
+  const onApprove: PayPalButtonOnApprove = async (data) => {
     setIsProcessing(true);
     
     try {
@@ -34,8 +32,8 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
         
         alert(`¡Suscripción creada exitosamente!\n\nPlan: ${planName}\nID de Suscripción: ${data.subscriptionID}\n\nRecibirás una confirmación por email en los próximos minutos.`);
       }
-    } catch (error) {
-      console.error("Error processing PayPal subscription:", error);
+    } catch {
+      console.error("Error processing PayPal subscription");
       alert("Error al procesar la suscripción. Por favor, contacta al soporte.");
     } finally {
       setIsProcessing(false);
