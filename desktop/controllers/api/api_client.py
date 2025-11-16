@@ -199,9 +199,8 @@ class APIClient:
     def create_support_ticket(self, ticket_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         try:
             headers = self._get_auth_headers()
-            # Fix: Use the correct endpoint /contactoapi instead of /support/tickets
             response = self.session.post(
-                f"{self.base_url}/contactoapi",
+                f"{self.base_url}/support/tickets",
                 headers=headers,
                 json=ticket_data,
                 timeout=20,
@@ -290,7 +289,8 @@ class APIClient:
         """Obtiene la información de suscripción del usuario actual."""
         try:
             headers = self._get_auth_headers()
-            response = self.session.get(f"{self.base_url}/subscriptions", headers=headers, timeout=20)
+            # Fix subscription endpoint to use /api/subscriptions
+            response = self.session.get(f"{self.base_url}/api/subscriptions", headers=headers, timeout=20)
             if response.status_code == 401:
                 return None
             response.raise_for_status()

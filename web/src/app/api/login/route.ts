@@ -48,10 +48,11 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
       admin: "/dashboard/admin",
     };
 
-    const res = NextResponse.json<ApiResponse>({
+    const res = NextResponse.json<ApiResponse & { access_token?: string }>({
       ok: true,
       role: user.role as Role,
       redirect: redirectMap[user.role as Role] ?? "/",
+      access_token: token, // Return token for desktop app compatibility
     });
 
     res.cookies.set("auth", token, {
