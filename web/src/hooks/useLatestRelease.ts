@@ -54,7 +54,7 @@ export function useLatestRelease(): UseLatestReleaseReturn {
       // Set fallback data
       setData({
         version: 'v1.0.0',
-        download_url: 'https://github.com/SiegAxel/EncryptU/releases',
+        download_url: 'https://github.com/SiegAxel/EncryptU/releases/download/pre-release/EncryptU-Setup-v1.0.0.exe',
         file_name: 'EncryptU-Setup-v1.0.0.exe',
         file_size: '39 MB',
         download_count: 0,

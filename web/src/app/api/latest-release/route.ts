@@ -54,9 +54,13 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
+    const token = process.env.GITHUB_TOKEN;
+    
     const response = await fetch('https://api.github.com/repos/SiegAxel/EncryptU/releases/latest', {
       headers: {
         'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'EncryptU-AutoDownload/1.0',
+        ...(token && { 'Authorization': `token ${token}` }),
       },
     });
 
