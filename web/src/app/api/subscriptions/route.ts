@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { verifyToken, type TokenPayload } from "@/lib/auth";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { requireAdmin } from "@/app/api/admin/requireAdmin";
 
@@ -18,14 +19,31 @@ export async function GET(req: Request) {
       );
     }
 
-    // Verify JWT token (assuming you have a verifyToken function)
-    // const user = await verifyToken(token);
-    
-    // For now, we'll extract user ID from token
-    const userId = 1; // This should be extracted from JWT token
+    // Verify JWT token
+    let tokenPayload: TokenPayload;
+    try {
+      tokenPayload = await verifyToken<TokenPayload>(token);
+    } catch (error) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid token" },
+        { status: 401 }
+      );
+    }
+     
+    // Find user by email from token
+    const user = await prisma.user.findUnique({
+      where: { email: tokenPayload.email.toLowerCase() }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: "User not found" },
+        { status: 404 }
+      );
+    }
 
     const subscription = await prisma.userSubscription.findFirst({
-      where: { userId },
+      where: { userId: user.id },
       include: {
         plan: true,
         user: {
@@ -82,7 +100,27 @@ export async function PATCH(req: Request) {
     }
 
     // Verify JWT token
-    const userId = 1; // This should be extracted from JWT token
+    let tokenPayload: TokenPayload;
+    try {
+      tokenPayload = await verifyToken<TokenPayload>(token);
+    } catch (error) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid token" },
+        { status: 401 }
+      );
+    }
+     
+    // Find user by email from token
+    const user = await prisma.user.findUnique({
+      where: { email: tokenPayload.email.toLowerCase() }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: "User not found" },
+        { status: 404 }
+      );
+    }
 
     const body = await req.json();
     const { planId } = body;
@@ -108,7 +146,7 @@ export async function PATCH(req: Request) {
 
     // Get current subscription
     const currentSubscription = await prisma.userSubscription.findFirst({
-      where: { userId },
+      where: { userId: user.id },
       include: { plan: true }
     });
 
