@@ -28,14 +28,44 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
     try {
       if (data.subscriptionID) {
         console.log(`PayPal subscription approved: ${data.subscriptionID}`);
-        alert(`¡Suscripción creada exitosamente!\n\nPlan: ${planName}\nID de Suscripción: ${data.subscriptionID}\n\nRecibirás una confirmación por email en los próximos minutos.`);
+        
+        // For fake payments, activate subscription directly on client
+        console.log(`🔄 Activating subscription directly for fake payment...`);
+        
+        try {
+          const activationResponse = await fetch('/api/subscriptions/activate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+              paypalSubscriptionId: data.subscriptionID,
+              planId: databasePlanId
+            })
+          });
+
+          const activationResult = await activationResponse.json();
+          
+          if (activationResult.ok) {
+            console.log(`✅ Subscription activated successfully: ${activationResult.subscriptionId}`);
+            alert(`¡Suscripción activada exitosamente!\n\nPlan: ${planName}\nID de Suscripción: ${data.subscriptionID}\n\nTu suscripción está activa y lista para usar.`);
+          } else {
+            console.warn(`⚠️ Direct activation failed, but subscription was created:`, activationResult.error);
+            alert(`¡Suscripción creada exitosamente!\n\nPlan: ${planName}\nID de Suscripción: ${data.subscriptionID}\n\nNota: La activación puede tardar unos minutos. Recibirás una confirmación por email.`);
+          }
+        } catch (activationError) {
+          console.error(`❌ Direct activation error:`, activationError);
+          alert(`¡Suscripción creada exitosamente!\n\nPlan: ${planName}\nID de Suscripción: ${data.subscriptionID}\n\nRecibirás una confirmación por email en los próximos minutos.`);
+        }
+        
         // Refresh page to show updated subscription
         setTimeout(() => {
           window.location.reload();
         }, 2000);
       }
-    } catch {
-      console.error("Error processing PayPal subscription");
+    } catch (error) {
+      console.error("Error processing PayPal subscription:", error);
       alert("Error al procesar la suscripción. Por favor, contacta al soporte.");
     } finally {
       setIsProcessing(false);
