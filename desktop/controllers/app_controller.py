@@ -1,23 +1,35 @@
-from .views.login_view import LoginView
-from .views.main_view import MainView
-from .views.register_view import RegisterView
-from .api.api_client import APIClient
-from .models.encryption_model import encriptar_contraseña, desencriptar_contraseña
-from .models.session_manager import SessionManager
+from desktop.controllers.views.login_view import LoginView
+from desktop.controllers.views.main_view import MainView
+from desktop.controllers.views.profile_view import ProfileView
+from desktop.controllers.views.support_view import SupportView
+from desktop.controllers.views.vault_view import VaultView
+from desktop.controllers.views.register_view import RegisterView
+from desktop.controllers.api.api_client import APIClient
+from desktop.controllers.models.encryption_model import encriptar_contraseña, desencriptar_contraseña
+from desktop.controllers.models.session_manager import SessionManager
 import sys
 import customtkinter as ctk
 from typing import Any, Dict, List, Optional
 
 class AppController:
     """
-    Orquesta las interacciones entre las Vistas (UI) y los Modelos (datos/lógica).
+    Orquesta las interacciones entre las Vistas (UI) y los Modelos (datos/logica).
     """
     def __init__(self, root):
         self.root = root
+        self.root.geometry("1024x640")
+        self.root.resizable(True, True)
+        try:
+            self.root.minsize(1024, 600)
+            self.root.maxsize(1200, 720)
+        except Exception:
+            pass
+        
         self.current_view = None
         self.api_client = APIClient(base_url="https://encryptu.onrender.com") 
         self.session_manager = SessionManager()
         self.master_key: str | None = None
+        self.current_username: Optional[str] = None
         self.support_tickets_cache: List[Dict[str, Any]] = []
         self.support_messages_cache: Dict[int, List[Dict[str, Any]]] = {}
 
@@ -28,25 +40,25 @@ class AppController:
             token = session["token"]
             username = session.get("username", "Usuario")
             
-            print(f"Sesión encontrada para {username}. Validando token con la API...")
+            print(f"Sesion encontrada para {username}. Validando token con la API...")
             self.api_client.set_token(token)
             
             if self.api_client.check_token_validity():
-                print("Token válido. Mostrando vista principal.")
+                print("Token valido. Mostrando vista principal.")
                 self.show_main_view(username)
             else:
-                print("Token inválido o caducado. Se requiere nuevo inicio de sesión.")
+                print("Token invalido o caducado. Se requiere nuevo inicio de sesion.")
                 self.session_manager.clear_session()
                 self.show_login_view()
         else:
-            print("No hay sesión válida. Iniciando flujo de primer uso.")
+            print("No hay sesion valida. Iniciando flujo de primer uso.")
             self._show_initial_view()
 
     def _show_initial_view(self):
         if self._check_api_status():
             self.show_register_view()
         else:
-            print("Error crítico: La API no está disponible. La aplicación se cerrará.")
+            print("Error cri­tico: La API no esta disponible. La aplicacion se cerrara.")
             self.on_closing()
 
     def _check_api_status(self) -> bool:
@@ -64,8 +76,27 @@ class AppController:
     def show_login_view(self):
         self._switch_view(LoginView)
 
-    def show_main_view(self, username: str):
+    def show_main_view(self, username: Optional[str] = None):
+        if username is not None:
+            self.current_username = username
+        elif self.current_username:
+            username = self.current_username
+        else:
+            username = "Usuario"
+            self.current_username = username
         self._switch_view(MainView, username=username)
+
+    def show_profile_view(self, username: Optional[str] = None):
+        username = username or self.current_username or "Usuario"
+        self._switch_view(ProfileView, username=username)
+
+    def show_vault_view(self, username: Optional[str] = None):
+        username = username or self.current_username or "Usuario"
+        self._switch_view(VaultView, username=username)
+
+    def show_support_view(self, username: Optional[str] = None):
+        username = username or self.current_username or "Usuario"
+        self._switch_view(SupportView, username=username)
 
     def handle_register(self, name: str, email: str, password: str):
         if not name or not email or not password:
@@ -80,12 +111,12 @@ class AppController:
             elif "detail" in result:
                 error_detail = result["detail"]
                 if isinstance(error_detail, list) and len(error_detail) > 0:
-                    msg = error_detail[0].get('msg', 'Error de validación')
+                    msg = error_detail[0].get('msg', 'Error de validacion')
                     if isinstance(self.current_view, RegisterView): self.current_view.show_error(msg)
                 else:
                     if isinstance(self.current_view, RegisterView): self.current_view.show_error(str(error_detail))
         else:
-            if isinstance(self.current_view, RegisterView): self.current_view.show_error("Error de conexión con el servidor.")
+            if isinstance(self.current_view, RegisterView): self.current_view.show_error("Error de conexion con el servidor.")
     
     def handle_login(self, username: str, password: str):
         if not username or not password:
@@ -106,6 +137,7 @@ class AppController:
         self.session_manager.clear_session()
         self.api_client.logout()
         self.master_key = None
+        self.current_username = None
         self.support_tickets_cache.clear()
         self.support_messages_cache.clear()
         self.show_login_view()
@@ -113,49 +145,30 @@ class AppController:
     def get_saved_passwords(self):
         passwords = self.api_client.list_files()
         if passwords is None:
-            print("Token inválido al listar archivos. Forzando logout.")
-            self.handle_logout()
+            print("No se pudieron obtener las credenciales desde la API. La sesión continúa activa.")
             return None
         return passwords
 
     def handle_encrypt_and_save(self, site: str, username: str, password: str) -> bool:
-        # --- SECCIÓN CORREGIDA ---
-        # 1. Verificar si la master_key no existe.
+        # Automatically use master key from login session - no user prompts
         if not self.master_key:
-            print("Error: No hay clave maestra en la sesión. Solicitando al usuario.")
-            
-            # 2. Solicitar la clave al usuario.
-            dialog = ctk.CTkInputDialog(text="Se requiere tu Clave Maestra para continuar:", title="Verificación de Sesión")
-            key = dialog.get_input()
-            
-            # 3. Si el usuario la ingresa, la guardamos.
-            if key:
-                self.master_key = key
-            # 4. Si el usuario cancela, detenemos la operación de forma segura.
-            else:
-                print("Operación cancelada. No se proporcionó la clave maestra.")
-                if isinstance(self.current_view, MainView):
-                    self.current_view.show_status("Operación cancelada. Se requiere la Clave Maestra.", "save", "red")
-                return False
+            print("Error: No master key in session. This should not happen after login.")
+            return False
 
-        # 5. A este punto, self.master_key está garantizado que es un string.
         try:
             combined_filename = f"{site} | {username}"
             encrypted_data = encriptar_contraseña(password, site, self.master_key.encode('utf-8'))
             result = self.api_client.upload_password_data(filename=combined_filename, content=encrypted_data)
-            
-            if result is None: 
-                self.handle_logout()
-            
+
+            if result is None:
+                print("API rejected credential upload, but user session will remain active.")
             return result is not None
         except Exception as e:
-            print(f"Error durante la encriptación o subida: {e}")
+            print(f"Error during encryption or upload: {e}")
             return False
-        # --- FIN DE LA SECCIÓN CORREGIDA ---
 
     def handle_delete_password(self, file_id: int) -> bool:
         success = self.api_client.delete_file(file_id)
-        if not success: self.handle_logout()
         return success
 
     def handle_decrypt_password(self, file_id: int, site: str, user_provided_master_key: str) -> str | None:
@@ -165,9 +178,10 @@ class AppController:
                 return desencriptar_contraseña(encrypted_content, site, user_provided_master_key.encode('utf-8'))
             except Exception:
                 return None
-        else:
-            self.handle_logout()
         return None
+
+    def handle_get_encrypted_password(self, file_id: int) -> bytes | None:
+        return self.api_client.download_password_data(file_id)
 
     # --- Metodos de soporte ---
     def get_support_tickets(self, force_refresh: bool = False) -> Optional[List[Dict[str, Any]]]:
@@ -176,7 +190,6 @@ class AppController:
 
         tickets = self.api_client.list_support_tickets()
         if tickets is None:
-            self.handle_logout()
             return None
 
         self.support_tickets_cache = tickets
@@ -188,7 +201,6 @@ class AppController:
 
         messages = self.api_client.get_support_ticket_messages(ticket_id)
         if messages is None:
-            self.handle_logout()
             return None
 
         self.support_messages_cache[ticket_id] = messages
@@ -201,7 +213,6 @@ class AppController:
 
         result = self.api_client.send_support_message(ticket_id, body)
         if result is None:
-            self.handle_logout()
             return False
         if isinstance(result, dict) and result.get("ok") is False:
             print(f"No se pudo enviar el mensaje de soporte: {result.get('error')}")
@@ -219,8 +230,7 @@ class AppController:
 
         response = self.api_client.create_support_ticket(cleaned_payload)
         if response is None:
-            self.handle_logout()
-            return False, None, "Tu sesion ha expirado. Inicia sesion nuevamente."
+            return False, None, "No pudimos contactar al servidor. Intenta nuevamente."
 
         if isinstance(response, dict):
             if response.get("ok") is False:
@@ -242,6 +252,54 @@ class AppController:
         self.support_messages_cache.clear()
         return True, None, "Ticket creado correctamente."
 
+    # --- Metodos de exportacion/importacion ---
+    def handle_export_passwords(self, credentials_data: List[Dict[str, Any]]) -> Optional[bytes]:
+        """
+        Exporta las credenciales como un archivo JSON.
+        """
+        if not credentials_data:
+            return None
+        
+        try:
+            # Preparar datos para exportacion (incluir contenido encriptado)
+            export_data = []
+            for cred in credentials_data:
+                file_id = cred.get("id")
+                if file_id:
+                    encrypted_content = self.api_client.download_password_data(int(file_id))
+                    if encrypted_content:
+                        try:
+                            encrypted_text = encrypted_content.decode("utf-8").strip()
+                        except UnicodeDecodeError:
+                            encrypted_text = encrypted_content.decode("latin-1").strip()
+                        
+                        export_data.append({
+                            "site": cred.get("site", ""),
+                            "username": cred.get("username", ""),
+                            "encrypted_content": encrypted_text
+                        })
+            
+            return self.api_client.export_passwords_data(export_data)
+        except Exception as e:
+            print(f"Error al exportar contraseñas: {e}")
+            return None
+
+    def handle_import_passwords(self, file_content: str) -> tuple[bool, List[str]]:
+        """
+        Importa credenciales desde un archivo JSON.
+        Retorna (success, error_messages)
+        """
+        success, errors = self.api_client.import_passwords_from_file(file_content)
+        if success:
+            self.refresh_vault_data()
+        return success, errors
+
+    def refresh_vault_data(self):
+        """
+        Refresca los datos del vault en la vista actual si es un VaultView.
+        """
+        if isinstance(self.current_view, VaultView):
+            self.current_view.refresh_password_list()
 
     def on_closing(self):
         self.root.destroy()

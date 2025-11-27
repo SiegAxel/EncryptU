@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-// ❌ import { Prisma } from "@prisma/client";
-// ✅ usa la clase desde el runtime:
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import { hashPassword } from "@/lib/password";
+import { assignFreePlanToUser } from "@/lib/subscription";
 
 export const runtime = "nodejs";
 
@@ -33,12 +33,16 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
       );
     }
 
-    // OJO: aquí estás guardando el password “tal cual”.
-    // Ideal: hashear antes de guardar (bcrypt/argon2).
+    // Hash the password using Argon2 before storing
+    const hashedPassword = await hashPassword(password);
+    
     const user = await prisma.user.create({
-      data: { name: name.trim(), email: normalizedEmail, passwordHash: password },
-      select: { id: true },
+      data: { name: name.trim(), email: normalizedEmail, passwordHash: hashedPassword },
+      select: { id: true, name: true, email: true },
     });
+
+    // Automatically assign free plan to new user
+    await assignFreePlanToUser(user.id);
 
     return NextResponse.json({ ok: true, id: user.id }, { status: 201 });
   } catch (err: unknown) {

@@ -3,7 +3,9 @@ from PIL import Image
 import os
 import secrets # Importamos la librería para generar claves seguras
 
-class RegisterView(ctk.CTkFrame):
+from desktop.controllers.views.base_view import BaseView
+
+class RegisterView(BaseView):
     """
     Frame para el registro de un nuevo usuario, con generación automática de Clave Maestra.
     """

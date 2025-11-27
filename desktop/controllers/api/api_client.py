@@ -2,6 +2,8 @@ import requests
 import os
 from typing import Optional, List, Dict, Any, cast
 import io
+from datetime import datetime
+import json
 
 class APIClient:
     """
@@ -216,3 +218,127 @@ class APIClient:
         except (requests.exceptions.RequestException, PermissionError) as e:
             print(f"Error al crear el ticket de soporte: {e}")
             return {"ok": False, "error": str(e)}
+
+    def export_passwords_data(self, credentials_data: List[Dict[str, Any]]) -> Optional[bytes]:
+        """
+        Exporta las credenciales como un archivo JSON para descarga.
+        """
+        try:
+            export_data = {
+                "export_timestamp": datetime.now().isoformat(),
+                "version": "1.0",
+                "credentials": credentials_data
+            }
+            return json.dumps(export_data, indent=2, ensure_ascii=False).encode('utf-8')
+        except Exception as e:
+            print(f"Error al exportar datos: {e}")
+            return None
+
+    def import_passwords_from_file(self, file_content: str) -> tuple[bool, List[str]]:
+        """
+        Importa credenciales desde un archivo JSON.
+        Retorna (success, error_messages)
+        """
+        try:
+            data = json.loads(file_content)
+            
+            if not isinstance(data, dict) or "credentials" not in data:
+                return False, ["Formato de archivo inválido"]
+            
+            credentials = data.get("credentials", [])
+            if not isinstance(credentials, list):
+                return False, ["Estructura de credenciales inválida"]
+            
+            success_count = 0
+            errors = []
+            
+            for i, cred in enumerate(credentials):
+                if not isinstance(cred, dict):
+                    errors.append(f"Credencial {i+1}: Formato inválido")
+                    continue
+                
+                required_fields = ["site", "username", "encrypted_content"]
+                missing_fields = [field for field in required_fields if field not in cred]
+                
+                if missing_fields:
+                    errors.append(f"Credencial {i+1}: Campos faltantes: {', '.join(missing_fields)}")
+                    continue
+                
+                try:
+                    # Upload each credential
+                    filename = f"{cred['site']} | {cred['username']}"
+                    encrypted_content = cred['encrypted_content'].encode('utf-8') if isinstance(cred['encrypted_content'], str) else cred['encrypted_content']
+                    
+                    result = self.upload_password_data(filename, encrypted_content)
+                    if result:
+                        success_count += 1
+                    else:
+                        errors.append(f"Credencial {i+1}: Error al subir al servidor")
+                except Exception as e:
+                    errors.append(f"Credencial {i+1}: {str(e)}")
+            
+            return success_count > 0, errors
+            
+        except json.JSONDecodeError:
+            return False, ["Archivo JSON inválido"]
+        except Exception as e:
+            return False, [f"Error general: {str(e)}"]
+
+    # --- ENDPOINTS DE SUSCRIPCIONES ---
+    def get_subscription(self) -> Optional[Dict[str, Any]]:
+        """Obtiene la información de suscripción del usuario actual."""
+        try:
+            headers = self._get_auth_headers()
+            # Fix subscription endpoint to use /api/subscriptions
+            response = self.session.get(f"{self.base_url}/api/subscriptions", headers=headers, timeout=20)
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, dict):
+                return data.get("subscription") if data.get("ok") else None
+            return None
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al obtener suscripción: {e}")
+            return None
+
+    def create_free_subscription(self) -> Optional[Dict[str, Any]]:
+        """Crea una suscripción gratuita para el usuario."""
+        try:
+            headers = self._get_auth_headers()
+            response = self.session.post(f"{self.base_url}/subscriptions/create-free", headers=headers, timeout=20)
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            return data
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al crear suscripción gratuita: {e}")
+            return None
+
+    def get_user_ticket_stats(self) -> Optional[Dict[str, int]]:
+        """Obtiene estadísticas de tickets del usuario."""
+        try:
+            headers = self._get_auth_headers()
+            response = self.session.get(f"{self.base_url}/support/tickets", headers=headers, timeout=20)
+            if response.status_code == 401:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            
+            if isinstance(data, dict) and data.get("ok") and "tickets" in data:
+                tickets = data.get("tickets", [])
+                
+                # Contar tickets por estado
+                open_count = len([t for t in tickets if t.get("status") != "closed"])
+                resolved_count = len([t for t in tickets if t.get("status") == "closed"])
+                
+                return {
+                    "open": open_count,
+                    "resolved": resolved_count,
+                    "total": len(tickets)
+                }
+            return {"open": 0, "resolved": 0, "total": 0}
+        except (requests.exceptions.RequestException, PermissionError) as e:
+            print(f"Error al obtener estadísticas de tickets: {e}")
+            return {"open": 0, "resolved": 0, "total": 0}

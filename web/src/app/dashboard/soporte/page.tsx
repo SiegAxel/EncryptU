@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReportGenerator from "@/components/admin/ReportGenerator";
 
 type Ticket = {
   id: number;
@@ -48,7 +49,7 @@ export default function SoportePage() {
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
-  const [tab, setTab] = useState<"pending" | "resolved">("pending"); // <-- NUEVO
+  const [tab, setTab] = useState<"pending" | "resolved">("pending");
   const listRef = useRef<HTMLDivElement>(null);
   const [closing, setClosing] = useState(false);
 
@@ -75,14 +76,12 @@ export default function SoportePage() {
       const list = data.tickets as Ticket[];
       setTickets(list);
 
-      // si no hay activo, escoger primero de la pestaña visible (o del otro grupo como fallback)
       if (!activeId) {
         const firstVisible =
           (tab === "pending" ? list.filter(l => l.status !== "closed") : list.filter(l => l.status === "closed"))[0]
           ?? list[0];
         if (firstVisible) setActiveId(firstVisible.id);
       } else {
-        // si el activo ya no existe, re-seleccionar
         if (!list.find(t => t.id === activeId)) {
           const first = list[0];
           setActiveId(first ? first.id : null);
@@ -114,7 +113,6 @@ export default function SoportePage() {
     return () => clearInterval(i);
   }, [loadMessages]);
 
-  // cuando cambio de pestaña, si el ticket activo no pertenece a esa vista, seleccionar uno válido
   useEffect(() => {
     if (!tickets) return;
     const list = tab === "pending" ? pending : resolved;
@@ -158,206 +156,206 @@ export default function SoportePage() {
   };
 
   return (
-    <section className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-8 md:grid-cols-[320px_1fr]">
-      {/* Sidebar */}
-      <aside className="rounded-2xl border p-3 bg-white/80 bg-tickets-surface">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Tickets</h2>
-          <span className="text-xs text-slate-500">{tickets?.length ?? 0} total</span>
-        </div>
-
-        {/* Tabs: Pendientes / Resueltos */}
-        <div className="mb-3 flex gap-2">
-          <button
-            className={[
-              "rounded-lg px-3 py-1 text-xs border",
-              tab === "pending" ? "bg-white shadow-sm border-slate-300" : "hover:bg-slate-50 border-transparent"
-            ].join(" ")}
-            onClick={() => setTab("pending")}
-          >
-            Pendientes <span className="ml-1 chip chip--success">{pending.length}</span>
-          </button>
-          <button
-            className={[
-              "rounded-lg px-3 py-1 text-xs border",
-              tab === "resolved" ? "bg-white shadow-sm border-slate-300" : "hover:bg-slate-50 border-transparent"
-            ].join(" ")}
-            onClick={() => setTab("resolved")}
-          >
-            Resueltos <span className="ml-1 chip">{resolved.length}</span>
-          </button>
-        </div>
-
-        <div className="mb-3">
-          <input
-            className="input w-full"
-            placeholder="Buscar por nombre, mail, #id…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2 overflow-auto pr-1" style={{ maxHeight: "68vh" }}>
-          {tickets === null ? (
-            <TicketSkeleton />
-          ) : displayed.length === 0 ? (
-            <EmptyState text={tab === "pending" ? "No hay tickets pendientes" : "No hay tickets resueltos"} />
-          ) : (
-            displayed.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setActiveId(t.id)}
-                className={[
-                  "w-full rounded-xl border px-3 py-2 text-left transition",
-                  activeId === t.id ? "ticket-item--active" : "hover:bg-slate-50"
-                ].join(" ")}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="truncate text-[13px] font-medium">
-                    #{t.id} {t.firstName} {t.lastName}
-                  </div>
-                  <ReasonBadge reason={t.reason} />
-                </div>
-                <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-                  <span className="truncate">{t.email}</span>
-                  <span>{t._count?.messages ?? 0} msgs</span>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-      </aside>
-
-      {/* Chat */}
-      <div className="rounded-2xl border overflow-hidden">
-        {/* Header chat */}
-        <div className="flex items-center justify-between gap-3 border-b bg-white/70 px-4 py-3">
-          {activeTicket ? (
-            <>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="truncate text-sm font-semibold">
-                    Ticket #{activeTicket.id} — {activeTicket.firstName} {activeTicket.lastName}
-                  </h3>
-                  <ReasonBadge reason={activeTicket.reason} />
-                  <StatusBadge status={activeTicket.status} />
-                </div>
-                <div className="truncate text-xs text-slate-500">{activeTicket.email}</div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-500">
-                  {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
-                    new Date(activeTicket.createdAt)
-                  )}
-                </span>
-
-                {activeTicket.status !== "closed" && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        setClosing(true);
-                        const res = await fetch(`/api/support/tickets/${activeTicket.id}/close`, { method: "POST" });
-                        const data = await res.json();
-                        if (!res.ok) throw new Error(data?.error || "Error al cerrar el ticket");
-                        // refresca de inmediato
-                        await loadTickets();
-                        await loadMessages();
-                      } catch (e) {
-                        alert((e as Error).message);
-                      } finally {
-                        setClosing(false);
-                      }
-                    }}
-                    className="text-xs rounded-md border border-rose-400 px-2 py-1 text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-                    disabled={closing}
-                    title="Cerrar ticket"
-                  >
-                    {closing ? "Cerrando…" : "Cerrar Ticket"}
-                  </button>
-                )}
-              </div>
-
-            </>
-          ) : (
-            <div className="text-sm text-slate-500">Selecciona un ticket…</div>
-          )}
-        </div>
-
-        {/* Mensajes */}
-        <div ref={listRef} className="h-[60vh] overflow-auto bg-slate-50 bg-chat-surface px-3 py-4">
-          {!activeTicket ? (
-            <div className="flex h-full items-center justify-center text-sm text-slate-600">
-              Selecciona un ticket para ver el chat.
-            </div>
-          ) : !messages ? (
-            <MessagesSkeleton />
-          ) : messages.length === 0 ? (
-            <EmptyState text="Aún no hay mensajes en este ticket." />
-          ) : (
-            <div className="space-y-2">
-              {messages.map((m) => (
-                <div key={m.id} className={"flex " + (m.author === "agent" ? "justify-end" : "justify-start")}>
-                  <div
-                    className={[
-                      "max-w-[80%] rounded-2xl px-3 py-2 shadow-sm",
-                      m.author === "agent" ? "bubble bubble--agent" : "bubble bubble--user border"
-                    ].join(" ")}
-                  >
-                    <div className="text-[11px] opacity-80">
-                      {m.author === "agent" ? m.name || "soporte" : "usuario"} · {fmtTime(m.createdAt)}
-                    </div>
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Composer */}
-        {activeTicket && activeTicket.status === "closed" ? (
-          <div className="flex items-center justify-center border-t bg-white/80 p-4 text-sm text-slate-500">
-            Este ticket está <span className="ml-1 font-medium text-rose-600">cerrado</span>. No se pueden enviar más mensajes.
+    <div className="mx-auto max-w-6xl px-4 py-8">
+      {/* Report Generator */}
+      <ReportGenerator
+        type="tickets"
+        title="Reporte de Tickets de Soporte"
+        description="Generar informes completos de tickets de soporte con opciones de filtrado"
+      />
+       
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-[320px_1fr]">
+        {/* Sidebar */}
+        <aside className="tickets-sidebar p-3">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Tickets</h2>
+            <span className="text-xs text-slate-500">{tickets?.length ?? 0} total</span>
           </div>
-        ) : (
-          <form
-            className="flex items-center gap-2 border-t bg-white/80 p-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void send();
-            }}
-          >
-            <input
-              className="input flex-1"
-              placeholder="Escribe un mensaje…  (Ctrl/⌘ + Enter para enviar)"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={onKeyDown}
-              disabled={!activeTicket || sending}
-            />
+
+          {/* Tabs: Pendientes / Resueltos */}
+          <div className="mb-3 flex gap-2">
             <button
-              type="submit"
-              disabled={!activeTicket || !draft.trim() || sending}
-              className="btn-brand rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-50"
+              className={[
+                "rounded-lg px-3 py-1 text-xs border",
+                tab === "pending" ? "bg-white shadow-sm border-slate-300" : "hover:bg-slate-50 border-transparent"
+              ].join(" ")}
+              onClick={() => setTab("pending")}
             >
-              {sending ? "Enviando…" : "Enviar"}
+              Pendientes <span className="ml-1 chip chip--success">{pending.length}</span>
             </button>
-          </form>
-        )}
-      </div>
-    </section>
+            <button
+              className={[
+                "rounded-lg px-3 py-1 text-xs border",
+                tab === "resolved" ? "bg-white shadow-sm border-slate-300" : "hover:bg-slate-50 border-transparent"
+              ].join(" ")}
+              onClick={() => setTab("resolved")}
+            >
+              Resueltos <span className="ml-1 chip">{resolved.length}</span>
+            </button>
+          </div>
+
+          <div className="mb-3">
+            <input
+              className="input w-full"
+              placeholder="Buscar por nombre, mail, #id…"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2 overflow-auto pr-1" style={{ maxHeight: "68vh" }}>
+            {tickets === null ? (
+              <TicketSkeleton />
+            ) : displayed.length === 0 ? (
+              <EmptyState text={tab === "pending" ? "No hay tickets pendientes" : "No hay tickets resueltos"} />
+            ) : (
+              displayed.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveId(t.id)}
+                  className={["ticket-item w-full text-left", activeId === t.id ? "ticket-item--active" : ""].join(" ")}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="truncate text-[13px] font-medium">
+                      #{t.id} {t.firstName} {t.lastName}
+                    </div>
+                    <ReasonBadge reason={t.reason} />
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
+                    <span className="truncate">{t.email}</span>
+                    <span>{t._count?.messages ?? 0} msgs</span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </aside>
+
+        {/* Chat */}
+        <div className="ticket-chat overflow-hidden">
+          {/* Header chat */}
+          <div className="ticket-header flex items-center justify-between gap-3 px-4 py-3 rounded-t-[1.1rem]">
+            {activeTicket ? (
+              <>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="truncate text-sm font-semibold">
+                      Ticket #{activeTicket.id} — {activeTicket.firstName} {activeTicket.lastName}
+                    </h3>
+                    <ReasonBadge reason={activeTicket.reason} />
+                    <StatusBadge status={activeTicket.status} />
+                  </div>
+                  <div className="truncate text-xs text-slate-500">{activeTicket.email}</div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500">
+                    {new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+                      new Date(activeTicket.createdAt)
+                    )}
+                  </span>
+
+                  {activeTicket.status !== "closed" && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          setClosing(true);
+                          const res = await fetch(`/api/support/tickets/${activeTicket.id}/close`, { method: "POST" });
+                          const data = await res.json();
+                          if (!res.ok) throw new Error(data?.error || "Error al cerrar el ticket");
+                          await loadTickets();
+                          await loadMessages();
+                        } catch (e) {
+                          alert((e as Error).message);
+                        } finally {
+                          setClosing(false);
+                        }
+                      }}
+                      className="btn-outline text-xs px-3 py-1.5 disabled:opacity-50"
+                      disabled={closing}
+                      title="Cerrar ticket"
+                    >
+                      {closing ? "Cerrando…" : "Cerrar Ticket"}
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-slate-500">Selecciona un ticket…</div>
+            )}
+          </div>
+
+          {/* Mensajes */}
+          <div ref={listRef} className="h-[60vh] overflow-auto px-3 py-4">
+            {!activeTicket ? (
+              <div className="flex h-full items-center justify-center text-sm text-slate-600">
+                Selecciona un ticket para ver el chat.
+              </div>
+            ) : !messages ? (
+              <MessagesSkeleton />
+            ) : messages.length === 0 ? (
+              <EmptyState text="Aún no hay mensajes en este ticket." />
+            ) : (
+              <div className="space-y-2">
+                {messages.map((m) => (
+                  <div key={m.id} className={"flex " + (m.author === "agent" ? "justify-end" : "justify-start")}>
+                    <div
+                      className={[
+                        "max-w-[80%] rounded-2xl px-3 py-2 shadow-sm",
+                        m.author === "agent" ? "bubble bubble--agent" : "bubble bubble--user border"
+                      ].join(" ")}
+                    >
+                      <div className="text-[11px] opacity-80">
+                        {m.author === "agent" ? m.name || "soporte" : "usuario"} · {fmtTime(m.createdAt)}
+                      </div>
+                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Composer */}
+          {activeTicket && activeTicket.status === "closed" ? (
+            <div className="flex items-center justify-center border-t bg-white/80 p-4 text-sm text-slate-500">
+              Este ticket está <span className="ml-1 font-medium text-rose-600">cerrado</span>. No se pueden enviar más mensajes.
+            </div>
+          ) : (
+            <form
+              className="flex items-center gap-2 border-t bg-white/80 p-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void send();
+              }}
+            >
+              <input
+                className="ticket-input input flex-1"
+                placeholder="Escribe un mensaje…  (Ctrl/⌘ + Enter para enviar)"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={onKeyDown}
+                disabled={!activeTicket || sending}
+              />
+              <button
+                type="submit"
+                disabled={!activeTicket || !draft.trim() || sending}
+                className="ticket-send disabled:opacity-50"
+              >
+                {sending ? "Enviando…" : "Enviar"}
+              </button>
+            </form>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 
 /* ── estados ─────────────────────────── */
 
 function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="rounded-xl border border-dashed bg-white/70 p-6 text-center text-sm text-slate-600">
-      {text}
-    </div>
-  );
+  return <div className="ticket-empty">{text}</div>;
 }
 
 function TicketSkeleton() {

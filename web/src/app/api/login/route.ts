@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signToken } from "@/lib/auth";
+import { verifyPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,8 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
       select: { id: true, name: true, email: true, passwordHash: true, role: true },
     });
 
-    if (!user || user.passwordHash !== password) {
+    // Verify password using Argon2
+    if (!user || !(await verifyPassword(user.passwordHash, password))) {
       return NextResponse.json<ApiResponse>(
         { ok: false, error: "Credenciales inválidas." },
         { status: 401 }
@@ -46,15 +48,16 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
       admin: "/dashboard/admin",
     };
 
-    const res = NextResponse.json<ApiResponse>({
+    const res = NextResponse.json<ApiResponse & { access_token?: string }>({
       ok: true,
       role: user.role as Role,
       redirect: redirectMap[user.role as Role] ?? "/",
+      access_token: token, // Return token for desktop app compatibility
     });
 
     res.cookies.set("auth", token, {
       httpOnly: true,
-      secure: false,            // ⛔️ en Render (HTTPS) debe ser true
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,

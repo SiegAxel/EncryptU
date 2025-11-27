@@ -4,6 +4,8 @@ import { verifyToken, type TokenPayload } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import TicketsPageClient from "./page-client";
 
+export const revalidate = 0;
+export const dynamic = "force-dynamic";
 export default async function UserTicketsPage() {
   const token = (await cookies()).get("auth")?.value;
   if (!token) redirect("/auth/login?next=/marketing/ticket");

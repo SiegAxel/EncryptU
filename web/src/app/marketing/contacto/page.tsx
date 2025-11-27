@@ -5,6 +5,7 @@ import Section from "@/components/layout/ui/Section";
 import Card from "@/components/layout/ui/Card";
 import Input from "@/components/layout/ui/Input";
 import Button from "@/components/layout/ui/Button";
+import FAQAccordion from "@/components/layout/FAQAccordion";
 
 type Form = {
   firstName: string;
@@ -51,6 +52,38 @@ function validate(form: Form) {
   }
   return errors;
 }
+
+// Datos de FAQ
+const faqItems = [
+  {
+    question: "¿Cómo descargo e instalo EncryptU?",
+    answer: "Puedes descargar el instalador desde nuestra página de instalación. El instalador es compatible con Windows 10 y 11, y la instalación toma menos de 2 minutos."
+  },
+  {
+    question: "¿Es seguro usar EncryptU?",
+    answer: "Sí, EncryptU utiliza cifrado AES-256 de grado militar y Argon2 para el hashing de contraseñas. Tu información se almacena localmente con cifrado de extremo a extremo."
+  },
+  {
+    question: "¿Puedo importar mis contraseñas desde otros gestores?",
+    answer: "En un futuro. EncryptU tiene planeado incorporar el importar automáticamente contraseñas desde navegadores populares como Chrome, Firefox, Edge y Safari, así como desde otros gestores de contraseñas en un futuro."
+  },
+  {
+    question: "¿Qué planes de suscripción ofrece EncryptU?",
+    answer: "Ofrecemos tres planes: Básico (gratuito), Estándar ($6/mes) para equipos pequeños, y Premium ($10/mes) para empresas. Visita nuestra página de planes para más detalles."
+  },
+  {
+    question: "¿Cómo funciona la sincronización entre dispositivos?",
+    answer: "La sincronización se realiza a través de nuestros servidores seguros usando cifrado de extremo a extremo. Solo tú tienes acceso a tus datos desencriptados."
+  },
+  {
+    question: "¿Qué hago si olvido mi contraseña maestra?",
+    answer: "Por seguridad, la contraseña maestra no se puede recuperar. Sin embargo, si aun tienes tu sesion activa, puedes enviar un ticket y recuperar el acceso."
+  },
+  {
+    question: "¿Ofrecen soporte técnico?",
+    answer: "Sí, nuestro equipo de soporte está disponible para ayudarte con instalación, configuración y resolución de problemas. Puedes contactarnos a través de este formulario."
+  }
+];
 
 // ───────── componente ─────────
 export default function ContactPage() {
@@ -156,7 +189,8 @@ export default function ContactPage() {
   return (
     <Section>
       <Container>
-        <div className="grid gap-6 md:grid-cols-2">
+        {/* Sección principal de contacto */}
+        <div className="grid gap-6 md:grid-cols-2 mb-12">
           <Card>
             <h1 className="mb-3 text-xl font-semibold">Contáctanos</h1>
             <form className="space-y-3" onSubmit={submit} noValidate>
@@ -262,7 +296,40 @@ export default function ContactPage() {
               {msg && <p className="text-sm text-slate-700">{msg}</p>}
             </form>
           </Card>
-          <img src="/negrito.png" className="mt-14"/>
+          <img src="/negrito.png" className="mt-60 ml-35"/>
+        </div>
+
+        {/* Sección de FAQ */}
+        <div className="mb-12">
+          <Card>
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Preguntas Frecuentes
+              </h2>
+              <p className="text-gray-600">
+                Encuentra respuestas rápidas a las consultas más comunes sobre EncryptU
+              </p>
+            </div>
+            <FAQAccordion items={faqItems} />
+          </Card>
+        </div>
+
+        {/* Sección del logo de EncryptU */}
+        <div className="text-center">
+          <Card className="inline-block">
+            <div className="flex flex-col items-center space-y-4">
+              <img
+                src="/negrito.png"
+                alt="EncryptU Logo"
+                className="h-16 w-auto"
+              />
+              <div>
+                <p className="text-sm text-gray-600">
+                  Gestión de contraseñas segura
+                </p>
+              </div>
+            </div>
+          </Card>
         </div>
       </Container>
     </Section>

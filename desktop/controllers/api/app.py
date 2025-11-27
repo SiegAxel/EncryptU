@@ -3,6 +3,7 @@ import io
 import secrets
 import datetime
 import re
+import requests
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import Optional, List, Dict, Any
@@ -20,7 +21,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-SECRET_KEY = secrets.token_hex(32)
+SECRET_KEY = (
+    os.getenv("AUTH_SECRET")
+    or os.getenv("SECRET_KEY")
+    or os.getenv("JWT_SECRET")
+)
+if not SECRET_KEY:
+    raise RuntimeError(
+        "AUTH_SECRET (o SECRET_KEY) no está configurado en el entorno del servidor."
+    )
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -84,12 +94,20 @@ class ContactTicket(Base):
 class TicketMessage(Base):
     __tablename__ = "TicketMessage"
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    ticket_id: Mapped[int] = mapped_column(ForeignKey("ContactTicket.id", ondelete="CASCADE"), index=True)
+    ticket_id: Mapped[int] = mapped_column(
+        "ticketId",
+        ForeignKey("ContactTicket.id", ondelete="CASCADE"),
+        index=True,
+    )
     author: Mapped[str] = mapped_column(String, default="user")
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     body: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        "createdAt",
+        DateTime,
+        default=datetime.datetime.utcnow,
+    )
     ticket = relationship("ContactTicket", back_populates="messages")
 
 # --- INICIALIZACIÓN DE LA APP ---
@@ -197,7 +215,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     expire = datetime.datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM) # type: ignore
 
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.query(User).filter(User.email == email).first()
@@ -212,7 +230,7 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas", headers={"WWW-Authenticate": "Bearer"})
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]) # type: ignore
         email: Optional[str] = payload.get("sub")
         if email is None: raise credentials_exception
     except JWTError:
@@ -302,6 +320,21 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    # Automatically assign free plan to new user via web server API
+    try:
+        web_api_url = os.getenv("WEB_API_URL", "http://localhost:3000")
+        subscription_response = requests.post(
+            f"{web_api_url}/api/subscriptions/create-free",
+            json={"userId": new_user.id},
+            timeout=5
+        )
+        if subscription_response.status_code != 200:
+            print(f"⚠️ Warning: Could not assign free plan to user {new_user.id}")
+        else:
+            print(f"✅ Free plan assigned to user {new_user.id}")
+    except Exception as e:
+        print(f"⚠️ Warning: Error assigning free plan to user {new_user.id}: {e}")
     
     return new_user
 
