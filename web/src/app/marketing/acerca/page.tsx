@@ -3,11 +3,11 @@ import Section from "@/components/layout/ui/Section";
 import Card from "@/components/layout/ui/Card";
 
 const team = [
-    { name: "Felipe Torres", role: "CEO", img:"/team/default.webp" },
-    { name: "Manuel Miqueles", role: "Analista de datos", img:"/team/default.webp" },
+    { name: "Felipe Torres", role: "CEO", img: "/team/felipe.jpeg" },
+    { name: "Manuel Miqueles", role: "Analista de datos", img: "/team/manuel.jpg" },
     { name: "Liam Ley", role: "QA Tester", img: "/team/venezolano.png" },
-    { name: "Nicolás Fernández", role: "Programador", img:"/team/default.webp" },
-    { name: "José Rojas", role: "Desarrollador", img:"/team/default.webp" },
+    { name: "Nicolás Fernández", role: "Programador", img: "/team/default.webp" },
+    { name: "José Rojas", role: "Desarrollador", img: "/team/pepe.png" },
 ];
 
 
