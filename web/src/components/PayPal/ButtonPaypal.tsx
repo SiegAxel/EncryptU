@@ -33,7 +33,7 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
         console.log(`🔄 Activating subscription directly for fake payment...`);
         
         try {
-          // Try to get PayPal subscription details to extract customer info
+          // Intentar obtener detalles de la suscripción de PayPal para extraer información del cliente
           let customerId = null;
           let amountPaid = null;
           let paymentDate = null;
@@ -47,7 +47,7 @@ const ButtonPaypal: React.FC<ButtonPaypalProps> = ({
             const randomNum = Math.floor(Math.random() * 99999999);
             customerId = `FAKE-${randomNum.toString().padStart(8, '0')}-TEST`;
             
-            // Use exact plan prices from planes page
+            // Usar precios exactos de los planes desde la página de planes
             const planPrices: { [key: number]: number } = {
               1: 0.00,    // Básico (Free)
               2: 6.00,    // Estándar

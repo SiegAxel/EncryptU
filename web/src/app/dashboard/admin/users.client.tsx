@@ -233,7 +233,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
         })}
       </div>
 
-      {/* Create User Modal */}
+      {/* Modal Crear Usuario */}
       <CreateUserModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}

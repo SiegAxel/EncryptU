@@ -98,7 +98,7 @@ export async function GET() {
   } catch (error) {
     console.error('Error fetching latest release:', error);
     
-    // Return fallback data
+    // Devolver datos de respaldo
     return NextResponse.json({
       success: false,
       error: 'Failed to fetch latest release',

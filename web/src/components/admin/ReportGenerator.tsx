@@ -71,7 +71,7 @@ export default function ReportGenerator({ type, title, description }: ReportGene
       // Get the blob from response
       const blob = await response.blob();
       
-      // Create download link
+      // Crear enlace de descarga
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.style.display = 'none';

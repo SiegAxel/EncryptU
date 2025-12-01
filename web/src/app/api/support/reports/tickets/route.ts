@@ -34,9 +34,9 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     const status = searchParams.get('status'); // open, in_progress, closed
     const priority = searchParams.get('priority'); // low, medium, high, urgent
-    const assignedTo = searchParams.get('assignedTo'); // user ID or 'me'
+    const assignedTo = searchParams.get('assignedTo'); // ID de usuario o 'me'
 
-    // Build where clause
+    // Construir cláusula WHERE
     const whereClause: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
     
     if (startDate || endDate) {
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
         priority: 'medium', // Default priority as it's not in the schema
         createdAt: ticket.createdAt,
         updatedAt: lastMessage?.createdAt || ticket.createdAt,
-        userId: ticket.email, // Use email as identifier since we don't have user ID
+        userId: ticket.email, // Usar email como identificador ya que no tenemos ID de usuario
         userEmail: ticket.email,
         assignedTo: ticket.assignedTo?.name,
         resolutionTime

@@ -80,7 +80,7 @@ export default function InstalacionPage() {
           )}
         </div>
 
-        {/* Main Download Section */}
+        {/* Sección principal de descarga */}
         <div className="grid gap-8 lg:grid-cols-2 mb-12">
           {/* Download Button */}
           <div className="flex justify-center lg:justify-end">

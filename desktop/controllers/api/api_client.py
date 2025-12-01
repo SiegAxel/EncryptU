@@ -289,7 +289,7 @@ class APIClient:
         """Obtiene la información de suscripción del usuario actual."""
         try:
             headers = self._get_auth_headers()
-            # Fix subscription endpoint to use /api/subscriptions
+            # Corregir endpoint de suscripción para usar /api/subscriptions
             response = self.session.get(f"{self.base_url}/api/subscriptions", headers=headers, timeout=20)
             if response.status_code == 401:
                 return None

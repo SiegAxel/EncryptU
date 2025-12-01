@@ -77,7 +77,7 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
     // Hash password with Argon2
     const hashedPassword = await hashPassword(password);
 
-    // Create user
+    // Crear usuario
     const user = await prisma.user.create({
       data: {
         name: name.trim(),

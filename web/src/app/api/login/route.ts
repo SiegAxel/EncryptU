@@ -52,7 +52,7 @@ export async function POST(req: Request): Promise<NextResponse<ApiResponse>> {
       ok: true,
       role: user.role as Role,
       redirect: redirectMap[user.role as Role] ?? "/",
-      access_token: token, // Return token for desktop app compatibility
+      access_token: token, // Devolver token para compatibilidad con la app de escritorio
     });
 
     res.cookies.set("auth", token, {

@@ -109,7 +109,7 @@ export async function POST(req: Request) {
         nextBillingDate: updatedSubscription.nextBillingDate
       });
     } else {
-      // Create new subscription with all PayPal payment details
+      // Crear nueva suscripción con todos los detalles de pago de PayPal
       const newSubscription = await prisma.userSubscription.create({
         data: {
           userId: user.id,

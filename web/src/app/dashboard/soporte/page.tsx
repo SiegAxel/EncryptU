@@ -233,7 +233,7 @@ export default function SoportePage() {
 
         {/* Chat */}
         <div className="ticket-chat overflow-hidden">
-          {/* Header chat */}
+          {/* Encabezado del chat */}
           <div className="ticket-header flex items-center justify-between gap-3 px-4 py-3 rounded-t-[1.1rem]">
             {activeTicket ? (
               <>

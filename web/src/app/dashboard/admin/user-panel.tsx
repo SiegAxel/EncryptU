@@ -84,7 +84,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
           />
         </div>
 
-        {/* Create User Button */}
+        {/* Botón Crear Usuario */}
         <div className="mt-4">
           <button
             onClick={() => setShowCreateModal(true)}
@@ -181,7 +181,7 @@ export default function AdminUsersPanel({ initialUsers }: { initialUsers: User[]
         )}
       </div>
 
-      {/* Create User Modal */}
+      {/* Modal Crear Usuario */}
       <CreateUserModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}

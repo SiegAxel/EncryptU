@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       });
       console.log(`🔄 Updated existing subscription ${existingSubscription.id} to plan ${plan.name}`);
     } else {
-      // Create first subscription if none exists
+      // Crear la primera suscripción si no existe
       pendingSubscription = await prisma.userSubscription.create({
         data: {
           userId: user.id,

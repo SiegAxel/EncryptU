@@ -117,7 +117,7 @@ export default function CreateUserModal({ isOpen, onClose, onUserCreated }: Crea
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        {/* Header */}
+        {/* Encabezado */}
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-semibold text-gray-900">Crear Nuevo Usuario</h2>
           <button

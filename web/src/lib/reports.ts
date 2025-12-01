@@ -111,7 +111,7 @@ export class PDFReportGenerator {
     const totalWidth = columnWidths.reduce((sum, width) => sum + width, 0);
     this.checkPageBreak(headerHeight + (data.length * rowHeight));
 
-    // Headers
+    // Encabezados
     let xPosition = this.margin;
     headers.forEach((header, index) => {
       this.page.drawText(header, {
@@ -124,7 +124,7 @@ export class PDFReportGenerator {
       xPosition += columnWidths[index];
     });
 
-    // Header background
+    // Fondo del encabezado
     this.page.drawRectangle({
       x: this.margin,
       y: this.yPosition - headerHeight,
@@ -222,7 +222,7 @@ export class ExcelReportGenerator {
   async generateUsersReport(users: UserReportData[]) {
     const worksheet = this.workbook.addWorksheet('Reporte de Usuarios');
 
-    // Headers
+    // Encabezados
     worksheet.columns = [
       { header: 'ID', key: 'id', width: 10 },
       { header: 'Email', key: 'email', width: 30 },
@@ -269,7 +269,7 @@ export class ExcelReportGenerator {
   async generateTicketsReport(tickets: TicketReportData[]) {
     const worksheet = this.workbook.addWorksheet('Tickets Report');
 
-    // Headers
+    // Encabezados
     worksheet.columns = [
       { header: 'Subject', key: 'subject', width: 40 },
       { header: 'Status', key: 'status', width: 15 },

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate');
     // const role = searchParams.get('role'); // admin, soporte, usuario - commented out as it's not used
 
-    // Build where clause
+    // Construir cláusula WHERE
     const whereClause: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
     
     if (startDate || endDate) {
@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
     const reportData: UserReportData[] = users.map(user => ({
       id: user.id, // Now matches number type
       email: user.email,
-      name: user.name, // Use actual name field from User model
-      role: user.role, // Use actual role field from User model
+      name: user.name, // Usar el campo de nombre real del modelo User
+      role: user.role, // Usar el campo role real del modelo User
       createdAt: user.createdAt,
       lastLogin: undefined, // Not available in current schema
       isActive: true, // Not available in current schema, assume all users are active

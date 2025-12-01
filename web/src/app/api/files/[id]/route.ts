@@ -65,7 +65,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       );
     }
 
-    // Return the file content
+    // Devolver el contenido del archivo
     return new Response(file.content, {
       status: 200,
       headers: {

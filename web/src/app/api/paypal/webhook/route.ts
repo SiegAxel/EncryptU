@@ -156,7 +156,7 @@ export async function POST(req: Request) {
       stack: error instanceof Error ? error.stack : undefined
     });
     
-    // Return 200 anyway to prevent retries, but log the error
+    // Devolver 200 de todas formas para evitar reintentos, pero registrar el error
     return NextResponse.json({
       ok: false,
       error: "Webhook processing failed",
@@ -288,7 +288,7 @@ async function handleSubscriptionCreated(resource: PayPalSubscriptionResource) {
       console.log(`   - Timing issue (pre-authorize too long ago)`);
       console.log(`   - Database cleanup removed the record`);
       
-      // Create a new subscription record if we have user info
+      // Crear un nuevo registro de suscripción si tenemos información del usuario
       if (resource.subscriber?.email_address) {
         const user = await prisma.user.findUnique({
           where: { email: resource.subscriber.email_address.toLowerCase() }
@@ -528,7 +528,7 @@ async function handlePaymentCompleted(resource: PayPalPaymentSaleResource) {
     } else {
       console.warn(`⚠️ No subscription found for PayPal subscription ID: ${subscriptionId}`);
       
-      // Fallback: Try to find pending subscription by user email or plan
+      // Alternativa: intentar encontrar suscripción pendiente por email de usuario o por plan
       // This handles cases where the subscription ID wasn't saved yet
       console.log(`🔍 Attempting to find subscription by other criteria...`);
       

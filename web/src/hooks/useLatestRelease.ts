@@ -41,7 +41,7 @@ export function useLatestRelease(): UseLatestReleaseReturn {
         setData(result.data);
       } else {
         setError(result.error || 'Failed to fetch release data');
-        // Use fallback data if available
+        // Usar datos de respaldo si están disponibles
         if (result.fallback) {
           setData(result.fallback);
         }

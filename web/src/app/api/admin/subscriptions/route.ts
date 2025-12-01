@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 
     const skip = (page - 1) * limit;
 
-    // Build where clause - eslint disabled for dynamic query building
+    // Construir cláusula WHERE - eslint deshabilitado para construcción dinámica de consultas
     const where: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
     
     if (status && status !== "all") {

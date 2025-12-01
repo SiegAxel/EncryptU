@@ -58,7 +58,7 @@ export async function POST(req: Request) {
     // Extract filename from the File object
     const filename = file.name || "encrypted_file";
 
-    // Create file record
+    // Crear registro de archivo
     const fileRecord = await prisma.file.create({
       data: {
         ownerId: user.id,

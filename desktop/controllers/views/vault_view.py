@@ -519,7 +519,7 @@ class VaultView(BaseView):
 
         # If not cached, try to download it
         try:
-            # Use Google service to get favicon in good resolution
+            # Usar servicio de Google para obtener el favicon en buena resolución
             url = f"https://www.google.com/s2/favicons?domain={domain}&sz=64"
             
             # Short timeout to not block UI
@@ -530,7 +530,7 @@ class VaultView(BaseView):
                 image_data = response.content
                 pil_icon = Image.open(io.BytesIO(image_data)).convert("RGBA")
                 
-                # Create CTkImage
+                # Crear CTkImage
                 tk_icon = ctk.CTkImage(
                     light_image=pil_icon,
                     dark_image=pil_icon,

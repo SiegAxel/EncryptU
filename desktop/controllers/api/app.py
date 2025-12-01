@@ -120,7 +120,7 @@ def ensure_contact_ticket_columns() -> None:
         default_schema = getattr(inspector, "default_schema_name", None)
         if default_schema:
             schema_candidates.append(default_schema)
-        schema_candidates.append(None)  # fallback search without schema
+        schema_candidates.append(None)  # búsqueda alternativa sin esquema
 
         for schema_name in schema_candidates:
             for candidate in ("ContactTicket"):
