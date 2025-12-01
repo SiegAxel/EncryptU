@@ -126,7 +126,7 @@ class BaseView(ctk.CTkFrame):
         modal = ctk.CTkToplevel(host)
         modal.title(title)
         modal.geometry(f"{width}x{height}")
-        modal.resizable(False, False)
+        modal.resizable(True, True)
         modal.configure(fg_color=COLOR_BACKGROUND)
         if transient_master:
             modal.transient(transient_master)

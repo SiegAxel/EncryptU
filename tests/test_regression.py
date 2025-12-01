@@ -810,17 +810,12 @@ class TestLowSeverityRegression:
         
         for element, tooltip in tooltip_texts.items():
             tooltips_checked += 1
-            # Check tooltip is informative
             if len(tooltip) < 18:
                 issues_found += 1
                 print(f"Tooltip muy corto en '{element}': '{tooltip}'")
             assert len(tooltip) >= 18, f"Tooltip for {element} too short: '{tooltip}'"
-            
-            # Just verify it's a valid non-empty string
             is_valid = len(tooltip.strip()) > 0
             assert is_valid, f"Tooltip for {element} is empty"
-            
-            # Check for proper Spanish - at least one common Spanish word
             spanish_words = ["para", "que", "esta", "una", "tu", "el", "de", "o", "y", "la", "este"]
             has_spanish = any(word in tooltip.lower() for word in spanish_words)
             if not has_spanish:
