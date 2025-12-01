@@ -922,7 +922,10 @@ class SupportView(BaseView):
             height=720,
         )
 
-        info_card = ctk.CTkFrame(body, fg_color=COLOR_CLIENT, corner_radius=18)
+        scroll = ctk.CTkScrollableFrame(body, fg_color="transparent")
+        scroll.pack(fill="both", expand=True)
+
+        info_card = ctk.CTkFrame(scroll, fg_color=COLOR_CLIENT, corner_radius=18)
         info_card.pack(fill="x", pady=(0, 18))
         ctk.CTkLabel(
             info_card,
@@ -933,7 +936,7 @@ class SupportView(BaseView):
             justify="left",
         ).pack(anchor="w", padx=20, pady=18)
 
-        form = ctk.CTkFrame(body, fg_color="transparent")
+        form = ctk.CTkFrame(scroll, fg_color="transparent")
         form.pack(fill="both", expand=True)
 
         def add_entry(parent, *, label_text: str, placeholder: str, **entry_kwargs) -> ctk.CTkEntry:
@@ -1021,7 +1024,7 @@ class SupportView(BaseView):
         status_label = ctk.CTkLabel(form, text="", font=self.fonts["small"], text_color=COLOR_TEXT_MUTED)
         status_label.pack(anchor="w", pady=(4, 0))
 
-        button_row = ctk.CTkFrame(body, fg_color="transparent")
+        button_row = ctk.CTkFrame(scroll, fg_color="transparent")
         button_row.pack(fill="x", pady=(12, 0))
 
         cancel_button = ctk.CTkButton(
